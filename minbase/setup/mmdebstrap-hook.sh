@@ -38,15 +38,34 @@ fi
 # fix script permissions (if broken)
 find /usr/local/bin -type f -exec chmod 0755 {} +
 
+# adjust bootstrap script
+f='/usr/local/bin/minbase-initial.sh'
+if [ -f "$f" ] ; then
+	chmod -x "$f"
+	mv "$f" /usr/local/
+fi
+
 # remove "keep" files (if any)
 find /usr/local/ -name .keep -type f -delete
 
 # remove docs (if any)
 find /usr/local -name '*.md' -type f -delete
 
-# rename apt/dpkg configuration
-mv /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
-mv /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
+# strip apt keyrings from sources.list:
+sed -i -E 's/ \[[^]]+]//' /etc/apt/sources.list
+
+# rename/move apt&dpkg configuration
+# (to be copied back by minbase-initial.sh)
+renmov() {
+	[ -f "$1" ]
+	mkdir -p "$(dirname "$2")"
+	mv "$1" "$2"
+}
+renmov /etc/apt/apt.conf.d/99mmdebstrap  /usr/local/etc/apt/apt.conf.d/container
+renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /usr/local/etc/dpkg/dpkg.cfg.d/container
+
+# source/run bootstrap script
+. /usr/local/minbase-initial.sh
 
 ## approach to minimize manually installed packages list
 w=$(mktemp -d) ; : "${w:?}"
