@@ -1,0 +1,27 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2022-2023, Konstantin Demin
+
+set -f
+
+t=$(mktemp)
+if [ -z "$t" ] ; then
+	# unable to create temporary file?
+	# no output in case of error
+	exec "$@" </dev/null >/dev/null 2>/dev/null
+fi
+
+( "$@" ; ) </dev/null >"$t" 2>"$t"
+
+r=$?
+if [ $r != 0 ] ; then
+	env printf '# command: %q\n' "$@"
+	echo "# return code: $r"
+	if [ -s "$t" ] ; then
+		echo '# output:'
+		sed -E 's/^(.+)$/#>| \1/;s/^$/#=|/' < "$t"
+	fi
+fi 1>&2
+
+rm -f "$t"
+exit $r

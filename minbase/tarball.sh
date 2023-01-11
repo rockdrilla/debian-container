@@ -49,6 +49,7 @@ mmdebstrap \
   --components="${comps}" \
   --aptopt="${dir0}/setup/apt.conf" \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
+  --customize-hook="sync-in '${dir0}/scripts' /usr/local/bin" \
   --customize-hook="'${dir0}/setup/mmdebstrap-hook.sh' \"\$1\" ${distro} ${suite} ${uid} ${gid}" \
   "${suite}" "${tarball_tmp}" || true
 

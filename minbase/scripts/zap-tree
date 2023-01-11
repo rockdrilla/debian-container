@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -f
+
+if [ -z "${ZAP_TREE}" ] ; then
+	export ZAP_TREE=1
+
+	if [ -z "${NPROC}" ] ; then
+		NPROC=$(nproc)
+		NPROC=$(( NPROC + (NPROC + 1)/2 ))
+	fi
+
+	for i ; do
+		case "$i" in
+		*\** | *\?*)
+			set +f
+			for k in $i ; do
+				[ -d "$k" ] || continue
+				find "$k" -mindepth 1 -maxdepth 1 -type d -print0
+			done
+			set -f
+		;;
+		*)
+			[ -d "$i" ] || continue
+			find "$i" -mindepth 1 -maxdepth 1 -type d -print0
+		;;
+		esac
+	done \
+	| sort -zuV \
+	| xargs -0 -r -n 1 -P "${NPROC}" "$0"
+
+	exit
+fi
+
+find_fast() {
+	find "$@" -printf . -quit | grep -Fq .
+}
+
+for i ; do
+	[ -d "$i" ] || continue
+	find_fast "$i" ! -type d || rm -rf "$i"
+done

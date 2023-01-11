@@ -35,6 +35,9 @@ if [ -d "$1" ] ; then
 	exit
 fi
 
+# fix script permissions (if broken)
+find /usr/local/bin -type f -exec chmod 0755 {} +
+
 # rename apt/dpkg configuration
 mv /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
 mv /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container

@@ -1,0 +1,52 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -ef
+
+find_fresh_ts() {
+	{
+		find "$@" -exec stat -c '%Y' '{}' '+' 2>/dev/null || :
+		# duck and cover!
+		echo 1
+	} | sort -rn | head -n 1
+}
+
+_apt_update() {
+	# update package lists; may fail sometimes,
+	# e.g. soon-to-release channels like Debian "bullseye" @ 22.04.2021
+
+	if [ $# = 0 ] ; then
+		# (wannabe) smart package list update
+		ts_sources=$(find_fresh_ts /etc/apt -follow -name '*.list' -type f)
+		ts_lists=$(find_fresh_ts /var/lib/apt/lists -maxdepth 1 -name '*_Packages' -type f)
+		if [ ${ts_sources} -gt ${ts_lists} ] ; then
+			quiet apt-env apt-get -y update
+		fi
+	else
+		apt-env apt-get "$@" update
+	fi
+}
+
+_dpkg_avail_hack() {
+	set +e
+	release=$( ( . /etc/os-release ; printf '%s' "${VERSION_CODENAME}" ; ) )
+	set -e
+	f="${DPKG_ADMINDIR:-/var/lib/dpkg}/available"
+	# if ${release} is empty then we're on Debian sid or so :)
+	case "${release}" in
+	stretch|buster|bionic|focal)
+		# ref: https://unix.stackexchange.com/a/271387/49297
+		if [ -s "$f" ] ; then
+			return
+		fi
+		quiet /usr/lib/dpkg/methods/apt/update "${DPKG_ADMINDIR:-/var/lib/dpkg}" apt apt
+	;;
+	*)
+		touch "$f"
+	;;
+	esac
+}
+
+_apt_update "$@"
+_dpkg_avail_hack

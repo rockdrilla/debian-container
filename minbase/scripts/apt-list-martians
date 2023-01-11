@@ -1,0 +1,29 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -f
+
+_list_martians() {
+	dpkg-query --show --showformat='${Package}:${Architecture} ${Version} status="${db:Status-Abbrev}"\n' \
+	| grep -Ev '"ii "$' \
+	| sort -V
+}
+
+t=$(mktemp)
+if [ -z "$t" ] ; then
+	# unable to create temporary file?
+	# produce "raw" output
+	_list_martians
+	exit 0
+fi
+
+_list_martians > "$t"
+if [ -s "$t" ] ; then
+	if [ -t 1 ] || [ -t 2 ] ; then
+		echo '# "martian" packages (unusual state):' 1>&2
+	fi
+	cat "$t"
+fi
+
+rm -f "$t"

@@ -1,0 +1,104 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2022-2023, Konstantin Demin
+
+set -ef
+
+# internal methods
+case "$1" in
+--begin)
+	# begin "session"
+	shift
+
+	w=$(mktemp -d) ; : "${w:?}"
+
+	apt-list-installed > "$w/installed.0"
+	apt-list-manual    > "$w/manual.0"
+
+	if [ -z "$*" ] ; then
+		echo 'nothing was selected as build-deps' 1>&2
+	else
+		if ! ( apt-install "$@" ; ) </dev/null 1>&2 ; then
+			rm -rf "$w"
+			exit 1
+		fi
+
+		apt-list-installed > "$w/installed.1"
+		apt-list-manual    > "$w/manual.1"
+	fi
+
+	echo "$w"
+	exit 0
+;;
+--end)
+	# end "session"
+	shift
+
+	w="$1"
+
+	ok=
+	while : ; do
+		[ -d "$w" ]             || break
+		[ -s "$w/installed.0" ] || break
+		[ -s "$w/manual.0" ]    || break
+		ok=1 ; break
+	done
+	if [ -z "${ok}" ] ; then
+		echo 'wrong state!' 1>&2
+		exit 1
+	fi
+
+	x="$w/keep"
+	if [ -s "$x" ] ; then
+		set +e
+		grep -Fxv -f "$w/installed.0" "$x" > "$x.manual"
+		set -e
+		xargs -r quiet apt-mark manual < "$x.manual"
+	fi
+
+	apt-list-installed > "$w/installed.2"
+	apt-list-manual    > "$w/manual.2"
+
+	set +e
+
+	x="$w/installed.1"
+	if ! [ -s "$x" ] ; then x="$w/installed.2" ; fi
+	grep -Fxv -f "$w/installed.0" \
+	"$x" \
+	> "$w/installed.diff"
+
+	x="$w/manual.1"
+	if ! [ -s "$x" ] ; then x="$w/manual.0" ; fi
+	grep -Fxv -f "$x" \
+	"$w/manual.2" \
+	> "$w/manual.diff"
+
+	if [ -s "$w/manual.diff" ] ; then
+		grep -Fxv -f "$w/manual.diff" \
+		"$w/installed.diff"
+	else
+		cat "$w/installed.diff"
+	fi \
+	> "$w/pkg.remove"
+
+	set -e
+
+	xargs -r apt-env apt-get -y purge < "$w/pkg.remove" 1>&2
+
+	rm -rf "$w"
+	exit 0
+;;
+esac
+
+w=$("$0" --begin ${APT_WRAP_DEPS})
+
+export APT_WRAP_KEEP="$w/keep"
+: > "${APT_WRAP_KEEP}"
+
+set +e
+"$@"
+r=$?
+
+"$0" --end "$w"
+
+exit $r
