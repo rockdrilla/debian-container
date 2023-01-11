@@ -42,6 +42,39 @@ find /usr/local/bin -type f -exec chmod 0755 {} +
 mv /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
 mv /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
 
+## approach to minimize manually installed packages list
+w=$(mktemp -d) ; : "${w:?}"
+
+dpkg-query --show --showformat='${db:Status-Abbrev}|${Essential}|${binary:Package}|${Version}\n' \
+> "$w/all"
+
+mawk -F '|' '{ if ($1 ~ "^[hi]i ") print $0;}' \
+< "$w/all" \
+> "$w/good"
+
+mawk -F '|' '{ if ($2 == "yes") print $3;}' \
+< "$w/good" \
+| cut -d : -f 1 \
+| sort -V \
+> "$w/essential"
+
+apt-mark showmanual \
+| cut -d : -f 1 \
+| sort -V \
+> "$w/manual"
+
+grep -Fvx -f "$w/essential" \
+< "$w/manual" \
+> "$w/manual.regular"
+
+# apt is manually installed (by mmdebstrap but it doesn't matter)
+echo apt \
+| tr -s '[:space:]' '\n' \
+| grep -Fvx -f - "$w/manual.regular" \
+| xargs -r quiet apt-mark auto
+
+rm -rf "$w"
+
 # fix ownership:
 # mmdebstrap's actions 'sync-in' and 'copy-in' preserves source user/group
 fix_ownership() {
