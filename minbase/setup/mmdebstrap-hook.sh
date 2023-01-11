@@ -38,6 +38,12 @@ fi
 # fix script permissions (if broken)
 find /usr/local/bin -type f -exec chmod 0755 {} +
 
+# remove "keep" files (if any)
+find /usr/local/ -name .keep -type f -delete
+
+# remove docs (if any)
+find /usr/local -name '*.md' -type f -delete
+
 # rename apt/dpkg configuration
 mv /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
 mv /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
