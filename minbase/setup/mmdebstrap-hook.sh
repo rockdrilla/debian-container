@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# (c) 2021-2022, Konstantin Demin
+# (c) 2021-2023, Konstantin Demin
 
 # script parameters:
 # $1 - chroot path
@@ -26,11 +26,11 @@ if [ -d "$1" ] ; then
 	EOF
 
 	# copy self inside chroot
-	c='/root/mmdebstrap-setup.sh'
-	cp "$0" "$1$c"
+	c="/${0##*/}"
+	cp -a "$0" "$1$c"
 
 	# reexec within chroot
-	chroot "$1" sh "$c" "$@"
+	chroot "$1" "$c" "$@"
 	rm "$1$c"
 	exit
 fi

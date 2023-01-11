@@ -17,7 +17,10 @@ ts=
 
 image=$(to_lower "${image}")
 
-"${dir0}/tarball.sh" "${distro}" "${suite}" "${tarball}"
+"${dir0}/tarball.sh" "${distro}" "${suite}" "${tarball}" || {
+	rm -f "${tarball}"
+	exit 1
+}
 
 sha256() { sha256sum -b "$1" | sed -En '/^([[:xdigit:]]+).*$/{s//\L\1/;p;}' ; }
 
