@@ -5,4 +5,4 @@
 set -ef
 
 apt-update ${APT_OPTS}
-apt-env apt-get -y ${APT_OPTS} ${APT_METHOD:-install} "$@"
+apt-env apt-get ${APT_OPTS:+ -y } ${APT_OPTS:- -yqq } ${APT_METHOD:-install} "$@"
