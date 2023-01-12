@@ -1,0 +1,245 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2020-2023, Konstantin Demin
+
+set -ef
+
+tar_opts='--blocking-factor=1 --format=gnu --no-selinux --no-xattrs --sparse'
+
+unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE
+unset LC_MONETARY LC_MESSAGES LC_PAPER LC_NAME LC_ADDRESS
+unset LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
+unset POSIXLY_CORRECT TAR_OPTIONS
+
+export LC_ALL=C.UTF-8
+export LANG=C.UTF8
+
+# debian package version handling
+
+# match pattern "epoch:version-revision"
+match0='([0-9]+):([0-9][0-9a-zA-Z.+~:-]*)-([0-9a-zA-Z+.~]+)'
+# match pattern "epoch:native_version"
+match1='([0-9]+):([0-9][0-9a-zA-Z.+~:]*)'
+# match pattern "version-revision"
+match2='([0-9][0-9a-zA-Z.+~-]*)-([0-9a-zA-Z+.~]+)'
+# match pattern "native_version"
+match3='([0-9][0-9a-zA-Z.+~]*)'
+# replace pattern "epoch|upstream version|revision or native_version"
+replace='\2\5|\3\7|\4\6\8\9'
+# sed script to split package version into kind of 'list'
+pkg_ver_to_list='/^('${match0}'|'${match1}'|'${match2}'|'${match3}')$/{s##'${replace}'#;p;}'
+
+have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+
+ro_git() { GIT_OPTIONAL_LOCKS=0 command git "$@" ; }
+
+have_git=
+if have_cmd git ; then
+	inside_git=$(ro_git rev-parse --is-inside-work-tree || echo false)
+	if [ "${inside_git}" = true ] ; then
+		have_git=1
+	fi
+fi
+
+# respect env
+[ "${DEB_SRC_EXPORT_GIT:-1}" = 1 ] || have_git=
+
+want_gpg=
+if [ -n "${DEB_SIGN_KEYID}" ] ; then
+	want_gpg=1
+fi
+if [ -n "${have_git}" ] ; then
+	if ro_git config --get commit.gpgsign | grep -Fxq false ; then
+		want_gpg=
+	fi
+fi
+
+# respect env
+[ "${DEB_SRC_EXPORT_GNUPG:-1}" = 1 ] || want_gpg=
+
+SIGN_OPT=
+if [ -n "${want_gpg}" ] ; then
+	sign_file() { gpg-sign-file "$@"; }
+else
+	SIGN_OPT='--no-sign'
+	sign_file() { :; }
+
+	unset DEB_SIGN_KEYID DEBEMAIL DEBFULLNAME GNUPGHOME
+	unset GPG_AGENT_INFO GPG_TTY PINENTRY_USER_DATA
+	unset SSH_AGENT_PID SSH_AUTH_SOCK
+fi
+
+deb_folder='debian'
+if [ -z "$2" ] ; then
+	if [ -n "${have_git}" ] ; then
+		cd "$(ro_git rev-parse --show-toplevel)"
+	fi
+else
+	deb_folder="$2"
+fi
+
+# naive verification of debian/ folder
+[ -d "${deb_folder}" ]
+[ -s "${deb_folder}/rules" ]
+[ -s "${deb_folder}/changelog" ]
+
+# retrieve only desired fields from dpkg-parsechangelog output
+C=$(mktemp)
+if ! dpkg-parsechangelog -l "${deb_folder}/changelog" > "$C" 2>/dev/null ; then
+	rm -f -- "$C"
+	exit 1
+fi
+
+pkg_name=$(deb822-get-field Source "$C")
+pkg_ver=$(deb822-get-field Version "$C")
+pkg_ts=$(deb822-get-field Timestamp "$C")
+
+rm -f -- "$C" ; unset C
+
+export SOURCE_DATE_EPOCH=${pkg_ts}
+
+pkg_ver_list=$(echo "${pkg_ver}" | sed -En "${pkg_ver_to_list}")
+[ -n "${pkg_ver_list}" ]
+
+IFS='|' read ver_epoch ver_upstream ver_revision <<EOF
+${pkg_ver_list}
+EOF
+
+T="$1"
+if [ -z "$T" ] ; then
+	T=$(mktemp -d) ; : "${T:?}"
+	echo "output directory (auto-created): $T" 1>&2
+else
+	echo "output directory: $T" 1>&2
+	if [ -d "$T" ] ; then
+		echo "output directory already exists!" 1>&2
+	fi
+	mkdir -p "$T"
+fi
+
+if [ -z "${ver_upstream}" ] ; then
+	# native package
+	# do as simple as possible
+	W="$T/${pkg_name}-${ver_revision}" ; mkdir -p "$W"
+	echo "working directory (as subdirectory of output): $W" 1>&2
+else
+	# regular package
+	# do some tricks! :)
+	W=$(mktemp -d)
+	echo "working directory (auto-created): $W" 1>&2
+fi
+
+_cleanup() {
+	cd /
+	rm -rf -- "$W" ; rm -rf -- "$T"
+}
+
+_finish_export() {
+	cd "$T" ; rm -rf -- "$W"
+	echo "index of $T" 1>&2
+	ls -lhgG 1>&2
+}
+
+# grab only Debian related files
+mkdir "$W/debian"
+
+if [ -n "${have_git}" ] ; then
+	git -C "${deb_folder}" ls-files -z
+else
+	find "${deb_folder}/" -mindepth 1 -maxdepth 1 -printf '%P\0'
+fi \
+| tar -C "${deb_folder}" ${tar_opts} --null -T - -cf - \
+| tar -C "$W/debian" ${tar_opts} -xf -
+
+chmod 755 "$W/debian/rules"
+
+if [ -z "${ver_upstream}" ] ; then
+	# native package
+	# grab all the things (except VCS )
+	(
+		# if directory layout is plain (or squashed) and directory name is not 'debian' - do nothing
+		[ "${deb_folder##*/}" = 'debian' ] || exit 0
+
+		cd "${deb_folder}/.."
+		if [ -n "${have_git}" ] ; then
+			git ls-files -z
+		else
+			find ./ -mindepth 1 -maxdepth 1 -printf '%P\0'
+		fi \
+		| grep -zEv '^(debian|\.git)(/|$)' \
+		| tar ${tar_opts} --null -T - -cf - \
+		| tar -C "$W" -xf -
+	) || { _cleanup ; exit 1 ; }
+fi
+
+# prepare/warmup GnuPG
+# if signing is disabled then it does nothing with files or GnuPG
+date > "$T/t" ; sign_file "$T/t" ; rm -f "$T/t"
+
+export TAR_OPTIONS="${tar_opts} --mtime @${pkg_ts} --sort=name --numeric-owner --owner=0 --group=0 --exclude-vcs"
+
+if [ -z "${ver_upstream}" ] ; then
+	# native package
+	# do as simple as possible
+	cd "$W"
+
+	dpkg-buildpackage --build=source -z9 -d -nc ${SIGN_OPT} || { _cleanup ; exit 1 ; }
+
+	_finish_export
+	exit
+fi
+
+# regular package
+# here goes magic and dragons
+
+# shortcuts
+pnu="${pkg_name}_${ver_upstream}"
+pnd="${pnu}-${ver_revision}"
+pna="${pnd}_source"
+
+# try copy upstream source tarball(s) (if any)
+(
+	cd "${deb_folder}/.."
+	# main tarball(s)
+	find ./ -mindepth 1 -maxdepth 1 -name "${pnu}.orig.*" \
+	  -exec cp -aL -t "$T" {} +
+	# extra tarball(s)
+	find ./ -mindepth 1 -maxdepth 1 -name "${pnu}.orig-*.*" \
+	  -exec cp -aL -t "$T" {} +
+)
+
+cd "$W"
+
+(
+	find_fast() {
+		find "$@" -printf . -quit | grep -Fq .
+	}
+
+	# verify that we have upstream tarball
+	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig*" -type f || {
+		uscan --destdir "$T" --download-current-version
+	}
+
+	# generate debian/control (if missing)
+	set +e
+	[ -f debian/control ] || debian/rules debian/control
+	[ -f debian/control ] || debian/rules clean
+	set -e
+	[ -f debian/control ]
+
+	tar -cf - debian | xz -9 > "$T/${pnd}.debian.tar.xz"
+
+	# hackish way to generate .dsc with minimal overhead
+	dpkg-source-raw "$T"
+
+	sign_file "$T/${pnd}.dsc"
+
+	dpkg-genbuildinfo --build=source -u"$T" -O > "$T/${pna}.buildinfo"
+	sign_file "$T/${pna}.buildinfo"
+
+	dpkg-genchanges --build=source -u"$T" > "$T/${pna}.changes"
+	sign_file "$T/${pna}.changes"
+
+	_finish_export
+	exit
+) || { _cleanup ; exit 1 ; }

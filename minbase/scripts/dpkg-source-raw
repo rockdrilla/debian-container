@@ -1,0 +1,264 @@
+#!/usr/bin/perl
+#
+# dpkg-source-raw: "hackish" script based on original dpkg-source
+# repo: https://git.dpkg.org/git/dpkg/dpkg.git
+# synced commit: d7a1dfdfc24d19e7ed6444490fe146f06f928042
+# file: scripts/dpkg-source.pl
+#
+# Copyright © 1996 Ian Jackson <ijackson@chiark.greenend.org.uk>
+# Copyright © 1997 Klee Dienes <klee@debian.org>
+# Copyright © 1999-2003 Wichert Akkerman <wakkerma@debian.org>
+# Copyright © 1999 Ben Collins <bcollins@debian.org>
+# Copyright © 2000-2003 Adam Heath <doogie@debian.org>
+# Copyright © 2005 Brendan O'Dea <bod@debian.org>
+# Copyright © 2006-2008 Frank Lichtenheld <djpig@debian.org>
+# Copyright © 2006-2009,2012 Guillem Jover <guillem@debian.org>
+# Copyright © 2008-2011 Raphaël Hertzog <hertzog@debian.org>
+# Copyright © 2020-2023 Konstantin Demin <rockdrilla@gmail.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+use strict;
+use warnings;
+
+use List::Util qw(any none);
+use Cwd;
+use File::Basename;
+use File::Spec;
+
+use Dpkg ();
+use Dpkg::ErrorHandling;
+use Dpkg::Arch qw(:operators);
+use Dpkg::Deps;
+use Dpkg::Compression;
+use Dpkg::Conf;
+use Dpkg::Control::Info;
+use Dpkg::Control::Tests;
+use Dpkg::Control::Fields;
+use Dpkg::Substvars;
+use Dpkg::Version;
+use Dpkg::Vars;
+use Dpkg::Changelog::Parse;
+use Dpkg::Source::Format;
+use Dpkg::Source::Package;
+use Dpkg::Vendor;
+
+my $build_format;
+my %options = ();
+
+my $substvars = Dpkg::Substvars->new();
+
+my @options;
+
+$options{origtardir} = $ARGV[0];
+$options{changelog_file} = 'debian/changelog';
+
+my %ch_options = (file => $options{changelog_file});
+my $changelog = changelog_parse(%ch_options);
+my $control = Dpkg::Control::Info->new('debian/control');
+
+# <https://reproducible-builds.org/specs/source-date-epoch/>
+$ENV{SOURCE_DATE_EPOCH} ||= $changelog->{timestamp} || time;
+
+# Select the format to use
+if (not defined $build_format) {
+    my $format_file = 'debian/source/format';
+    if (-e $format_file) {
+        my $format = Dpkg::Source::Format->new(filename => $format_file);
+        $build_format = $format->get();
+    } else {
+        warning('no source format specified in %s, ' .
+                'see dpkg-source(1)', $format_file);
+        $build_format = '1.0';
+    }
+}
+
+my $srcpkg = Dpkg::Source::Package->new(format => $build_format,
+                                        options => \%options);
+my $fields = $srcpkg->{fields};
+
+my @sourcearch;
+my %archadded;
+my @binarypackages;
+
+# Scan control info of source package
+my $src_fields = $control->get_source();
+error("debian/control doesn't contain any information about the source package") unless defined $src_fields;
+my $src_sect = $src_fields->{'Section'} || 'unknown';
+my $src_prio = $src_fields->{'Priority'} || 'unknown';
+
+foreach (keys %{$src_fields}) {
+    my $v = $src_fields->{$_};
+    if (m/^Source$/i) {
+        set_source_package($v);
+        $fields->{$_} = $v;
+    } elsif (m/^Uploaders$/i) {
+        ($fields->{$_} = $v) =~ s/\s*[\r\n]\s*/ /g; # Merge in a single-line
+    } elsif (m/^Build-(?:Depends|Conflicts)(?:-Arch|-Indep)?$/i) {
+        my $dep;
+        my $type = field_get_dep_type($_);
+        $dep = deps_parse($v, build_dep => 1, union => $type eq 'union');
+        error('error occurred while parsing %s', $_) unless defined $dep;
+        my $facts = Dpkg::Deps::KnownFacts->new();
+        $dep->simplify_deps($facts);
+        $dep->sort() if $type eq 'union';
+        $fields->{$_} = $dep->output();
+    } else {
+        field_transfer_single($src_fields, $fields);
+    }
+}
+
+# Scan control info of binary packages
+my @pkglist;
+foreach my $pkg ($control->get_packages()) {
+    my $p = $pkg->{'Package'};
+    my $sect = $pkg->{'Section'} || $src_sect;
+    my $prio = $pkg->{'Priority'} || $src_prio;
+    my $type = $pkg->{'Package-Type'} ||
+            $pkg->get_custom_field('Package-Type') || 'deb';
+    my $arch = $pkg->{'Architecture'};
+    my $profile = $pkg->{'Build-Profiles'};
+
+    my $pkg_summary = sprintf('%s %s %s %s', $p, $type, $sect, $prio);
+
+    $pkg_summary .= ' arch=' . join ',', split ' ', $arch;
+
+    if (defined $profile) {
+        # Instead of splitting twice and then joining twice, we just do
+        # simple string replacements:
+
+        # Remove the enclosing <>
+        $profile =~ s/^\s*<(.*)>\s*$/$1/;
+        # Join lists with a plus (OR)
+        $profile =~ s/>\s+</+/g;
+        # Join their elements with a comma (AND)
+        $profile =~ s/\s+/,/g;
+        $pkg_summary .= " profile=$profile";
+    }
+
+    if (defined $pkg->{'Protected'} and $pkg->{'Protected'} eq 'yes') {
+        $pkg_summary .= ' protected=yes';
+    }
+    if (defined $pkg->{'Essential'} and $pkg->{'Essential'} eq 'yes') {
+        $pkg_summary .= ' essential=yes';
+    }
+
+    push @pkglist, $pkg_summary;
+    push @binarypackages, $p;
+    foreach (keys %{$pkg}) {
+        my $v = $pkg->{$_};
+        if (m/^Architecture$/) {
+            # Gather all binary architectures in one set. 'any' and 'all'
+            # are special-cased as they need to be the only ones in the
+            # current stanza if present.
+            if (debarch_eq($v, 'any') || debarch_eq($v, 'all')) {
+                push(@sourcearch, $v) unless $archadded{$v}++;
+            } else {
+                for my $a (split(/\s+/, $v)) {
+                    error("'%s' is not a legal architecture string", $a)
+                        if debarch_is_illegal($a);
+                    error('architecture %s only allowed on its ' .
+                             "own (list for package %s is '%s')",
+                          $a, $p, $a)
+                        if $a eq 'any' or $a eq 'all';
+                    push(@sourcearch, $a) unless $archadded{$a}++;
+                }
+            }
+        } elsif (m/^(?:Homepage|Description)$/) {
+            # Do not overwrite the same field from the source entry
+        } else {
+            field_transfer_single($pkg, $fields);
+        }
+    }
+}
+
+unless (scalar(@pkglist)) {
+    error("debian/control doesn't list any binary package");
+}
+
+if (any { $_ eq 'any' } @sourcearch) {
+    # If we encounter one 'any' then the other arches become insignificant
+    # except for 'all' that must also be kept
+    if (any { $_ eq 'all' } @sourcearch) {
+        @sourcearch = qw(any all);
+    } else {
+        @sourcearch = qw(any);
+    }
+} else {
+    # Minimize arch list, by removing arches already covered by wildcards
+    my @arch_wildcards = grep { debarch_is_wildcard($_) } @sourcearch;
+    my @mini_sourcearch = @arch_wildcards;
+    foreach my $arch (@sourcearch) {
+        if (none { debarch_is($arch, $_) } @arch_wildcards) {
+            push @mini_sourcearch, $arch;
+        }
+    }
+    @sourcearch = @mini_sourcearch;
+}
+$fields->{'Architecture'} = join(' ', @sourcearch);
+$fields->{'Package-List'} = "\n" . join("\n", sort @pkglist);
+
+# Scan fields of dpkg-parsechangelog
+foreach (keys %{$changelog}) {
+    my $v = $changelog->{$_};
+
+    if (m/^Source$/) {
+        set_source_package($v);
+        $fields->{$_} = $v;
+    } elsif (m/^Version$/) {
+        my ($ok, $error) = version_check($v);
+        error($error) unless $ok;
+        $fields->{$_} = $v;
+    } elsif (m/^Binary-Only$/) {
+        error('building source for a binary-only release')
+            if $v eq 'yes';
+    } elsif (m/^Maintainer$/i) {
+        # Do not replace the field coming from the source entry
+    } else {
+        field_transfer_single($changelog, $fields);
+    }
+}
+
+$fields->{'Binary'} = join(', ', @binarypackages);
+# Avoid overly long line by splitting over multiple lines
+if (length($fields->{'Binary'}) > 980) {
+    $fields->{'Binary'} =~ s/(.{0,980}), ?/$1,\n/g;
+}
+
+my $basenamerev = $srcpkg->get_basename(1);
+
+# fragment from Dpkg::Source::Package::V2::_generate_patch()
+	my $tarfile;
+	my $comp_ext_regex = compression_get_file_extension_regex();
+	foreach my $file (sort $srcpkg->find_original_tarballs()) {
+	    if ($file =~ /\.orig\.tar\.$comp_ext_regex$/) {
+	        if (defined($tarfile)) {
+	            error('several orig.tar files found (%s and %s) but only ' .
+	                     'one is allowed', $tarfile, $file);
+	        }
+	        $srcpkg->add_file($file);
+	    } elsif ($file =~ /\.orig-([[:alnum:]-]+)\.tar\.$comp_ext_regex$/) {
+	        $srcpkg->add_file($file);
+	    }
+	}
+# end of fragment
+
+# fragment from Dpkg::Source::Package::V2::do_build()
+	$srcpkg->add_file("$ARGV[0]/$basenamerev.debian.tar.xz");
+# end of fragment
+
+# Write the .dsc
+my $dscname = "$ARGV[0]/$basenamerev.dsc";
+$srcpkg->write_dsc(filename => $dscname, substvars => $substvars);
+exit(0);

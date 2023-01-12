@@ -1,0 +1,67 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2020-2023, Konstantin Demin
+
+set -ef
+
+have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+
+read_byte_raw() {
+	od -A n -j "$2" -N 1 -t x1 < "$1" \
+	| tr -d '[:space:]'
+}
+
+# naive check for gpg
+have_cmd gpg
+
+# test that 1st argument is file
+[ -n "$1" ]
+[ -f "$1" ]
+
+# retrieve file size
+n=$(stat -L -c '%s' "$1")
+[ -n "$n" ]
+
+# turn off "safety"
+set +e
+
+wanted_lf=0
+if [ "$n" != 0 ] ; then
+	wanted_lf=2
+
+	# ensure that we have at least two empty lines at the end
+
+	c=$(read_byte_raw "$1" $((n-1)) )
+	if [ "$c" = '0a' ] ; then
+		wanted_lf=1
+
+		c=$(read_byte_raw "$1" $((n-2)) )
+		if [ "$c" = '0a' ] ; then
+			wanted_lf=0
+		fi
+	fi
+fi
+
+padding=
+case "${wanted_lf}" in
+1) padding='\n' ;;
+2) padding='\n\n' ;;
+esac
+
+d=$(mktemp)
+
+gpg --utf8-strings --textmode --armor --clearsign \
+	--output - - > "$d" <<EOF
+$(cat "$1")$(printf "${padding}")
+EOF
+res=$?
+
+# replace original file with signed one
+if [ "${res}" = 0 ] ; then
+	rm "$1" || exit
+	cp "$d" "$1"
+fi
+
+rm -f -- "$d"
+
+exit ${res}
