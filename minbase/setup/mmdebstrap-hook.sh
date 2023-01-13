@@ -67,7 +67,7 @@ renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /usr/local/etc/dpkg/dpkg.cfg.d/containe
 # source/run bootstrap script
 . /usr/local/minbase-initial.sh
 
-## approach to minimize manually installed packages list
+# approach to minimize manually installed packages list
 w=$(mktemp -d) ; : "${w:?}"
 
 dpkg-query --show --showformat='${db:Status-Abbrev}|${Essential}|${binary:Package}|${Version}\n' \
@@ -116,3 +116,4 @@ fix_ownership() {
 # reproducibility
 echo "$2-$3" > /etc/hostname
 : > /etc/resolv.conf
+: > /var/lib/dpkg/available
