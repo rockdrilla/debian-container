@@ -45,6 +45,17 @@ if [ -f "$f" ] ; then
 	mv "$f" /usr/local/
 fi
 
+# script "apt-backports" is irrelevant for sid/unstable - replace with stub
+if [ "$2" = debian ] ; then
+	case "$3" in
+	unstable|sid)
+		f='/usr/local/bin/apt-backports'
+		rm -f "$f"
+		ln -s /bin/true "$f"
+	;;
+	esac
+fi
+
 # remove "keep" files (if any)
 find /usr/local/ -name .keep -type f -delete
 
