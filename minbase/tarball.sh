@@ -37,12 +37,59 @@ uid=$(ps -n -o euid= -p $$)
 gid=$(ps -n -o egid= -p $$)
 
 case "${distro}" in
-debian) comps='main,contrib,non-free' ;;
-ubuntu) comps='main,restricted,universe,multiverse' ;;
+debian) comps='main contrib non-free' ;;
+ubuntu) comps='main restricted universe multiverse' ;;
 esac
+
+sources_tmp=
+if [ -n "${MMDEBSTRAP_MIRROR}" ] ; then
+	case "${distro}" in
+	debian)
+		case "${suite}" in
+		unstable|sid) ;;
+		*)
+			# if MMDEBSTRAP_MIRROR is set then MMDEBSTRAP_SECMIRROR must be set too
+			: "${MMDEBSTRAP_SECMIRROR:?}"
+		;;
+		esac
+	;;
+	esac
+
+	sources_tmp=$(mktemp) ; : "${sources_tmp:?}"
+	case "${distro}" in
+	debian)
+		: "${MMDEBSTRAP_KEYRING:=/usr/share/keyrings/debian-archive-keyring.gpg}"
+		case "${suite}" in
+		unstable|sid)
+			cat <<-EOF
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite} ${comps}
+			EOF
+		;;
+		*)
+			cat <<-EOF
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite} ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-updates ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-proposed-updates ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_SECMIRROR} ${suite}-security ${comps}
+			EOF
+		;;
+		esac
+	;;
+	ubuntu)
+		: "${MMDEBSTRAP_KEYRING:=/usr/share/keyrings/ubuntu-archive-keyring.gpg}"
+		cat <<-EOF
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite} ${comps}
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-updates ${comps}
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-proposed ${comps}
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-security ${comps}
+		EOF
+	;;
+	esac > "${sources_tmp}"
+fi
 
 tarball_tmp=$(mktemp -u)'.tar'
 
+set +e
 mmdebstrap \
   --format=tar \
   --variant=apt \
@@ -51,7 +98,16 @@ mmdebstrap \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
   --customize-hook="sync-in '${dir0}/scripts' /usr/local/bin" \
   --customize-hook="'${dir0}/setup/mmdebstrap-hook.sh' \"\$1\" ${distro} ${suite} ${uid} ${gid}" \
-  "${suite}" "${tarball_tmp}" || true
+  "${suite}" "${tarball_tmp}" \
+  ${sources_tmp:+ - } <<-EOF
+$(test -z "${sources_tmp}" || cat "${sources_tmp}")
+EOF
+set -e
+
+if [ -n "${sources_tmp}" ] ; then
+	rm -f "${sources_tmp}"
+	unset sources_tmp
+fi
 
 # test tarball
 if ! tar -tf "${tarball_tmp}" >/dev/null ; then
