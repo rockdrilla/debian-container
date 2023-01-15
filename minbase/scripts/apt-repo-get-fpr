@@ -1,0 +1,57 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2018-2023, Konstantin Demin
+
+set -ef
+
+# $1 - apt repo uri
+# $2 - distribution
+: "${1:?}" "${2:?}"
+
+gpg_on() { gpg-batch start ; }
+gpg_off() {
+	cd /
+	gpg-batch stop
+	exit "$1"
+}
+
+join_lines() { sed -zE 's/[[:space:]]+/ /g;s/^ //;s/ $//' ; }
+
+gpg_keys_from_sig() {
+	set +e
+	gpg --no-options --verify "$@" 2>&1 \
+	| sed -En 's/[[:space:]]+/ /g;s/ $//;/^gpg: using .+ key (\S+)$/{s,,\1,p}'
+	set -e
+}
+
+d=$(mktemp -d) ; : "${d:?}"
+export GNUPGHOME="$d"
+
+(
+
+gpg_on
+
+cd "$d"
+
+if curl -sSL -o InRelease "$1/dists/$2/InRelease" ; then
+	gpg_keys_from_sig InRelease > fpr
+	if [ -s fpr ] ; then
+		cat fpr
+		gpg_off 0
+	fi
+	rm -f InRelease
+fi
+
+if curl -sSL -o Release.gpg "$1/dists/$2/Release.gpg" ; then
+	curl -sSL -o Release "$1/dists/$2/Release"
+
+	gpg_keys_from_sig Release.gpg Release > fpr
+	if [ -s fpr ] ; then
+		cat fpr
+		gpg_off 0
+	fi
+fi
+
+gpg_off 1
+
+) || gpg_off 1

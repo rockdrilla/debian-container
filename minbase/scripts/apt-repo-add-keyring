@@ -1,0 +1,125 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2018-2023, Konstantin Demin
+
+set -ef
+
+# $1 - ephemeral name
+# $2 - apt repo uri
+# $3 - distribution
+# $4 - keyring uri/path (optional)
+: "${1:?}" "${2:?}" "${3:?}"
+
+gpg_on() { gpg-batch start ; }
+gpg_off() {
+	cd /
+	gpg-batch stop
+	exit "$1"
+}
+
+xsedx=$(printf '\027')
+csv_field_grep() {
+	if [ -n "$2" ] ; then
+		sed -En "\\${xsedx}$2${xsedx}p"
+	else
+		cat
+	fi \
+	| cut -d: -f "$1"
+}
+
+join_lines() { sed -zE 's/[[:space:]]+/ /g;s/^ //;s/ $//' ; }
+
+d=$(mktemp -d) ; : "${d:?}"
+export GNUPGHOME="$d"
+
+(
+
+gpg_on
+
+cd "$d"
+
+apt-repo-get-fpr "$2" "$3" > fpr.repo
+# must contain at least one fingerprint; if not - bail out
+[ -s fpr.repo ]
+
+keys=$(join_lines < fpr.repo)
+
+if [ -z "$4" ] ; then
+	# receive keyring via GPG server
+	gpg --recv-keys ${keys}
+else
+	if printf '%s' "$4" | grep -zEq '^[[:alpha:]][[:alnum:]]*:' ; then
+		# if argument looks like URI then use curl for that
+		curl -sSL -o keyring.src "$4"
+		gpg --import keyring.src
+		rm -f keyring.src
+	else
+		# use argument as file path
+		gpg --import "$4"
+	fi
+fi
+
+# try minimize keyring (if desired)
+while : ; do
+	[ "${APT_REPO_MINIMIZE_KEYRING:-1}" = 1 ] || break
+
+	gpg --with-colons --list-keys > dump.all
+	csv_field_grep  5 '^pub:' < dump.all > pub.all
+	csv_field_grep 10 '^fpr:' < dump.all > fpr.all
+
+	# must contain at least one public key; if not - bail out
+	[ -s pub.all ]
+
+	: > fpr.save
+	for i in $(join_lines < pub.all) ; do
+		gpg --with-colons --list-keys "$i" \
+		| csv_field_grep 10 '^fpr:' > "fpr.$i"
+
+		# must contain at least one fingerprint; if not - bail out
+		[ -s "fpr.$i" ]
+
+		fpr_pub=$(head -n 1 "fpr.$i")
+
+		# try filter out useful fingerprints; if none - skip whole key chain
+		grep -Fx -f fpr.repo "fpr.$i" > "fpr-save.$i" || :
+		[ -s "fpr-save.$i" ] || continue
+
+		if grep -Fxq -e "${fpr_pub}" "fpr-save.$i" ; then
+			# primary key fingerprint match - do nothing
+			:
+		else
+			# subkey fingerprint match - add primary key fingerprint
+			echo "${fpr_pub}" >> "fpr-save.$i"
+		fi
+
+		# append fingerprints
+		cat < "fpr-save.$i" >> fpr.save
+	done
+	# must contain at least one fingerprint; if not - bail out
+	# (supplied key material seems to be useless)
+	[ -s fpr.save ]
+
+	sort -u < fpr.save > fpr.include
+
+	grep -Fxv -f fpr.include fpr.all > fpr.exclude || :
+	if [ -s fpr.exclude ] ; then
+		gpg --delete-keys $(sed -E 's/$/!/' < fpr.exclude)
+	fi
+
+	break
+done
+
+keyring_asc="/etc/apt/trusted.gpg.d/$1.gpg.asc"
+
+# merge with existing keyring (if any)
+if [ -s "${keyring_asc}" ] ; then
+	gpg --import "${keyring_asc}"
+fi
+
+gpg --armor --export > "${keyring_asc}"
+
+gpg --show-keys "${keyring_asc}"
+
+gpg_off 0
+
+) || gpg_off 1

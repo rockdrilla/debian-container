@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2018-2023, Konstantin Demin
+
+set -ef
+
+: "${GPG_KEYSERVER:=hkps://keyserver.ubuntu.com}"
+
+act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+case "${act}" in
+1|start)
+	: "${GNUPGHOME:?}"
+	cat > "${GNUPGHOME}/gpg.conf" <<-EOF
+		quiet
+		batch
+		trust-model always
+		no-auto-check-trustdb
+		ignore-time-conflict
+		keyid-format 0xlong
+		keyserver ${GPG_KEYSERVER}
+	EOF
+	ln -s gpg.conf "${GNUPGHOME}/dirmngr.conf"
+	gpg --update-trustdb >/dev/null 2>&1
+	gpg --list-keys >/dev/null
+;;
+0|stop)
+	[ -n "${GNUPGHOME}" ] || exit 0
+	gpgconf --quiet --kill all
+	rm -rf "${GNUPGHOME}"
+;;
+*)
+	env printf '# unknown gpg batch action: %q\n' "$1" 1>&2
+	exit 1
+;;
+esac
+exit 0
