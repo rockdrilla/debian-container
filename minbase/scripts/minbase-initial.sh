@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2021-2023, Konstantin Demin
 
+have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+
 # $1 - path
 # $2 - install symlink to another file (optional)
 divert() {
@@ -18,6 +20,14 @@ divert() {
 
 find_fast() {
 	find "$@" -printf . -quit | grep -Fq .
+}
+
+find_fresh_ts() {
+	{
+		find "$@" -exec stat -c '%Y' '{}' '+' 2>/dev/null || :
+		# duck and cover!
+		echo 1
+	} | sort -rn | head -n 1
 }
 
 # bootstrap apt&dpkg configuration
@@ -69,10 +79,16 @@ divert /usr/bin/deb-systemd-invoke
 
 # try generate CA bundle with minimal bloat
 bundle='/etc/ssl/certs/ca-certificates.crt'
+ts_bundle=$(find_fresh_ts /etc/ssl -path "${bundle}")
+ts_certs=$(find_fresh_ts /usr/share/ca-certificates /usr/local/share/ca-certificates)
 while : ; do
-	if [ -s "${bundle}" ] ; then break ; fi
+	if [ ${ts_bundle} -gt ${ts_certs} ] ; then
+		break
+	fi
 
-	if update-ca-certificates ; then break ; fi
+	if have_cmd update-ca-certificates && update-ca-certificates ; then
+		break
+	fi
 
 	if ! apt-update ; then
 		export APT_OPTS='-o Acquire::https::Verify-Peer=false -o Acquire::Check-Valid-Until=false -o Acquire::Max-FutureTime=7200'
@@ -90,7 +106,7 @@ while : ; do
 
 	break
 done
-unset bundle
+unset bundle ts_bundle ts_certs
 
 # set timezone
 [ -z "${TZ}" ] || {
