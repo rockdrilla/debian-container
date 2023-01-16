@@ -111,9 +111,6 @@ if [ -z "$T" ] ; then
 	echo "output directory (auto-created): $T" 1>&2
 else
 	echo "output directory: $T" 1>&2
-	if [ -d "$T" ] ; then
-		echo "output directory already exists!" 1>&2
-	fi
 	mkdir -p "$T"
 fi
 
@@ -140,16 +137,11 @@ _finish_export() {
 	ls -lhgG 1>&2
 }
 
-# grab only Debian related files
+# grab source package related files
 mkdir "$W/debian"
-
-if [ -n "${have_git}" ] ; then
-	git -C "${deb_folder}" ls-files -z
-else
-	find "${deb_folder}/" -mindepth 1 -maxdepth 1 -printf '%P\0'
-fi \
+find "${deb_folder}/" -mindepth 1 -maxdepth 1 -printf '%P\0' \
 | tar -C "${deb_folder}" ${tar_opts} --null -T - -cf - \
-| tar -C "$W/debian" ${tar_opts} -xf -
+| tar -C "$W/debian" -xf -
 
 chmod 755 "$W/debian/rules"
 
@@ -157,9 +149,6 @@ if [ -z "${ver_upstream}" ] ; then
 	# native package
 	# grab all the things (except VCS )
 	(
-		# if directory layout is plain (or squashed) and directory name is not 'debian' - do nothing
-		[ "${deb_folder##*/}" = 'debian' ] || exit 0
-
 		cd "${deb_folder}/.."
 		if [ -n "${have_git}" ] ; then
 			git ls-files -z
@@ -206,7 +195,7 @@ pna="${pnd}_source"
 	# extra tarball(s)
 	find ./ -mindepth 1 -maxdepth 1 -name "${pnu}.orig-*.*" \
 	  -exec cp -aL -t "$T" {} +
-)
+) || { _cleanup ; exit 1 ; }
 
 cd "$W"
 
