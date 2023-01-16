@@ -10,7 +10,8 @@ act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 case "${act}" in
 1|start)
 	: "${GNUPGHOME:?}"
-	cat > "${GNUPGHOME}/gpg.conf" <<-EOF
+	cd "${GNUPGHOME}"
+	cat > gpg.conf <<-EOF
 		quiet
 		batch
 		trust-model always
@@ -19,12 +20,18 @@ case "${act}" in
 		keyid-format 0xlong
 		keyserver ${GPG_KEYSERVER}
 	EOF
-	ln -s gpg.conf "${GNUPGHOME}/dirmngr.conf"
+	cat > dirmngr.conf <<-EOF
+		quiet
+		batch
+		keyserver ${GPG_KEYSERVER}
+	EOF
 	gpg --update-trustdb >/dev/null 2>&1
 	gpg --list-keys >/dev/null
+	dirmngr </dev/null >/dev/null 2>&1
 ;;
 0|stop)
 	[ -n "${GNUPGHOME}" ] || exit 0
+	cd /
 	gpgconf --quiet --kill all
 	rm -rf "${GNUPGHOME}"
 ;;

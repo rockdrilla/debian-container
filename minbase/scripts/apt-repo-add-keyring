@@ -59,16 +59,17 @@ else
 	fi
 fi
 
+gpg --with-colons --list-keys > dump.all
+csv_field_grep  5 '^pub:' < dump.all > pub.all
+
+# must contain at least one public key; if not - bail out
+[ -s pub.all ]
+
 # try minimize keyring (if desired)
 while : ; do
 	[ "${APT_REPO_MINIMIZE_KEYRING:-1}" = 1 ] || break
 
-	gpg --with-colons --list-keys > dump.all
-	csv_field_grep  5 '^pub:' < dump.all > pub.all
 	csv_field_grep 10 '^fpr:' < dump.all > fpr.all
-
-	# must contain at least one public key; if not - bail out
-	[ -s pub.all ]
 
 	: > fpr.save
 	for i in $(join_lines < pub.all) ; do
