@@ -7,19 +7,50 @@ set -ef
 # $1 - ephemeral name
 # $2 - pin priority
 # $3 - pin selector
-# $4 - (first) package selector
-: "${1:?}" "${2:?}" "${3:?}" "${4:?}"
+
+# verify name and pin priority/action
+: "${1:?}" "${2:?}"
 
 name="$1"
 prio="$2"
-pin="$3"
-shift 3
+shift 2
+
+pin_file="/etc/apt/preferences.d/${name}"
+
+prio=$(printf '%s' "${prio}" | tr '[:upper:]' '[:lower:]')
+case "${prio}" in
+rm|remove|del|delete)
+	rm -fv "${pin_file}"
+	exit 0
+;;
+esac
+
+if ! printf '%s' "${prio}" | grep -zEq '^(0|-?[1-9][0-9]*)$' ; then
+	env printf '# wrong pin priority: %q\n' "${prio}" 1>&2
+	exit 1
+fi
+
+# verify pin selector
+pin="$1"
+shift
+[ -n "${pin}" ]
+
+touch "${pin_file}"
+
+case "${pin}" in
+# full qualified pinning stanza
+*\ *) ;;
+# unqualified pinning stanza
+*) pin="release a=${pin}" ;;
+esac
 
 for i ; do
+	[ -n "$i" ] || continue
+
 	cat <<-EOF
 
 	Package: $i
 	Pin: ${pin}
 	Pin-Priority: ${prio}
 	EOF
-done >> "/etc/apt/preferences.d/${name}"
+done >> "${pin_file}"
