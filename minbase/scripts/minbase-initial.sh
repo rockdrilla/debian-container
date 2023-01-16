@@ -80,8 +80,7 @@ while : ; do
 
 	f='/usr/local/cabundle.tar'
 
-	APT_WRAP_DEPS='ca-certificates' \
-	apt-wrap tar -cPf "$f" "${bundle}"
+	apt-wrap 'ca-certificates' tar -cPf "$f" "${bundle}"
 
 	unset APT_OPTS
 
@@ -97,8 +96,7 @@ unset bundle
 [ -z "${TZ}" ] || {
 	f='/usr/local/tzdata.tar'
 
-	APT_WRAP_DEPS='tzdata' \
-	apt-wrap sh -ec "tz ${TZ} ; tar -cPf $f /etc/localtime /etc/timezone"
+	apt-wrap 'tzdata' sh -ec "tz ${TZ} ; tar -cPf $f /etc/localtime /etc/timezone"
 
 	tar -xPf "$f"
 	rm -f "$f"

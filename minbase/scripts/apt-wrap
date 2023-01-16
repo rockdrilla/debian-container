@@ -4,21 +4,25 @@
 
 set -ef
 
+join_lines() { sed -zE 's/[[:space:]]+/ /g;s/^ //;s/ $//' ; }
+
 # internal methods
 case "$1" in
 --begin)
 	# begin "session"
 	shift
 
+	deps=$(echo "$*" | join_lines)
+
 	w=$(mktemp -d) ; : "${w:?}"
 
 	apt-list-installed > "$w/installed.0"
 	apt-list-manual    > "$w/manual.0"
 
-	if [ -z "$*" ] ; then
+	if [ -z "${deps}" ] ; then
 		echo 'nothing was selected as build-deps' 1>&2
 	else
-		if ! ( apt-install "$@" ; ) </dev/null 1>&2 ; then
+		if ! quiet apt-install ${deps} ; then
 			rm -rf "$w"
 			exit 1
 		fi
@@ -50,32 +54,28 @@ case "$1" in
 
 	x="$w/keep"
 	if [ -s "$x" ] ; then
-		set +e
-		grep -Fxv -f "$w/installed.0" "$x" > "$x.manual"
-		set -e
+		grep -Fxv -f "$w/installed.0" "$x" > "$x.manual" || :
 		xargs -r quiet apt-mark manual < "$x.manual"
 	fi
 
 	apt-list-installed > "$w/installed.2"
 	apt-list-manual    > "$w/manual.2"
 
+	# disable "safety" due to "grep"
 	set +e
 
 	x="$w/installed.1"
 	if ! [ -s "$x" ] ; then x="$w/installed.2" ; fi
-	grep -Fxv -f "$w/installed.0" \
-	"$x" \
+	grep -Fxv -f "$w/installed.0" "$x" \
 	> "$w/installed.diff"
 
 	x="$w/manual.1"
 	if ! [ -s "$x" ] ; then x="$w/manual.0" ; fi
-	grep -Fxv -f "$x" \
-	"$w/manual.2" \
+	grep -Fxv -f "$x" "$w/manual.2" \
 	> "$w/manual.diff"
 
 	if [ -s "$w/manual.diff" ] ; then
-		grep -Fxv -f "$w/manual.diff" \
-		"$w/installed.diff"
+		grep -Fxv -f "$w/manual.diff" "$w/installed.diff"
 	else
 		cat "$w/installed.diff"
 	fi \
@@ -83,14 +83,17 @@ case "$1" in
 
 	set -e
 
-	xargs -r apt-env apt-get -y purge < "$w/pkg.remove" 1>&2
+	xargs -r quiet apt-env apt-get -y ${APT_WRAP_REMOVE_METHOD:-purge} < "$w/pkg.remove" 1>&2
 
 	rm -rf "$w"
 	exit 0
 ;;
 esac
 
-w=$("$0" --begin ${APT_WRAP_DEPS})
+deps="$1"
+shift
+
+w=$("$0" --begin "${deps}")
 
 export APT_WRAP_KEEP="$w/keep"
 : > "${APT_WRAP_KEEP}"
