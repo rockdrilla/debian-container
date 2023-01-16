@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2020-2023, Konstantin Demin
+
+set -ef
+
+# $1 - ephemeral name
+# $2 - pin priority
+# $3 - pin selector
+# $4 - (first) package selector
+: "${1:?}" "${2:?}" "${3:?}" "${4:?}"
+
+name="$1"
+prio="$2"
+pin="$3"
+shift 3
+
+for i ; do
+	cat <<-EOF
+
+	Package: $i
+	Pin: ${pin}
+	Pin-Priority: ${prio}
+	EOF
+done >> "/etc/apt/preferences.d/${name}"
