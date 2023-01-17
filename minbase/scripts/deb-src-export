@@ -33,6 +33,10 @@ have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 
 ro_git() { GIT_OPTIONAL_LOCKS=0 command git "$@" ; }
 
+find_fast() {
+	find "$@" -printf . -quit | grep -Fq .
+}
+
 have_git=
 if have_cmd git ; then
 	inside_git=$(ro_git rev-parse --is-inside-work-tree || echo false)
@@ -75,13 +79,17 @@ if [ -z "$2" ] ; then
 		cd "$(ro_git rev-parse --show-toplevel)"
 	fi
 else
-	deb_folder="$2"
+	deb_folder=$(printf '%s' "$2" | sed -zE 's,/+,/,g;s,/$,,')
 fi
 
 # naive verification of debian/ folder
 [ -d "${deb_folder}" ]
 [ -s "${deb_folder}/rules" ]
 [ -s "${deb_folder}/changelog" ]
+
+if [ "${deb_folder##*/}" = . ] ; then
+	deb_folder=$( ( cd "${deb_folder}" ; pwd ; ) )
+fi
 
 # retrieve only desired fields from dpkg-parsechangelog output
 C=$(mktemp)
@@ -155,7 +163,7 @@ if [ -z "${ver_upstream}" ] ; then
 		else
 			find ./ -mindepth 1 -maxdepth 1 -printf '%P\0'
 		fi \
-		| grep -zEv '^(debian|\.git)(/|$)' \
+		| grep -zEv "^(\.git|debian|${deb_folder##*/})(/|\$)" \
 		| tar ${tar_opts} --null -T - -cf - \
 		| tar -C "$W" -xf -
 	) || { _cleanup ; exit 1 ; }
@@ -189,21 +197,24 @@ pna="${pnd}_source"
 # try copy upstream source tarball(s) (if any)
 (
 	cd "${deb_folder}/.."
-	# main tarball(s)
-	find ./ -mindepth 1 -maxdepth 1 -name "${pnu}.orig.*" \
-	  -exec cp -aL -t "$T" {} +
-	# extra tarball(s)
-	find ./ -mindepth 1 -maxdepth 1 -name "${pnu}.orig-*.*" \
-	  -exec cp -aL -t "$T" {} +
+
+	for d in '.' '..' ; do
+		if find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig*" -type f ; then
+			break
+		fi
+
+		# main tarball(s)
+		find "$d/" -mindepth 1 -maxdepth 1 -name "${pnu}.orig.*" \
+		-exec cp -aL -t "$T" {} +
+		# extra tarball(s)
+		find "$d/" -mindepth 1 -maxdepth 1 -name "${pnu}.orig-*.*" \
+		-exec cp -aL -t "$T" {} +
+	done
 ) || { _cleanup ; exit 1 ; }
 
 cd "$W"
 
 (
-	find_fast() {
-		find "$@" -printf . -quit | grep -Fq .
-	}
-
 	# verify that we have upstream tarball
 	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig*" -type f || {
 		uscan --destdir "$T" --download-current-version
