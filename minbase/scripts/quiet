@@ -4,8 +4,15 @@
 
 set -f
 
+[ $# -ne 0 ] || {
+	echo "# ${0##*/}: no command was specified" 1>&2
+	exit 1
+}
+
 t=$(mktemp)
 if [ -z "$t" ] ; then
+	echo "# ${0##*/}: unable to create temporary file" 1>&2
+
 	# unable to create temporary file?
 	# no output in case of error
 	exec "$@" </dev/null >/dev/null 2>/dev/null
@@ -15,7 +22,9 @@ fi
 
 r=$?
 if [ $r != 0 ] ; then
-	env printf '# command: %q\n' "$@"
+	printf '# command:'
+	env printf ' %q' "$@"
+	echo
 	echo "# return code: $r"
 	if [ -s "$t" ] ; then
 		echo '# output:'
