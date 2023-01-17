@@ -111,6 +111,15 @@ echo apt \
 
 rm -rf "$w"
 
+# replace "usrmerge" with "usr-is-merged"
+apt-update
+if apt-install usr-is-merged >/dev/null 2>&1 ; then
+	quiet dpkg -P usrmerge
+fi
+
+# cleanup installed packages
+quiet apt-env apt-get -y autoremove
+
 # fix ownership:
 # mmdebstrap's actions 'sync-in' and 'copy-in' preserves source user/group
 fix_ownership() {
