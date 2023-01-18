@@ -8,7 +8,7 @@ have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 # $2 - install symlink to another file (optional)
 divert() {
 	if ! [ -f "$1" ] ; then
-		env printf "won't divert (missing): %q\\n" "$1" 1>&2
+		env printf "won't divert (missing): %q\\n" "$1" >&2
 		return 0
 	fi
 	__suffix=$(dpkg-query --search "$1" || echo local)

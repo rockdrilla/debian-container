@@ -6,7 +6,7 @@ set -ef
 
 [ -n "$1" ] || {
 	: "${TZ:=$(cat /etc/timezone || echo none)}"
-	echo "# current timezone: ${TZ}" 1>&2
+	echo "# current timezone: ${TZ}" >&2
 	exit 0
 }
 

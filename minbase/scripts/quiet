@@ -5,13 +5,13 @@
 set -f
 
 [ $# -ne 0 ] || {
-	echo "# ${0##*/}: no command was specified" 1>&2
+	echo "# ${0##*/}: no command was specified" >&2
 	exit 1
 }
 
 t=$(mktemp)
 if [ -z "$t" ] ; then
-	echo "# ${0##*/}: unable to create temporary file" 1>&2
+	echo "# ${0##*/}: unable to create temporary file" >&2
 
 	# unable to create temporary file?
 	# no output in case of error
@@ -30,7 +30,7 @@ if [ $r != 0 ] ; then
 		echo '# output:'
 		sed -E 's/^(.+)$/#>| \1/;s/^$/#=|/' < "$t"
 	fi
-fi 1>&2
+fi >&2
 
 rm -f "$t"
 exit $r

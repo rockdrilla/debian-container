@@ -20,7 +20,7 @@ case "$1" in
 	apt-list-manual    > "$w/manual.0"
 
 	if [ -z "${deps}" ] ; then
-		echo 'nothing was selected as build-deps' 1>&2
+		echo 'nothing was selected as build-deps' >&2
 	else
 		if ! quiet apt-install ${deps} ; then
 			rm -rf "$w"
@@ -48,7 +48,7 @@ case "$1" in
 		ok=1 ; break
 	done
 	if [ -z "${ok}" ] ; then
-		echo 'wrong state!' 1>&2
+		echo 'wrong state!' >&2
 		exit 1
 	fi
 
@@ -83,7 +83,7 @@ case "$1" in
 
 	set -e
 
-	xargs -r quiet apt-env apt-get -y ${APT_WRAP_REMOVE_METHOD:-purge} < "$w/pkg.remove" 1>&2
+	xargs -r quiet apt-env apt-get -y ${APT_WRAP_REMOVE_METHOD:-purge} < "$w/pkg.remove" >&2
 
 	rm -rf "$w"
 	exit 0

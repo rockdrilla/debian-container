@@ -116,9 +116,9 @@ EOF
 T="$1"
 if [ -z "$T" ] ; then
 	T=$(mktemp -d) ; : "${T:?}"
-	echo "output directory (auto-created): $T" 1>&2
+	echo "output directory (auto-created): $T" >&2
 else
-	echo "output directory: $T" 1>&2
+	echo "output directory: $T" >&2
 	mkdir -p "$T"
 fi
 
@@ -126,12 +126,12 @@ if [ -z "${ver_upstream}" ] ; then
 	# native package
 	# do as simple as possible
 	W="$T/${pkg_name}-${ver_revision}" ; mkdir -p "$W"
-	echo "working directory (as subdirectory of output): $W" 1>&2
+	echo "working directory (as subdirectory of output): $W" >&2
 else
 	# regular package
 	# do some tricks! :)
 	W=$(mktemp -d)
-	echo "working directory (auto-created): $W" 1>&2
+	echo "working directory (auto-created): $W" >&2
 fi
 
 _cleanup() {
@@ -141,8 +141,8 @@ _cleanup() {
 
 _finish_export() {
 	cd "$T" ; rm -rf -- "$W"
-	echo "index of $T" 1>&2
-	ls -lhgG 1>&2
+	echo "index of $T" >&2
+	ls -lhgG >&2
 }
 
 # grab source package related files

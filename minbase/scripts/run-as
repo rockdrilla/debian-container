@@ -5,7 +5,7 @@
 set -ef
 
 _printf() { env printf "$@" ; }
-_msg() {  _printf "${0##*/}: ${__PRINTF_FMT}\n" "$@" 1>&2 ; }
+_msg() {  _printf "${0##*/}: ${__PRINTF_FMT}\n" "$@" >&2 ; }
 
 msg() {
 	export __PRINTF_FMT="$1" ; shift

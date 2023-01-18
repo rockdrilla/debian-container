@@ -11,7 +11,7 @@ if [ $# = 0 ] ; then
 		echo '# backports are enabled'
 	else
 		echo '# backports are disabled'
-	fi 1>&2
+	fi >&2
 	exit 0
 fi
 
@@ -27,7 +27,7 @@ case "${act}" in
 	rm -f "${src_file}"
 ;;
 *)
-	env printf '# unknown apt backport action: %q\n' "$1" 1>&2
+	env printf '# unknown apt backport action: %q\n' "$1" >&2
 	exit 1
 ;;
 esac

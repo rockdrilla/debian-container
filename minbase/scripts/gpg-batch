@@ -36,7 +36,7 @@ case "${act}" in
 	rm -rf "${GNUPGHOME}"
 ;;
 *)
-	env printf '# unknown gpg batch action: %q\n' "$1" 1>&2
+	env printf '# unknown gpg batch action: %q\n' "$1" >&2
 	exit 1
 ;;
 esac

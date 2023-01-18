@@ -54,4 +54,4 @@ EOF
 
 buildah commit --rm --squash --timestamp "${ts}" "$c" "${image}"
 
-echo "${image} has been built successfully" 1>&2
+echo "${image} has been built successfully" >&2

@@ -21,7 +21,7 @@ fi
 _list_martians > "$t"
 if [ -s "$t" ] ; then
 	if [ -t 1 ] || [ -t 2 ] ; then
-		echo '# "martian" packages (unusual state):' 1>&2
+		echo '# "martian" packages (unusual state):' >&2
 	fi
 	cat "$t"
 fi

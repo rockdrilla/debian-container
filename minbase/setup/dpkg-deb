@@ -41,7 +41,7 @@ esac
 # unpack manually
 
 me=$(readlink -e "$0")
-log() { echo "${me}: $*" 1>&2 ; }
+log() { echo "${me}: $*" >&2 ; }
 
 have_cmd() {
 	if ! command -v "$1" >/dev/null 2>&1 ; then
