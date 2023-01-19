@@ -1,0 +1,72 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+# naive translation from glob(7) to ERE
+
+# TODO:
+# - do honest translation
+# - support square braces
+# - support curly braces (enumerations, ranges)
+
+set -f
+
+# script internals
+
+# special magic with separator for sed "s" command
+# char 027 (0x17) seems to be safe separator for sed "s" command;
+# idea taken from Debian src:nginx/debian/dh_nginx
+xsedx=$(env printf '\027')
+
+# $1 - match
+# $2 - replacement
+# $3 - flags (optional)
+_r() { printf '%s' "s${xsedx}$1${xsedx}$2${xsedx}$3" ; }
+
+#                what          with   flag(s)
+esc_dot=$(   _r  '\.'          '\\.'  g )
+esc_qmark=$( _r  '([^\]|^)\?'  '\1.'  g )
+esc_plus=$(  _r  '\+'          '\\+'  g )
+
+esc_chars="${esc_dot};${esc_qmark};${esc_plus}"
+
+#                 what                     with         flag(s)
+star2_head=$( _r  '^\*{2}/'                '.+/'        g )
+star2_tail=$( _r  '/\*{2}$'                '(/.+)?'     g )
+star2_path=$( _r  '(^|/)\*{2}($|/)'        '\1(.+\2)?'  g )
+star2_any=$(  _r  '(^|[^*])\*{2}($|[^*])'  '\1.+\2'     g )
+
+esc_star2="${star2_head};${star2_tail};${star2_path};${star2_any}"
+
+#                 what                  with         flag(s)
+star1_path=$( _r  '(^|/)\*(/|$)'        '\1[^/]+\2'  g )
+star1_any=$(  _r  '(^|[^*])\*($|[^*])'  '\1[^/]*\2'  g )
+
+esc_star1="${star1_path};${star1_any}"
+
+esc_stars="${esc_star2};${esc_star1}"
+
+esc_all="${esc_chars};${esc_stars}"
+
+#                    what      with    flag(s)
+dedup_slashes=$( _r  '//+'     '/'     g )
+add_anchors=$(   _r  '^(.*)$'  '^\1$'    )
+
+glob2re() { printf '%s' "$1" | sed -zE "${esc_all};${dedup_slashes};${add_anchors}" ; }
+
+test_regex() { sed -En "\\${xsedx}$1${xsedx}p" </dev/null ; }
+
+# script itself
+
+for i ; do
+	_re=$(glob2re "$i")
+	if test_regex "${_re}" ; then
+		printf '%s\n' "${_re}"
+	else
+		cat >&2 <<-EOF
+		# ${0##*/}: failed to convert glob to regex
+		# glob: $i
+		# regex: ${_re}
+		EOF
+	fi
+done

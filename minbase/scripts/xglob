@@ -1,0 +1,267 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -f
+
+rule_stanza='^(match|skip)=(.+)$'
+sysroot_skiplist='^/(dev|proc|run|sys)$'
+
+me="${0##*/}"
+log() { echo "${me}: $*" >&2 ; }
+
+# internal methods
+case "$1" in
+--match)
+	# turn glob to regex and then into file list
+	# (symlinks are listed too!)
+
+	# $1 - action
+	# $2 - path glob (one argument!)
+
+	path_glob="$2"
+	topmost="${XGLOB_TOPMOST:?}"
+	result="${XGLOB_RESULT:?}"
+
+	# append / to ${topmost} if missing
+	case "${topmost}" in
+	*/) ;;
+	*) topmost="${topmost}/" ;;
+	esac
+
+	# prepend ${topmost} to ${path_glob} if leading slash is missing
+	case "${path_glob}" in
+	/*) ;;
+	*) path_glob="${topmost}${path_glob}" ;;
+	esac
+
+	type_selector='! -type d'
+	case "${path_glob}" in
+	*/) type_selector='-type d' ;;
+	esac
+
+	path_regex=$(glob2regex "${path_glob}")
+	if [ -z "${path_regex}" ] ; then
+		exit 1
+	fi
+
+	result=$(mktemp -p "${result}")
+
+	type_selector='! -type d'
+	case "${path_glob}" in
+	*/) type_selector='-type d' ;;
+	esac
+
+	find "${topmost}" -regextype egrep \
+	  -regex "${sysroot_skiplist}" -prune -o \
+	  '(' -regex "${path_regex}" ${type_selector} -print0 ')' \
+	> "${result}"
+
+	exit 0
+;;
+--skip)
+	# $1 - action
+	# $2 - path glob (one argument!)
+
+	path_glob="$2"
+	topmost="${XGLOB_TOPMOST:?}"
+	result="${XGLOB_RESULT:?}"
+	list="${XGLOB_MATCH:?}"
+
+	# append / to ${topmost} if missing
+	case "${topmost}" in
+	*/) ;;
+	*) topmost="${topmost}/" ;;
+	esac
+
+	# prepend ${topmost} to ${path_glob} if leading slash is missing
+	case "${path_glob}" in
+	/*) ;;
+	*) path_glob="${topmost}${path_glob}" ;;
+	esac
+
+	# remove trailing /
+	path_glob=$(printf '%s' "${path_glob}" | sed -zE 's,/+$,,')
+
+	path_regex=$(glob2regex "${path_glob}")
+	if [ -z "${path_regex}" ] ; then
+		exit 1
+	fi
+
+	result=$(mktemp -p "${result}")
+
+	grep -zE "${path_regex}" < "${list}" > "${result}"
+
+	exit 0
+;;
+esac
+
+if ! [ -d "$1" ] ; then
+	log "directory doesn't exist: $1"
+	exit 1
+fi
+
+topmost="$1" ; shift
+
+## work directory
+w=$(mktemp -d) ; : "${w:?}"
+
+_cleanup() {
+	cd /
+	rm -rf -- "$w"
+}
+
+# deal with remaining arguments (if any)
+
+stdin_read=
+files_read=0
+n=0
+want_cmd=
+
+# resolve stdin
+stdin_path=$(readlink -en /dev/stdin)
+[ -n "${stdin_path}" ] || stdin_path=$(readlink -en /proc/self/fd/0)
+[ -n "${stdin_path}" ] || stdin_path='/proc/self/fd/0'
+
+# process remaining arguments
+for i ; do
+	n=$(( n + 1 ))
+
+	# skip empty argument
+	[ -n "$i" ] || continue
+
+	if [ "$i" = '--' ] ; then
+		shift "$n"
+		want_cmd=1
+		break
+	fi
+
+	k="$i"
+	case "$i" in
+	-|/dev/stdin|/proc/self/fd/0)
+		# stdin fixture
+		k='-'
+	;;
+	*)
+		realpath=$(readlink -en "$i")
+		if [ "${realpath}" = "${stdin_path}" ] ; then
+			# stdin fixture
+			k='-'
+		fi
+	;;
+	esac
+
+	case "$k" in
+	-) ;;
+	/dev/* | /proc/* | /sys/*)
+		log "refusing to read $i"
+		continue
+	;;
+	*)
+		# we may skip non-regular files (this is acceptable IMO)
+		[ -f "$i" ] || continue
+		[ -s "$i" ] || continue
+	;;
+	esac
+
+	if [ "$k" = '-' ] ; then
+		if [ -n "${stdin_read}" ] ; then
+			log "stdin is already read, skipping $i"
+			continue
+		fi
+
+		stdin_read=1
+	fi
+
+	files_read=$(( files_read + 1 ))
+	grep -E "${rule_stanza}" "$k" >> "$w/rules.raw"
+done
+
+# if no files were read then try stdin as last resort
+if [ "${files_read}" = 0 ] ; then
+	grep -E "${rule_stanza}" - >> "$w/rules.raw"
+fi
+
+sort -uV < "$w/rules.raw" > "$w/rules"
+
+# nothing to match at all
+if ! [ -s "$w/rules" ] ; then
+	log 'no rules found at all'
+	_cleanup
+	exit 0
+fi
+
+grep -E '^match=(.+)$' "$w/rules" > "$w/rules.match"
+if ! [ -s "$w/rules.match" ] ; then
+	log 'no "match=" rules found'
+	_cleanup
+	exit 0
+fi
+
+# intrusive parallelism
+if [ -z "${NPROC}" ] ; then
+	NPROC=$(nproc)
+	NPROC=$(( NPROC + (NPROC + 1)/2 ))
+fi
+
+export XGLOB_TOPMOST="${topmost}"
+
+export XGLOB_RESULT="$w/match.d"
+mkdir -p "$w/match.d"
+
+# execute self in parallel against "match" rules
+cut -d '=' -f 2- < "$w/rules.match" \
+| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --match
+
+# merge "match" results
+find "$w/match.d" -mindepth 1 -type f \
+  -exec sort -zuV '{}' '+' > "$w/match"
+
+if ! [ -s "$w/match" ] ; then
+	_cleanup
+	exit 0
+fi
+
+grep -E '^skip=(.+)$' "$w/rules" > "$w/rules.skip"
+if [ -s "$w/rules.skip" ] ; then
+	export XGLOB_MATCH="$w/match"
+
+	export XGLOB_RESULT="$w/skip.d"
+	mkdir -p "$w/skip.d"
+
+	# execute self in parallel against "skip" rules
+	cut -d '=' -f 2- < "$w/rules.skip" \
+	| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --skip
+
+	# merge "skip" results
+	find "$w/skip.d" -mindepth 1 -type f \
+	  -exec sort -zuV '{}' '+' > "$w/skip"
+
+	if [ -s "$w/skip" ] ; then
+		tr '\0' '\n' < "$w/skip" > "$w/skip.t"
+		grep -zFxv -f "$w/skip.t" "$w/match" > "$w/result"
+	else
+		mv "$w/match" "$w/result"
+	fi
+else
+	mv "$w/match" "$w/result"
+fi
+
+unset XGLOB_TOPMOST XGLOB_RESULT XGLOB_MATCH
+
+if ! [ -s "$w/result" ] ; then
+	_cleanup
+	exit 0
+fi
+
+result=
+if [ "${want_cmd}" = 1 ] ; then
+	xargs -r -0 -a "$w/result" "$@"
+	result=$?
+else
+	xargs -r -0 -n 1 -a "$w/result"
+	result=$?
+fi
+
+_cleanup
+exit ${result}
