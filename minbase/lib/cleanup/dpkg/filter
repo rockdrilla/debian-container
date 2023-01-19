@@ -49,7 +49,7 @@ fi
 # remove files immediately
 xargs -r -0 ${rm} < "$w/list"
 
-# TODO: deal with divertions?
+# TODO: deal with diversions?
 
 _cleanup
 exit 0

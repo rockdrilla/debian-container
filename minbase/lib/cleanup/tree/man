@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag tree/man
+
+set -ef
+
+rm="rm -f${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+xglob /usr/local -- ${rm} <<-'EOF'
+	match=share/man/**
+EOF
