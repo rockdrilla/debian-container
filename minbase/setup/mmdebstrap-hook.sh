@@ -35,6 +35,16 @@ if [ -d "$1" ] ; then
 	exit
 fi
 
+# fix ownership:
+# mmdebstrap's actions 'sync-in' and 'copy-in' preserves source user/group
+fix_ownership() {
+	s="${1%%|*}" ; a="${1##*|}"
+	find /usr/local $s -exec $a '{}' '+'
+}
+
+[ "$4" = 0 ] || fix_ownership "-uid $4|chown -h 0"
+[ "$5" = 0 ] || fix_ownership "-gid $5|chgrp -h 0"
+
 # fix script permissions (if broken)
 find /usr/local/bin -type f -exec chmod 0755 {} +
 
@@ -119,19 +129,6 @@ fi
 
 # cleanup installed packages
 quiet apt-env apt-get -y autoremove
-
-# fix ownership:
-# mmdebstrap's actions 'sync-in' and 'copy-in' preserves source user/group
-fix_ownership() {
-	s="${1%%|*}" ; a="${1##*|}"
-	# sysroot_skiplist='^/(dev|proc|run|sys)$'
-	find / -regextype egrep \
-	  -regex '^/(dev|proc|run|sys)$' -prune -o \
-	  '(' $s -exec $a '{}' '+' ')'
-}
-
-[ "$4" = 0 ] || fix_ownership "-uid $4|chown -h 0"
-[ "$5" = 0 ] || fix_ownership "-gid $5|chgrp -h 0"
 
 # reproducibility
 echo "$2-$3" > /etc/hostname
