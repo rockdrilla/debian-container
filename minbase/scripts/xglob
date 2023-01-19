@@ -183,10 +183,10 @@ if [ "${files_read}" = 0 ] ; then
 fi
 
 sort -uV < "$w/rules.raw" > "$w/rules"
+rm -f "$w/rules.raw"
 
 # nothing to match at all
 if ! [ -s "$w/rules" ] ; then
-	log 'no rules found at all'
 	_cleanup
 	exit 0
 fi
@@ -217,12 +217,17 @@ cut -d '=' -f 2- < "$w/rules.match" \
 find "$w/match.d" -mindepth 1 -type f \
   -exec sort -zuV '{}' '+' > "$w/match"
 
+rm -rf "$w/rules.match" "$w/match.d"
+
 if ! [ -s "$w/match" ] ; then
 	_cleanup
 	exit 0
 fi
 
 grep -E '^skip=(.+)$' "$w/rules" > "$w/rules.skip"
+
+rm -f "$w/rules"
+
 if [ -s "$w/rules.skip" ] ; then
 	export XGLOB_MATCH="$w/match"
 
@@ -237,9 +242,13 @@ if [ -s "$w/rules.skip" ] ; then
 	find "$w/skip.d" -mindepth 1 -type f \
 	  -exec sort -zuV '{}' '+' > "$w/skip"
 
+	rm -rf "$w/rules.skip" "$w/skip.d"
+
 	if [ -s "$w/skip" ] ; then
 		tr '\0' '\n' < "$w/skip" > "$w/skip.t"
+		rm -f "$w/skip"
 		grep -zFxv -f "$w/skip.t" "$w/match" > "$w/result"
+		rm -f "$w/match" "$w/skip.t"
 	else
 		mv "$w/match" "$w/result"
 	fi
