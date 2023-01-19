@@ -1,0 +1,22 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag tree/etc/user
+##tag tree/etc/group
+##tag tree/etc/shadow
+
+set -ef
+
+rm="rm -f${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+xglob /etc -- ${rm} <<-'EOF'
+	match=.pwd.lock
+	match=group-
+	match=gshadow-
+	match=passwd-
+	match=shadow-
+	match=subgid-
+	match=subuid-
+EOF

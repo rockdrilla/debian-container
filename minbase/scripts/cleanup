@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -f
+
+lib='/usr/local/lib/cleanup'
+tags='apt tree var'
+
+# reset locale to default one
+unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+unset LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+# setup various environment variables representing temporary directory
+export TMPDIR=/tmp
+export TMP=/tmp
+export TEMPDIR=/tmp
+export TEMP=/tmp
+
+du -xsh /
+
+cleanup_by_tag() {
+	find -L "${lib}/" -type f -executable -exec grep -ZFl "##tag $1" '{}' '+' \
+	| sort -zuV \
+	| xargs ${VERBOSE:+ -t } -0 -r -n 1 sh -c '"$1"' --
+}
+
+for t in ${*:-${tags}} ; do
+	if [ "$t" = apt ] ; then
+		cleanup_by_tag dpkg
+	fi
+
+	cleanup_by_tag "$t"
+done
+
+# list stalled configs (if any)
+list-stalled-configs
+
+# list broken symlinks (if any)
+list-broken-symlinks
+
+du -xsh /

@@ -1,0 +1,23 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag var/tmp
+
+set -f
+
+[ -z "${DEBUG}" ] || set -xv
+
+find /tmp/ -mindepth 1 ${VERBOSE:+-ls} -delete
+
+set -e
+cd /tmp
+
+install -d -m 01777 \
+	.ICE-unix \
+	.Test-unix \
+	.X11-unix \
+	.XIM-unix \
+	.font-unix \
+
+exit 0

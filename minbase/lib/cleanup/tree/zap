@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag tree/zap
+
+set -ef
+
+[ -z "${DEBUG}" ] || set -xv
+
+xglob / - /usr/local/etc/cleanup/zap-tree -- zap-tree <<-'EOF'
+	match=/usr/share/**/
+	match=/usr/local/share/**/
+EOF

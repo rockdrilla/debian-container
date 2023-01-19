@@ -136,4 +136,6 @@ fix_ownership() {
 # reproducibility
 echo "$2-$3" > /etc/hostname
 : > /etc/resolv.conf
-: > /var/lib/dpkg/available
+
+# run whole image cleanup script
+VERBOSE=1 cleanup

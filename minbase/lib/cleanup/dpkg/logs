@@ -1,0 +1,17 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag dpkg/logs
+
+set -ef
+
+rm="rm -f${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+xglob /var/log -- ${rm} <<-'EOF'
+	match=alternatives.log
+	match=alternatives.log.*
+	match=dpkg.log
+	match=dpkg.log.*
+EOF

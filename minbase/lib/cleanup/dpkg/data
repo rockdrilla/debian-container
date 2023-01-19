@@ -1,0 +1,18 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag dpkg/data
+
+set -ef
+
+rm="rm -f${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+: "${DPKG_ADMINDIR:=/var/lib/dpkg}"
+
+truncate -s 0 "${DPKG_ADMINDIR}/available"
+
+xglob "${DPKG_ADMINDIR}" -- ${rm} <<-'EOF'
+	match=*-old
+EOF

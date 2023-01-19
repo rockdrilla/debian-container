@@ -96,8 +96,13 @@ mmdebstrap \
   --components="${comps}" \
   --aptopt="${dir0}/setup/apt.conf" \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
+  --customize-hook="sync-in '${dir0}/conf' /usr/local/etc" \
+  --customize-hook="sync-in '${dir0}/lib' /usr/local/lib" \
   --customize-hook="sync-in '${dir0}/scripts' /usr/local/bin" \
   --customize-hook="'${dir0}/setup/mmdebstrap-hook.sh' \"\$1\" ${distro} ${suite} ${uid} ${gid}" \
+  --skip=cleanup/apt \
+  --skip=cleanup/tmp \
+  --skip=cleanup/run \
   "${suite}" "${tarball_tmp}" \
   ${sources_tmp:+ - } <<-EOF
 $(test -z "${sources_tmp}" || cat "${sources_tmp}")

@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag tree/etc/cron
+
+set -ef
+
+rm="rm -f${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+xglob /etc - /usr/local/etc/cleanup/cron-etc -- ${rm} <<-'EOF'
+	match=cron*/.placeholder
+EOF

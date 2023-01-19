@@ -1,0 +1,21 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag apt/data
+
+set -ef
+
+rm="rm -f${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+xglob /var/lib/apt -- ${rm} <<-'EOF'
+	match=listchanges*
+	match=lists/**
+	skip=lists/lock
+EOF
+
+xglob /var/cache/apt -- ${rm} <<-'EOF'
+	match=**
+	skip=archives/lock
+EOF

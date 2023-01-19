@@ -1,0 +1,21 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag var/logs
+
+set -ef
+
+rm="rm -f${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+xglob /var/log - /usr/local/etc/cleanup/logs -- ${rm} <<-'EOF'
+	match=**
+	skip=btmp
+	skip=wtmp
+	skip=faillog
+	skip=lastlog
+	skip=tallylog
+EOF
+
+find /var/log/ -xdev -type f -exec truncate -s 0 '{}' '+'

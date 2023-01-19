@@ -1,0 +1,29 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -e
+
+[ -s "$1" ] || exit 0
+
+t=$(mktemp) ; : "${t:?}"
+
+for i ; do
+	[ -n "$i" ] || continue
+	[ -s "$i" ] || continue
+
+	awk 'BEGIN { m = 0 }
+$0 == "" { print }
+/^[^[:space:]]/ {
+    if ($1 ~ "\.[Uu][Tt][Ff]-?8:") { m = 1; next; }
+    m = 0; print $0;
+}
+/^[[:space:]]/ {
+    if (m == 1) next;
+    print $0;
+}' < "$1" > "$t"
+
+	cat < "$t" > "$1"
+done
+
+rm -f "$t"

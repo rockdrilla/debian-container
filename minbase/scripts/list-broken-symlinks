@@ -1,0 +1,23 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2022-2023, Konstantin Demin
+
+[ -z "${DEBUG}" ] || set -xv
+
+sysroot_skiplist='^/(dev|proc|run|sys)$'
+
+t=$(mktemp) ; : "${t:?}"
+
+find -L / -regextype egrep \
+  -regex "${sysroot_skiplist}" -prune -o \
+  '(' -type l -print ')' \
+| sort -V \
+> "$t"
+
+if [ -s "$t" ] ; then
+	echo '# broken symlinks:' 1>&2
+	cat "$t"
+fi
+
+rm -f "$t"
+exit 0
