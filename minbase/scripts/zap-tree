@@ -4,6 +4,8 @@
 
 set -f
 
+[ -z "${DEBUG}" ] || set -xv
+
 if [ -z "${ZAP_TREE}" ] ; then
 	export ZAP_TREE=1
 
@@ -40,5 +42,5 @@ find_fast() {
 
 for i ; do
 	[ -d "$i" ] || continue
-	find_fast "$i" ! -type d || rm -rf "$i"
+	find_fast "$i" ! -type d || rm -rf${VERBOSE:+v} "$i"
 done
