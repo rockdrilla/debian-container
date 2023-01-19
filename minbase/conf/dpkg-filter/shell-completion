@@ -1,0 +1,6 @@
+delete=/usr/share/bash-completion*/**
+delete=/usr/share/fish/completion*/**
+delete=/usr/share/zsh/**/*.zwc
+delete=/usr/share/zsh/vendor-completion*/**
+delete=/usr/share/zsh/functions/Completion/**
+delete=/usr/share/yash/completion*/**

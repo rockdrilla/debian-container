@@ -1,0 +1,5 @@
+delete=/usr/share/locale/**
+keep=/usr/share/locale/locale.alias
+keep=/usr/share/locale/currency/**
+keep=/usr/share/locale/l10n/**
+keep=/usr/share/locale/languages

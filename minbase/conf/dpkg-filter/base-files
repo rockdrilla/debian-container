@@ -1,0 +1,2 @@
+delete=/usr/share/base-files/**
+delete=/usr/share/common-licenses/**

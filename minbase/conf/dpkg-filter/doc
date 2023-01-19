@@ -1,0 +1,4 @@
+delete=/usr/share/doc/**
+delete=/usr/share/help/**
+delete=/usr/share/info/**
+delete=/usr/share/man/**

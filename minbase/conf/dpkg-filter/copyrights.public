@@ -1,0 +1,2 @@
+keep=/usr/share/common-licenses/**
+keep=/usr/share/doc/*/copyright

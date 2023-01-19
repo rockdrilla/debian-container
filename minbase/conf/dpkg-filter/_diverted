@@ -1,0 +1,5 @@
+# ref: /usr/local/minbase-initial.sh
+delete=/sbin/start-stop-daemon.*
+delete=/usr/bin/deb-systemd-helper.*
+delete=/usr/bin/deb-systemd-invoke.*
+delete=/usr/bin/ischroot.*
