@@ -118,3 +118,21 @@ unset bundle ts_bundle ts_certs
 	rm -f "$f"
 	unset f
 }
+
+# reduce impact from util-linux{,-extra}
+
+util_linux_allowed='choom chrt fallocate findmnt flock getopt hardlink
+ionice ipcmk ipcrm ipcs lscpu lsfd lsipc lslocks lsmem lsns more
+mountpoint namei nsenter prlimit rename.ul rev runuser setarch setpriv
+setsid setterm taskset uclampset unshare whereis'
+
+allowed_regex='bin/('$(printf '%s' "${util_linux_allowed}" | tr -s '[:space:]' '|')')$'
+
+find "${DPKG_ADMINDIR:=/var/lib/dpkg}/info/" -name 'util-linux*.list' \
+  -exec grep -E 'bin/.+' '{}' '+' \
+| grep -Ev "${allowed_regex}" \
+| sort -uV \
+| sed -E 's/^/delete=/' \
+> /usr/local/etc/dpkg-filter/util-linux.auto
+
+unset util_linux_allowed allowed_regex
