@@ -22,6 +22,7 @@ case "$1" in
 	if [ -z "${deps}" ] ; then
 		echo 'nothing was selected as build-deps' >&2
 	else
+		export APT_METHOD="${APT_WRAP_INSTALL_METHOD:-install}"
 		if ! quiet apt-install ${deps} ; then
 			rm -rf "$w"
 			exit 1
@@ -83,7 +84,8 @@ case "$1" in
 
 	set -e
 
-	xargs -r quiet apt-env apt-get -y ${APT_WRAP_REMOVE_METHOD:-purge} < "$w/pkg.remove" >&2
+	export APT_METHOD="${APT_WRAP_REMOVE_METHOD:-purge}"
+	xargs -r quiet apt-remove < "$w/pkg.remove" >&2
 
 	rm -rf "$w"
 	exit 0

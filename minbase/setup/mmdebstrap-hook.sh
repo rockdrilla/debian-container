@@ -128,7 +128,7 @@ if apt-install usr-is-merged >/dev/null 2>&1 ; then
 fi
 
 # cleanup installed packages
-quiet apt-env apt-get -y autoremove
+quiet apt-autoremove
 
 # reproducibility
 echo "$2-$3" > /etc/hostname
