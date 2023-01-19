@@ -9,5 +9,7 @@ set -f
 rm="rm -rf${VERBOSE:+v}"
 [ -z "${DEBUG}" ] || set -xv
 
-xglob / /usr/local/etc/cleanup/dpkg -- ${rm} </dev/null
-exit 0
+xglob / - /usr/local/etc/cleanup/dpkg -- ${rm} <<-'EOF'
+	match=/etc/dpkg/dpkg.cfg.d/docker*
+	match=/etc/dpkg/dpkg.cfg.d/excludes
+EOF
