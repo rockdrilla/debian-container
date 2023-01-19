@@ -88,7 +88,7 @@ setsid setterm taskset uclampset unshare whereis'
 allowed_regex='bin/('$(printf '%s' "${util_linux_allowed}" | tr -s '[:space:]' '|')')$'
 
 find "${DPKG_ADMINDIR:-/var/lib/dpkg}/info/" -name 'util-linux*.list' \
-  -exec grep -E 'bin/.+' '{}' '+' \
+  -exec grep -hE 'bin/.+' '{}' '+' \
 | grep -Ev "${allowed_regex}" \
 | sort -uV \
 | sed -E 's/^/delete=/' \
