@@ -21,12 +21,11 @@ IMAGE_PATH="${IMAGE_REGISTRY:?}/${IMAGE_DIRECTORY:?}"
 # NB: assume that we're already logged in registry
 
 stub_build() {
-	BUILD_IMAGE_SCRIPT=/bin/true \
 	BUILD_IMAGE_SCRIPT_CUSTOM=1 \
 	BUILD_IMAGE_BASE=0 \
 	BUILD_IMAGE_SCRIPT_PRE=/bin/true \
 	BUILD_IMAGE_SCRIPT_POST=/bin/true \
-	"${dir0}/scripts/build-image.sh" . "$@"
+	"${dir0}/scripts/build-image.sh" /bin/true "$@"
 }
 
 for distro_suite in \
@@ -36,7 +35,9 @@ for distro_suite in \
 	IFS=: read -r distro suite extra_tags <<-EOF
 	${distro_suite}
 	EOF
-	extra_tags=$(echo "${extra_tags}" | sed -e 's/:/: /g')
+	if [ -n "${extra_tags}" ] ; then
+		extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
+	fi
 
 	image="${IMAGE_PATH}/${distro}-min:${suite}"
 	"${dir0}/minbase/image.sh" ${distro} ${suite} "${image}"
