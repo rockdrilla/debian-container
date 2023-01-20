@@ -42,4 +42,15 @@ for distro_suite in \
 	"${dir0}/minbase/image.sh" ${distro} ${suite} "${image}"
 	stub_build "${image}" ${extra_tags}
 
+	(
+		export BUILD_IMAGE_ARGS='IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE'
+		export DISTRO="${distro}"
+		export SUITE="${suite}"
+
+		"${dir0}/scripts/build-image.sh" \
+		  "${dir0}/standard" \
+		  "${IMAGE_PATH}/${distro}:${suite}" \
+		  ${extra_tags}
+	)
+
 done
