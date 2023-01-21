@@ -202,7 +202,7 @@ cd "$W"
 (
 	# verify that we have upstream tarball
 	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig*" -type f || {
-		uscan --destdir "$T" --download-current-version
+		uscan --destdir "$T" --download-current-version --rename
 	}
 
 	# generate debian/control (if missing)
