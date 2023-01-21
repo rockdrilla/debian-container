@@ -151,6 +151,7 @@ build_image() {
 	fi
 
 	# record source script file
+	[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 	append_label "git.file=$(git_ro rev-parse --show-prefix 2>/dev/null || :)${BUILD_IMAGE_SCRIPT}"
 
 	# (always) passthrough GitLab CI/CD env
@@ -159,24 +160,30 @@ build_image() {
 		append_arg CI
 	fi
 	if [ -n "${CI_PROJECT_URL:+1}" ] ; then
+		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 		append_label "git.project=${CI_PROJECT_URL}"
 	fi
 	if [ -n "${CI_COMMIT_SHA:+1}" ] ; then
 		append_arg CI_COMMIT_SHA
+		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 		append_label "git.commit=${CI_COMMIT_SHA}"
 	fi
 	if [ -n "${CI_COMMIT_REF_NAME:+1}" ] ; then
+		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 		append_label "git.ref=${CI_COMMIT_REF_NAME}"
 	fi
 	if [ -n "${CI_COMMIT_TAG:+1}" ] ; then
+		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 		append_label "git.tag=${CI_COMMIT_TAG}"
 	fi
 	if [ -n "${CI_COMMIT_REF_SLUG:+1}" ] ; then
 		append_arg CI_COMMIT_REF_SLUG
+		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 		append_label "git.refslug=${CI_COMMIT_REF_SLUG}"
 	fi
 	if [ -n "${CI_PIPELINE_IID:+1}" ] ; then
 		append_arg CI_PIPELINE_IID
+		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 		append_label "ci.pipeline=${CI_PIPELINE_IID}"
 	fi
 
