@@ -11,25 +11,25 @@ Despite of name, Ubuntu is supported too (mostly).
 Minimal base image - `minbase/` ([readme](minbase/README.md))
 
 Images on Quay.io:
-[Debian](https://quay.io/repository/rockdrilla/debian-min)
+[Debian](https://quay.io/repository/rockdrilla/debian-min?tab=tags)
 |
-[Ubuntu](https://quay.io/repository/rockdrilla/ubuntu-min)
+[Ubuntu](https://quay.io/repository/rockdrilla/ubuntu-min?tab=tags)
 
 Images on Docker.io:
-[Debian](https://hub.docker.com/r/rockdrilla/debian-min)
+[Debian](https://hub.docker.com/r/rockdrilla/debian-min/tags)
 |
-[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-min)
+[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-min/tags)
 
 ### standard image
 
 Standard base image - `standard/` ([dockerfile](standard/Dockerfile))
 
 Images on Quay.io:
-[Debian](https://quay.io/repository/rockdrilla/debian)
+[Debian](https://quay.io/repository/rockdrilla/debian?tab=tags)
 |
-[Ubuntu](https://quay.io/repository/rockdrilla/ubuntu)
+[Ubuntu](https://quay.io/repository/rockdrilla/ubuntu?tab=tags)
 
 Images on Docker.io:
-[Debian](https://hub.docker.com/r/rockdrilla/debian)
+[Debian](https://hub.docker.com/r/rockdrilla/debian/tags)
 |
-[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu)
+[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu/tags)
