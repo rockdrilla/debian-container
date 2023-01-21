@@ -1,0 +1,24 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2020-2023, Konstantin Demin
+
+set -f
+
+# debian package version handling
+
+# match pattern "epoch:version-revision"
+match0='([0-9]+):([0-9][0-9a-zA-Z.+~:-]*)-([0-9a-zA-Z+.~]+)'
+# match pattern "epoch:native_version"
+match1='([0-9]+):([0-9][0-9a-zA-Z.+~:]*)'
+# match pattern "version-revision"
+match2='([0-9][0-9a-zA-Z.+~-]*)-([0-9a-zA-Z+.~]+)'
+# match pattern "native_version"
+match3='([0-9][0-9a-zA-Z.+~]*)'
+# replace pattern "epoch|upstream version|revision or native_version"
+replace='\2\5|\3\7|\4\6\8\9'
+# sed script to split package version into kind of 'list'
+pkg_ver_to_list='/^('${match0}'|'${match1}'|'${match2}'|'${match3}')$/{s##'${replace}'#;p;}'
+
+for i ; do
+    echo "$i" | sed -En "${pkg_ver_to_list}"
+done
