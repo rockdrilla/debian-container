@@ -1,0 +1,84 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2022-2023, Konstantin Demin
+
+set -ef
+
+case "$1" in
+--stage1)
+	shift
+
+	dsc="${1:?}"
+	dest_dir="${2:?}"
+	shift 2
+
+	build_dir="${DEB_SRC_BUILD_DIR}"
+	rm_build_dir=
+	if [ -z "${build_dir}" ] ; then
+		build_dir=$(mktemp -d) ; : "${build_dir:?}"
+		rm_build_dir=1
+	fi
+
+	bd_fields='Build-Depends Build-Depends-Arch Build-Depends-Indep'
+	deps=$( { for f in ${bd_fields} ; do deb822-get-field "$f" "${dsc}" ; done ; } | sed -zE 's/\n/, /g;s/,+/,/g;s/^,//;s/,$//' )
+
+	set +e
+
+	export APT_WRAP_INSTALL_METHOD='satisfy'
+	apt-wrap "${deps}" "$0" --stage2 "${build_dir}" "${dsc}" "$@"
+	r=$?
+
+	find "${build_dir}" -maxdepth 1 -type f -exec cp -t "${dest_dir}" -v '{}' '+'
+
+	[ -z "${rm_build_dir}" ] || rm -rf "${build_dir}"
+
+	exit $r
+;;
+--stage2)
+	shift
+
+	build_dir="${1:?}"
+	dsc=$(readlink -e "${2:?}")
+	shift 2
+
+	pkg_name=$(deb822-get-field Source "${dsc}")
+	[ -n "${pkg_name}" ]
+	pkg_ver=$(deb822-get-field Version "${dsc}")
+	[ -n "${pkg_ver}" ]
+
+	pkg_ver_list=$(deb-ver-parse "${pkg_ver}")
+	[ -n "${pkg_ver_list}" ]
+
+	IFS='|' read ver_epoch ver_upstream ver_revision <<-EOF
+	${pkg_ver_list}
+	EOF
+
+	scr_dir="${pkg_name}-${ver_upstream}"
+	[ -n "${ver_upstream}" ] || scr_dir="${pkg_name}-${ver_revision}"
+
+	cd "${build_dir}"
+
+	rm -rf "${scr_dir}"
+	dpkg-source -x "${dsc}"
+
+	# cleanup after dpkg-source
+	find ./ -mindepth 1 -maxdepth 1 -name "${pkg_name}_*.orig*" -delete
+
+	cd "${scr_dir}"
+
+	dpkg-buildpackage --build='all,any' \
+	  --no-post-clean \
+	  --unsigned-source \
+	  --unsigned-buildinfo \
+	  --unsigned-changes \
+	  --no-sign \
+	"$@"
+
+	cd "${build_dir}"
+	rm -rf "${scr_dir}"
+
+	exit
+;;
+esac
+
+apt-wrap "${DEB_SRC_BUILD_PKG:-debhelper build-essential}" "$0" --stage1 "$@"
