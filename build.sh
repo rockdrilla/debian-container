@@ -8,7 +8,10 @@ set -f
 # : "${BUILDAH_FORMAT:=docker}"
 # export BUILDAH_FORMAT
 
-dir0=$(readlink -f "$(dirname "$0")")
+dir0=$(readlink -e "$(dirname "$0")")
+cd "${dir0:?}" || exit
+
+export PATH="${dir0}/scripts:${PATH}"
 
 SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(date -u '+%s')}
 export SOURCE_DATE_EPOCH
@@ -25,33 +28,31 @@ stub_build() {
 	BUILD_IMAGE_BASE=0 \
 	BUILD_IMAGE_SCRIPT_PRE=/bin/true \
 	BUILD_IMAGE_SCRIPT_POST=/bin/true \
-	"${dir0}/scripts/build-image.sh" /bin/true "$@"
+	scripts/build-image.sh /bin/true "$@"
 }
 
-for distro_suite in \
+for distro_suite_tags in \
 	debian:bullseye:11:stable:latest debian:bookworm:12 debian:sid \
 	ubuntu:focal:20.04:lts ubuntu:jammy:22.04:stable:latest \
 ; do
-	IFS=: read -r distro suite extra_tags <<-EOF
-	${distro_suite}
+	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
+	${distro_suite_tags}
 	EOF
 	if [ -n "${extra_tags}" ] ; then
 		extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
 	fi
 
-	image="${IMAGE_PATH}/${distro}-min:${suite}"
-	"${dir0}/minbase/image.sh" ${distro} ${suite} "${image}"
+	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}"
+	minbase/image.sh ${DISTRO} ${SUITE} "${image}"
 	stub_build "${image}" ${extra_tags}
 
 	(
-		export BUILD_IMAGE_ARGS='IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE'
-		export DISTRO="${distro}"
-		export SUITE="${suite}"
+	export DISTRO SUITE
+	export BUILD_IMAGE_ARGS='IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE'
 
-		"${dir0}/scripts/build-image.sh" \
-		  "${dir0}/standard" \
-		  "${IMAGE_PATH}/${distro}:${suite}" \
-		  ${extra_tags}
+	scripts/build-image.sh standard \
+	  "${IMAGE_PATH}/${DISTRO}:${SUITE}" \
+	  ${extra_tags}
 	)
 
 done
