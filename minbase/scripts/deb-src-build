@@ -66,6 +66,16 @@ case "$1" in
 
 	cd "${scr_dir}"
 
+	xsedx=$(env printf '\027')
+	remove_path() {
+		PATH=$(printf '%s' "${PATH}" | sed -E "s${xsedx}(^|:)$1/?(\$|:)${xsedx}\1\2${xsedx}")
+		export PATH
+	}
+
+	# remove "our" paths from PATH since source packages must not depend on /usr/local
+	remove_path /usr/local/bin
+	remove_path /usr/local/sbin
+
 	dpkg-buildpackage --build='all,any' \
 	  --no-post-clean \
 	  --unsigned-source \
