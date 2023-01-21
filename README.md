@@ -33,3 +33,17 @@ Images on Docker.io:
 [Debian](https://hub.docker.com/r/rockdrilla/debian/tags)
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu/tags)
+
+### buildd image
+
+"Buildd" image - `buildd/` ([dockerfile](buildd/Dockerfile))
+
+Images on Quay.io:
+[Debian](https://quay.io/repository/rockdrilla/debian-buildd?tab=tags)
+|
+[Ubuntu](https://quay.io/repository/rockdrilla/ubuntu-buildd?tab=tags)
+
+Images on Docker.io:
+[Debian](https://hub.docker.com/r/rockdrilla/debian-buildd/tags)
+|
+[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-buildd/tags)

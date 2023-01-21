@@ -55,4 +55,13 @@ for distro_suite_tags in \
 	  ${extra_tags}
 	)
 
+	(
+	export DISTRO SUITE
+	export BUILD_IMAGE_ARGS='IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE'
+
+	scripts/build-image.sh buildd \
+	  "${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}" \
+	  ${extra_tags}
+	)
+
 done
