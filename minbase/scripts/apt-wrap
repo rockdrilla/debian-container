@@ -6,6 +6,9 @@ set -ef
 
 join_lines() { sed -zE 's/[[:space:]]+/ /g;s/^ //;s/ $//' ; }
 
+_q=quiet
+[ "${APT_WRAP_QUIET:-1}" = 1 ] || _q=
+
 # internal methods
 case "$1" in
 --begin)
@@ -25,18 +28,18 @@ case "$1" in
 		export APT_METHOD="${APT_WRAP_INSTALL_METHOD:-install}"
 		case "${APT_METHOD}" in
 		satisfy)
-			if ! quiet apt-install "${deps}" ; then
+			if ! ${_q} apt-install "${deps}" ; then
 				rm -rf "$w"
 				exit 1
 			fi
 		;;
 		*)
-			if ! quiet apt-install ${deps} ; then
+			if ! ${_q} apt-install ${deps} ; then
 				rm -rf "$w"
 				exit 1
 			fi
 		;;
-		esac
+		esac </dev/null >&2
 
 		apt-list-installed > "$w/installed.1"
 		apt-list-manual    > "$w/manual.1"
@@ -66,7 +69,7 @@ case "$1" in
 	x="$w/keep"
 	if [ -s "$x" ] ; then
 		grep -Fxv -f "$w/installed.0" "$x" > "$x.manual" || :
-		xargs -r quiet apt-mark manual < "$x.manual"
+		xargs -r ${_q} apt-mark manual < "$x.manual"
 	fi
 
 	apt-list-installed > "$w/installed.2"
@@ -95,7 +98,7 @@ case "$1" in
 	set -e
 
 	export APT_METHOD="${APT_WRAP_REMOVE_METHOD:-purge}"
-	xargs -r quiet apt-remove < "$w/pkg.remove" >&2
+	xargs -r ${_q} apt-remove < "$w/pkg.remove" >&2
 
 	rm -rf "$w"
 	exit 0
