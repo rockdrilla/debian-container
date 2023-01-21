@@ -55,17 +55,6 @@ if [ -f "$f" ] ; then
 	mv "$f" /usr/local/
 fi
 
-# script "apt-backports" is irrelevant for sid/unstable - replace with stub
-if [ "$2" = debian ] ; then
-	case "$3" in
-	unstable|sid)
-		f='/usr/local/bin/apt-backports'
-		rm -f "$f"
-		ln -s /bin/true "$f"
-	;;
-	esac
-fi
-
 # remove "keep" files (if any)
 find /usr/local/ -name .keep -type f -delete
 
@@ -84,6 +73,21 @@ renmov() {
 }
 renmov /etc/apt/apt.conf.d/99mmdebstrap  /usr/local/etc/apt/apt.conf.d/container
 renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /usr/local/etc/dpkg/dpkg.cfg.d/container
+
+case "$2:$3" in
+# script "apt-backports" is irrelevant for sid/unstable
+# replace with stub
+debian:unstable | debian:sid)
+	f='/usr/local/bin/apt-backports'
+	rm -f "$f"
+	ln -s /bin/true "$f"
+;;
+# enable backports for these releases
+# NB: do "apt-backports enable-all" to setup apt pinning too
+debian:bullseye | ubuntu:focal)
+	apt-backports enable
+;;
+esac
 
 # source/run bootstrap script
 . /usr/local/minbase-initial.sh
