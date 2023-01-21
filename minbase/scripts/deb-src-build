@@ -70,13 +70,14 @@ case "$1" in
 
 	xsedx=$(env printf '\027')
 	remove_path() {
-		PATH=$(printf '%s' "${PATH}" | sed -E "s${xsedx}(^|:)$1/?(\$|:)${xsedx}\1\2${xsedx}")
+		PATH=$(printf '%s' "${PATH}" | sed -E "s${xsedx}(^|:)$1/?(\$|:)${xsedx}\\1${xsedx}g;s/:+/:/g;s/:\$//")
 		export PATH
 	}
 
 	# remove "our" paths from PATH since source packages must not depend on /usr/local
 	remove_path /usr/local/bin
 	remove_path /usr/local/sbin
+	echo "# PATH=${PATH}" >&2
 
 	eatmydata \
 	dpkg-buildpackage --build='all,any' \
