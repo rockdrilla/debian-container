@@ -17,17 +17,26 @@ fi
 
 act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 case "${act}" in
-1|enable)
+enable|enable-all)
 	. /etc/os-release
 	mawk 'NR==1{$3="'"${VERSION_CODENAME}"'-backports";print $0;}' \
 	< /etc/apt/sources.list \
 	> "${src_file}"
 ;;
-0|disable)
+disable|disable-all)
 	rm -f "${src_file}"
 ;;
 *)
-	env printf '# unknown apt backport action: %q\n' "$1" >&2
+	env printf '# unknown apt-backports action: %q\n' "$1" >&2
 	exit 1
+;;
+esac
+
+case "${act}" in
+enable-all)
+	apt-pin backports 500 "${VERSION_CODENAME}-backports" '*'
+;;
+disable-all)
+	apt-pin backports rm
 ;;
 esac
