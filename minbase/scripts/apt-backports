@@ -17,6 +17,10 @@ fi
 
 act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 case "${act}" in
+status)
+	[ -s "${src_file}" ]
+	exit
+;;
 enable|enable-all)
 	. /etc/os-release
 	mawk 'NR==1{$3="'"${VERSION_CODENAME}"'-backports";print $0;}' \
