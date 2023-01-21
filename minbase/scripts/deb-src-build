@@ -25,7 +25,9 @@ case "$1" in
 	set +e
 
 	export APT_WRAP_INSTALL_METHOD='satisfy'
-	apt-wrap "${deps}" "$0" --stage2 "${build_dir}" "${dsc}" "$@"
+	apt-wrap \
+	  "${deps}" \
+	  "$0" --stage2 "${build_dir}" "${dsc}" "$@"
 	r=$?
 
 	find "${build_dir}" -maxdepth 1 -type f -exec cp -t "${dest_dir}" -v '{}' '+'
@@ -76,6 +78,7 @@ case "$1" in
 	remove_path /usr/local/bin
 	remove_path /usr/local/sbin
 
+	eatmydata \
 	dpkg-buildpackage --build='all,any' \
 	  --no-post-clean \
 	  --unsigned-source \
@@ -91,4 +94,6 @@ case "$1" in
 ;;
 esac
 
-apt-wrap "${DEB_SRC_BUILD_PKG:-debhelper build-essential}" "$0" --stage1 "$@"
+apt-wrap \
+  "eatmydata debhelper ${DEB_SRC_BUILD_PKG:-build-essential}" \
+  "$0" --stage1 "$@"

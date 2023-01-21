@@ -11,7 +11,7 @@ SHELL [ "/bin/sh", "-ec" ]
 RUN if apt-backports status ; then \
         apt-backports enable-all ; \
     fi ; \
-    apt-install debhelper build-essential ; \
+    apt-install build-essential debhelper eatmydata ; \
     if apt-backports status ; then \
         apt-pin backports rm ; \
     fi ; \
