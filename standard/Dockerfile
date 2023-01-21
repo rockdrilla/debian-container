@@ -9,12 +9,11 @@ FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE}
 SHELL [ "/bin/sh", "-ec" ]
 
 RUN apt-install apt-utils less lsof netbase ncurses-base procps psmisc tzdata vim-tiny ; \
-    cleanup
-
-RUN vim=/usr/bin/vim ; \
     # install vim-tiny as variant for vim
+    vim=/usr/bin/vim ; \
     update-alternatives --install ${vim} vim ${vim}.tiny 1 ; \
     # quirk for vim-tiny
     find /usr/share/vim/ -name debian.vim \
     | sed 's/debian.vim/defaults.vim/' \
-    | xargs -d '\n' -r touch
+    | xargs -d '\n' -r touch ; \
+    cleanup
