@@ -22,7 +22,7 @@ Images on Docker.io:
 
 ### standard image
 
-Standard base image - `standard/` ([dockerfile](standard/Dockerfile))
+"Standard" image - `standard/` ([dockerfile](standard/Dockerfile))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian?tab=tags)
