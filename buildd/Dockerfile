@@ -13,7 +13,6 @@ RUN if apt-backports status ; then \
     fi ; \
     apt-install debhelper build-essential ; \
     if apt-backports status ; then \
-        apt-backports disable-all ; \
-        apt-backports enable ; \
+        apt-pin backports rm ; \
     fi ; \
     cleanup
