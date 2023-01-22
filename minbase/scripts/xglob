@@ -13,17 +13,20 @@ log() { echo "${me}: $*" >&2 ; }
 # internal methods
 case "$1" in
 --match)
+	shift
+
 	# turn glob to regex and then into file list
 	# (symlinks are listed too!)
 
-	# $1 - action
-	# $2 - path glob (one argument!)
+	topmost="${1:?}"
+	result="${2:?}"
+	path_glob="${3:?}"
 
-	path_glob="$2"
-	topmost="${XGLOB_TOPMOST:?}"
-	result="${XGLOB_RESULT:?}"
+	# squeeze slashes
+	topmost=$(printf '%s' "${topmost}" | sed -zE 's,/+,/,g')
+	path_glob=$(printf '%s' "${path_glob}" | sed -zE 's,/+,/,g')
 
-	# append / to ${topmost} if missing
+	# append slash to ${topmost} if missing
 	case "${topmost}" in
 	*/) ;;
 	*) topmost="${topmost}/" ;;
@@ -37,7 +40,11 @@ case "$1" in
 
 	type_selector='! -type d'
 	case "${path_glob}" in
-	*/) type_selector='-type d' ;;
+	*/)
+		type_selector='-type d'
+		# remove trailing /
+		path_glob=$(printf '%s' "${path_glob}" | sed -zE 's,/+$,,')
+	;;
 	esac
 
 	path_regex=$(glob2regex "${path_glob}")
@@ -47,26 +54,41 @@ case "$1" in
 
 	result=$(mktemp -p "${result}")
 
-	type_selector='! -type d'
+	# optimize search (a bit)
+	wide_search=
+	case "${topmost}" in
+	# keep in sync with ${sysroot_skiplist}
+	/ | /dev/* | /proc/* | /run/* | /sys/* | *..* )
+		wide_search=1
+	;;
+	esac
 	case "${path_glob}" in
-	*/) type_selector='-type d' ;;
+	# keep in sync with ${sysroot_skiplist}
+	/dev/* | /proc/* | /run/* | /sys/* | *..* )
+		wide_search=1
+	;;
 	esac
 
-	find "${topmost}" -regextype egrep \
-	  -regex "${sysroot_skiplist}" -prune -o \
-	  '(' -regex "${path_regex}" ${type_selector} -print0 ')' \
-	> "${result}"
+	if [ -n "${wide_search}" ] ; then
+		find "${topmost}" -xdev -regextype egrep \
+		  -regex "${sysroot_skiplist}" -prune -o \
+		  '(' -regex "${path_regex}" ${type_selector} -print0 ')'
+	else
+		find "${topmost}" -regextype egrep \
+		  -regex "${path_regex}" ${type_selector} -print0
+	fi > "${result}"
 
 	exit 0
 ;;
 --skip)
-	# $1 - action
-	# $2 - path glob (one argument!)
+	shift
 
-	path_glob="$2"
-	topmost="${XGLOB_TOPMOST:?}"
-	result="${XGLOB_RESULT:?}"
-	list="${XGLOB_MATCH:?}"
+	# filter glob from NUL-terminated "match" list
+
+	topmost="${1:?}"
+	result="${2:?}"
+	list="${3:?}"
+	path_glob="${4:?}"
 
 	# append / to ${topmost} if missing
 	case "${topmost}" in
@@ -204,14 +226,11 @@ if [ -z "${NPROC}" ] ; then
 	NPROC=$(( NPROC + (NPROC + 1)/2 ))
 fi
 
-export XGLOB_TOPMOST="${topmost}"
-
-export XGLOB_RESULT="$w/match.d"
 mkdir -p "$w/match.d"
 
 # execute self in parallel against "match" rules
 cut -d '=' -f 2- < "$w/rules.match" \
-| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --match
+| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --match "${topmost}" "$w/match.d"
 
 # merge "match" results
 find "$w/match.d" -mindepth 1 -type f \
@@ -229,14 +248,11 @@ grep -E '^skip=(.+)$' "$w/rules" > "$w/rules.skip"
 rm -f "$w/rules"
 
 if [ -s "$w/rules.skip" ] ; then
-	export XGLOB_MATCH="$w/match"
-
-	export XGLOB_RESULT="$w/skip.d"
 	mkdir -p "$w/skip.d"
 
 	# execute self in parallel against "skip" rules
 	cut -d '=' -f 2- < "$w/rules.skip" \
-	| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --skip
+	| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --skip "${topmost}" "$w/skip.d" "$w/match"
 
 	# merge "skip" results
 	find "$w/skip.d" -mindepth 1 -type f \
@@ -255,8 +271,6 @@ if [ -s "$w/rules.skip" ] ; then
 else
 	mv "$w/match" "$w/result"
 fi
-
-unset XGLOB_TOPMOST XGLOB_RESULT XGLOB_MATCH
 
 if ! [ -s "$w/result" ] ; then
 	_cleanup
