@@ -31,10 +31,16 @@ stub_build() {
 	scripts/build-image.sh /bin/true "$@"
 }
 
-for distro_suite_tags in \
-	debian:bullseye:11:stable:latest debian:bookworm:12 debian:sid \
-	ubuntu:focal:20.04:lts ubuntu:jammy:22.04:stable:latest \
-; do
+dst_list='
+	debian:bullseye:11:stable:latest
+	debian:bookworm:12
+	debian:sid
+	ubuntu:focal:20.04:lts
+	ubuntu:jammy:22.04:stable:latest
+'
+
+for distro_suite_tags in ${dst_list} ; do
+	extra_tags=
 	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
 	${distro_suite_tags}
 	EOF
@@ -45,23 +51,27 @@ for distro_suite_tags in \
 	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}"
 	minbase/image.sh ${DISTRO} ${SUITE} "${image}"
 	stub_build "${image}" ${extra_tags}
+done
 
-	(
+export BUILD_IMAGE_ARGS='IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE'
+
+for distro_suite_tags in ${dst_list} ; do
+	extra_tags=
+	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
+	${distro_suite_tags}
+	EOF
+	if [ -n "${extra_tags}" ] ; then
+		extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
+	fi
+
 	export DISTRO SUITE
-	export BUILD_IMAGE_ARGS='IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE'
 
 	scripts/build-image.sh standard \
 	  "${IMAGE_PATH}/${DISTRO}:${SUITE}" \
 	  ${extra_tags}
-	)
-
-	(
-	export DISTRO SUITE
-	export BUILD_IMAGE_ARGS='IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE'
 
 	scripts/build-image.sh buildd \
 	  "${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}" \
 	  ${extra_tags}
-	)
 
 done
