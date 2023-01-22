@@ -4,6 +4,8 @@
 
 set -ef
 
+have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+
 case "$1" in
 --stage1)
 	shift
@@ -12,17 +14,15 @@ case "$1" in
 	dest_dir="${2:?}"
 	shift 2
 
-	build_dir="${DEB_SRC_BUILD_DIR}"
-	rm_build_dir=
-	if [ -z "${build_dir}" ] ; then
-		build_dir=$(mktemp -d) ; : "${build_dir:?}"
-		rm_build_dir=1
-	fi
+	build_dir=$(mktemp -d ${DEB_SRC_BUILD_DIR:+ -p "${DEB_SRC_BUILD_DIR}" } build.XXXXXXXXXX)
+	: "${build_dir:?}"
 
 	bd_fields='Build-Depends Build-Depends-Arch Build-Depends-Indep'
 	deps=$( { for f in ${bd_fields} ; do deb822-get-field "$f" "${dsc}" ; done ; } | sed -zE 's/\n/, /g;s/,+/,/g;s/^,//;s/,$//' )
 
 	set +e
+
+	build_dir_userspec=$(env stat -c '%u:%g' "${build_dir}")
 
 	export APT_WRAP_INSTALL_METHOD='satisfy'
 	apt-wrap \
@@ -30,9 +30,11 @@ case "$1" in
 	  "$0" --stage2 "${build_dir}" "${dsc}" "$@"
 	r=$?
 
+	chown -Rh "${build_dir_userspec}" "${build_dir}"
+
 	find "${build_dir}" -maxdepth 1 -type f -exec cp -t "${dest_dir}" -v '{}' '+'
 
-	[ -z "${rm_build_dir}" ] || rm -rf "${build_dir}"
+	[ $r = 0 ] && rm -rf "${build_dir}"
 
 	exit $r
 ;;
@@ -66,6 +68,18 @@ case "$1" in
 	# cleanup after dpkg-source
 	find ./ -mindepth 1 -maxdepth 1 -name "${pkg_name}_*.orig*" -delete
 
+	runas=
+	if have_cmd run-as ; then
+		runas=$(deb822-get-field Rules-Requires-Root "${scr_dir}/debian/control")
+		if [ "${runas}" = no ] ; then
+			userspec="${DEB_SRC_BUILD_USERSPEC:-nobody:nogroup}"
+			runas="$(command -v run-as) ${userspec}"
+			chown -Rh "${userspec}" "${build_dir}"
+		else
+			runas=
+		fi
+	fi
+
 	cd "${scr_dir}"
 
 	xsedx=$(env printf '\027')
@@ -79,6 +93,7 @@ case "$1" in
 	remove_path /usr/local/sbin
 	echo "# PATH=${PATH}" >&2
 
+	${runas} \
 	eatmydata \
 	dpkg-buildpackage --build='all,any' \
 	  --no-post-clean \
