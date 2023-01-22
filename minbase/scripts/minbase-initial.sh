@@ -100,8 +100,9 @@ unset dpkg_filter_cfg util_linux_allowed allowed_regex
 
 # try generate CA bundle with minimal bloat
 bundle='/etc/ssl/certs/ca-certificates.crt'
-ts_bundle=$(find_fresh_ts /etc/ssl -path "${bundle}")
-ts_certs=$(find_fresh_ts /usr/share/ca-certificates /usr/local/share/ca-certificates)
+local_certs='/usr/local/share/ca-certificates'
+ts_bundle=$(find_fresh_ts /etc -path "${bundle}")
+ts_certs=$(find_fresh_ts /usr/share/ca-certificates "${local_certs}")
 while : ; do
 	if [ ${ts_bundle} -gt ${ts_certs} ] ; then
 		break
@@ -125,9 +126,14 @@ while : ; do
 	rm -f "$f"
 	unset f
 
+	if ! [ -d "${local_certs}" ] ; then
+		mkdir -p "${local_certs}"
+		touch -r "${bundle}" "${local_certs}"
+	fi
+
 	break
 done
-unset bundle ts_bundle ts_certs
+unset bundle local_certs ts_bundle ts_certs
 
 # set timezone
 [ -z "${TZ}" ] || {
