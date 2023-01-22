@@ -9,26 +9,15 @@ set -f
 if [ -z "${ZAP_TREE}" ] ; then
 	export ZAP_TREE=1
 
+	# intrusive parallelism
 	if [ -z "${NPROC}" ] ; then
 		NPROC=$(nproc)
 		NPROC=$(( NPROC + (NPROC + 1)/2 ))
 	fi
 
 	for i ; do
-		case "$i" in
-		*\** | *\?*)
-			set +f
-			for k in $i ; do
-				[ -d "$k" ] || continue
-				find "$k" -mindepth 1 -maxdepth 1 -type d -print0
-			done
-			set -f
-		;;
-		*)
-			[ -d "$i" ] || continue
-			find "$i" -mindepth 1 -maxdepth 1 -type d -print0
-		;;
-		esac
+		[ -d "$i" ] || continue
+		find "$i" -mindepth 1 -maxdepth 1 -type d -print0
 	done \
 	| sort -zuV \
 	| xargs -0 -r -n 1 -P "${NPROC}" "$0"
