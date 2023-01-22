@@ -95,6 +95,6 @@ case "$1" in
 ;;
 esac
 
-apt-wrap \
+exec apt-wrap \
   "eatmydata debhelper ${DEB_SRC_BUILD_PKG:-build-essential}" \
   "$0" --stage1 "$@"
