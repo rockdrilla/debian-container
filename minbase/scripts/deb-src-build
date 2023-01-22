@@ -96,5 +96,5 @@ case "$1" in
 esac
 
 exec apt-wrap \
-  "eatmydata debhelper ${DEB_SRC_BUILD_PKG:-build-essential}" \
+  "eatmydata debhelper fakeroot ${DEB_SRC_BUILD_PKG:-build-essential}" \
   "$0" --stage1 "$@"
