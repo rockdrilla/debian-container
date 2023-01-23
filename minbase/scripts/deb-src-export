@@ -78,7 +78,7 @@ fi
 
 # retrieve only desired fields from dpkg-parsechangelog output
 C=$(mktemp)
-if ! dpkg-parsechangelog -l "${deb_folder}/changelog" > "$C" 2>/dev/null ; then
+if ! dpkg-parsechangelog -l "${deb_folder}/changelog" > "$C" ; then
 	rm -f -- "$C"
 	exit 1
 fi
@@ -154,6 +154,29 @@ if [ -z "${ver_upstream}" ] ; then
 	) || { _cleanup ; exit 1 ; }
 fi
 
+(
+	deb_folder=$(readlink -e "${deb_folder}")
+
+	cd "$W"
+
+	set +e
+
+	# refresh control files
+	debian/rules debian/control
+	[ -s debian/control ] || debian/rules clean
+	debian/rules debian/changelog || cp -v "${deb_folder}/changelog" debian/
+	debian/rules debian/watch || cp -v "${deb_folder}/watch" debian/
+)
+[ -s "$W/debian/control" ]
+
+# re-retrieve Timestamp
+if ! dpkg-parsechangelog -l "$W/debian/changelog" >/dev/null ; then
+	_cleanup
+	exit 1
+fi
+pkg_ts=$(dpkg-parsechangelog -l "$W/debian/changelog" -S Timestamp)
+export SOURCE_DATE_EPOCH=${pkg_ts}
+
 # prepare/warmup GnuPG
 # if signing is disabled then it does nothing with files or GnuPG
 date > "$T/t" ; sign_file "$T/t" ; rm -f "$T/t"
@@ -202,17 +225,12 @@ cd "$W"
 (
 	# verify that we have upstream tarball
 	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig*" -type f || {
+		[ -s debian/watch ]
+
 		uscan_pre=
 		have_cmd uscan || uscan_pre='apt-wrap devscripts'
 		${uscan_pre} uscan --destdir "$T" --download-current-version --rename
 	}
-
-	# generate debian/control (if missing)
-	set +e
-	[ -f debian/control ] || debian/rules debian/control
-	[ -f debian/control ] || debian/rules clean
-	set -e
-	[ -f debian/control ]
 
 	tar -cf - debian | xz -9 > "$T/${pnd}.debian.tar.xz"
 
