@@ -30,11 +30,34 @@ case "$1" in
 	  "$0" --stage2 "${build_dir}" "${dsc}" "$@"
 	r=$?
 
-	chown -Rh "${build_dir_userspec}" "${build_dir}"
+	case "${DEB_SRC_BUILD_PURGE:-success}" in
+	success|2|always|1|never|0) ;;
+	*)
+		echo " ${0##*/}: unknown value DEB_SRC_BUILD_PURGE, using 'always', provided: ${DEB_SRC_BUILD_PURGE}" >&2
+		DEB_SRC_BUILD_PURGE=always
+	;;
+	esac
 
-	find "${build_dir}" -maxdepth 1 -type f -exec cp -t "${dest_dir}" -v '{}' '+'
+	find "${build_dir}" -maxdepth 1 -type f -exec chown "${build_dir_userspec}" '{}' '+'
+	find "${build_dir}" -maxdepth 1 -type f -exec mv -vf -t "${dest_dir}" '{}' '+'
 
-	[ $r = 0 ] && rm -rf "${build_dir}"
+	case "${DEB_SRC_BUILD_PURGE:-success}" in
+	success|2)
+		[ $r = 0 ] || chown -Rh "${build_dir_userspec}" "${build_dir}"
+	;;
+	never|0)
+		chown -Rh "${build_dir_userspec}" "${build_dir}"
+	;;
+	esac
+
+	case "${DEB_SRC_BUILD_PURGE:-success}" in
+	success|2)
+		[ $r = 0 ] && rm -rf "${build_dir}"
+	;;
+	always|1)
+		rm -rf "${build_dir}"
+	;;
+	esac
 
 	exit $r
 ;;
@@ -102,9 +125,6 @@ case "$1" in
 	  --unsigned-changes \
 	  --no-sign \
 	"$@"
-
-	cd "${build_dir}"
-	rm -rf "${scr_dir}"
 
 	exit
 ;;
