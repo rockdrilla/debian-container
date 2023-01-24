@@ -69,12 +69,15 @@ case "$1" in
 	;;
 	esac
 
+	xdev='-xdev'
+	[ "${XGLOB_XDEV:-1}" = 1 ] || xdev=
+
 	if [ -n "${wide_search}" ] ; then
-		find "${topmost}" -xdev -regextype egrep \
+		find "${topmost}" ${xdev} -regextype egrep \
 		  -regex "${sysroot_skiplist}" -prune -o \
 		  '(' -regex "${path_regex}" ${type_selector} -print0 ')'
 	else
-		find "${topmost}" -regextype egrep \
+		find "${topmost}" ${xdev} -regextype egrep \
 		  -regex "${path_regex}" ${type_selector} -print0
 	fi > "${result}"
 
