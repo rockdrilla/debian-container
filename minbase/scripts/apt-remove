@@ -4,4 +4,11 @@
 
 set -ef
 
-exec apt-env apt-get ${APT_OPTS:+ -y } ${APT_OPTS:- -y } ${APT_METHOD:-remove} "$@"
+want_y=1
+for i ; do
+    case "$i" in
+    -y* | -q*y*) want_y= ;;
+    esac
+done
+
+exec apt-env apt-get ${want_y:+ -y } ${APT_OPTS} ${APT_METHOD:-remove} "$@"

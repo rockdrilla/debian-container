@@ -2,4 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2021-2023, Konstantin Demin
 
-exec apt-env apt-get ${APT_OPTS:+ -y } ${APT_OPTS:- -y } autoremove
+set -ef
+
+want_y=1
+for i ; do
+    case "$i" in
+    -y* | -q*y*) want_y= ;;
+    esac
+done
+
+exec apt-env apt-get ${want_y:+ -y } ${APT_OPTS} autoremove
