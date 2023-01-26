@@ -86,6 +86,7 @@ debian:unstable | debian:sid)
 # NB: do "apt-backports enable-all" to setup apt pinning too
 debian:bullseye | ubuntu:focal)
 	apt-backports enable
+	apt-pin backports-dev 500 "$3-backports" debhelper devscripts
 ;;
 esac
 
