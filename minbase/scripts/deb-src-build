@@ -130,6 +130,9 @@ case "$1" in
 ;;
 esac
 
-exec apt-wrap \
-  "eatmydata debhelper fakeroot ${DEB_SRC_BUILD_PKG:-build-essential}" \
-  "$0" --stage1 "$@"
+missing_deps=
+for i in build-essential debhelper eatmydata fakeroot ; do
+	apt-list-installed | grep -qE "^$i:" || missing_deps="${missing_deps} $i"
+done
+
+exec ${missing_deps:+ apt-wrap "${missing_deps}" } "$0" --stage1 "$@"
