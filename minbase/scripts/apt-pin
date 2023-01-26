@@ -92,6 +92,11 @@ status)
 	status
 	exit
 ;;
+# internal
+get-path)
+	echo "${pin_file}"
+	exit 0
+;;
 esac
 if ! printf '%s' "${prio}" | grep -zqE '^(0|-?[1-9][0-9]*)$' ; then
 	logf 'wrong pin priority/action: %q' "$2"
