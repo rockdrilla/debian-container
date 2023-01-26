@@ -2,48 +2,63 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2020-2023, Konstantin Demin
 
-set -ef
+set -f
+
+me="${0##*/}"
+log() { echo ${1:+"# ${me}: $*"} >&2 ; }
+logf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
 
 have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+
+# naive check for gpg
+if ! have_cmd gpg ; then
+	log 'install gnupg package'
+	exit 1
+fi
+
+# test that 1st argument is file
+if [ -z "$1" ] ; then
+	log 'requires argument'
+	exit 1
+fi
+if [ -h "$1" ] ; then
+	log 'symlinks are not supported'
+	exit 1
+fi
+if ! [ -f "$1" ] ; then
+	logf 'file does not exist: %q' "$1"
+	exit 1
+fi
+
+# ensure that we have at least two empty lines at the end
+n=$(stat -c '%s' "$1") || exit
+
+want_lf=2 i=$n
+case "$n" in
+0) want_lf=0 ;;
+1) ;;
+*) i=2 ;;
+esac
 
 read_byte_raw() {
 	od -A n -j "$2" -N 1 -t x1 < "$1" \
 	| tr -d '[:space:]'
 }
 
-# naive check for gpg
-have_cmd gpg
+while [ $i -gt 0 ] ; do
+	n=$((n - 1))
+	c=$(read_byte_raw "$1" $n) || exit
+	i=$((i - 1))
 
-# test that 1st argument is file
-[ -n "$1" ]
-[ -f "$1" ]
+	[ "$c" = '0a' ] || break
+	want_lf=$((want_lf - 1))
+done
 
-# retrieve file size
-n=$(stat -L -c '%s' "$1")
-[ -n "$n" ]
-
-# turn off "safety"
-set +e
-
-wanted_lf=0
-if [ "$n" != 0 ] ; then
-	wanted_lf=2
-
-	# ensure that we have at least two empty lines at the end
-
-	c=$(read_byte_raw "$1" $((n-1)) )
-	if [ "$c" = '0a' ] ; then
-		wanted_lf=1
-
-		c=$(read_byte_raw "$1" $((n-2)) )
-		if [ "$c" = '0a' ] ; then
-			wanted_lf=0
-		fi
-	fi
-fi
-
-padding=
-case "${wanted_lf}" in
+case "${want_lf}" in
 1) padding='\n' ;;
 2) padding='\n\n' ;;
 esac
@@ -59,7 +74,7 @@ res=$?
 # replace original file with signed one
 if [ "${res}" = 0 ] ; then
 	rm "$1" || exit
-	cp "$d" "$1"
+	cat < "$d" > "$1"
 fi
 
 rm -f -- "$d"
