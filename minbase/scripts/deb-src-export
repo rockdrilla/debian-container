@@ -16,6 +16,19 @@ export LANG=C.UTF8
 
 have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 
+need_pkg=
+for i in 'git' 'gpg:gnupg' 'dpkg-parsechangelog:dpkg-dev' 'uscan:devscripts' ; do
+	IFS=: read -r bin pkg <<-EOF
+	$i
+	EOF
+	[ -n "${pkg}" ] || pkg=${bin}
+	have_cmd "${bin}" || need_pkg="${need_pkg} ${pkg}"
+done
+
+if [ -n "${need_pkg}" ] ; then
+	exec apt-wrap "${need_pkg}" "$0" "$@"
+fi
+
 ro_git() { GIT_OPTIONAL_LOCKS=0 command git "$@" ; }
 
 find_fast() {
@@ -23,12 +36,9 @@ find_fast() {
 }
 
 have_git=
-if have_cmd git ; then
-	inside_git=$(ro_git rev-parse --is-inside-work-tree || echo false)
-	if [ "${inside_git}" = true ] ; then
-		have_git=1
-	fi
-fi
+
+inside_git=$(ro_git rev-parse --is-inside-work-tree || echo false)
+[ "${inside_git}" = 'false' ] || have_git=1
 
 # respect env
 [ "${DEB_SRC_EXPORT_GIT:-1}" = 1 ] || have_git=
@@ -67,27 +77,56 @@ else
 	deb_folder=$(printf '%s' "$2" | sed -zE 's,/+,/,g;s,/$,,')
 fi
 
-# naive verification of debian/ folder
+# basic verification of debian/ folder
 [ -d "${deb_folder}" ]
 [ -s "${deb_folder}/rules" ]
-[ -s "${deb_folder}/changelog" ]
 
 if [ "${deb_folder##*/}" = . ] ; then
 	deb_folder=$( ( cd "${deb_folder}" ; pwd ; ) )
 fi
 
-# retrieve only desired fields from dpkg-parsechangelog output
-C=$(mktemp)
-if ! dpkg-parsechangelog -l "${deb_folder}/changelog" > "$C" ; then
-	rm -f -- "$C"
+temp_folder=$(mktemp -d) ; : "${temp_folder:?}"
+
+# prepare/warmup GnuPG
+# if signing is disabled then it does nothing with files or GnuPG
+date > "${temp_folder}/t" ; sign_file "${temp_folder}/t" ; rm -f "${temp_folder}/t"
+
+# (early) grab source package related files
+mkdir -p "${temp_folder}/debian"
+find "${deb_folder}/" -mindepth 1 -maxdepth 1 -printf '%P\0' \
+| tar -C "${deb_folder}" ${tar_opts} --dereference --null -T - -cf - \
+| tar -C "${temp_folder}/debian" -xf -
+
+chmod 0755 "${temp_folder}/debian/rules"
+
+(
+	cd "${temp_folder}"
+
+	set +e
+
+	# refresh control files
+	debian/rules debian/control
+	[ -s debian/control ] || debian/rules clean
+	debian/rules debian/changelog
+	debian/rules debian/watch
+)
+if ! [ -s "${temp_folder}/debian/control" ] ; then
+	echo "# ${0##*/}: debian/control is missing/unreproducible for ${deb_folder}/!"
+	rm -rf "${temp_folder}"
 	exit 1
 fi
 
-pkg_name=$(deb822-get-field Source "$C")
-pkg_ver=$(deb822-get-field Version "$C")
-pkg_ts=$(deb822-get-field Timestamp "$C")
+# retrieve only desired fields from dpkg-parsechangelog output
+if ! dpkg-parsechangelog -l "${temp_folder}/debian/changelog" > "${temp_folder}/changelog" ; then
+	rm -rf "${temp_folder}"
+	exit 1
+fi
 
-rm -f -- "$C" ; unset C
+pkg_name=$(deb822-get-field Source "${temp_folder}/changelog")
+pkg_ver=$(deb822-get-field Version "${temp_folder}/changelog")
+pkg_ts=$(deb822-get-field Timestamp "${temp_folder}/changelog")
+
+rm -f "${temp_folder}/changelog"
 
 export SOURCE_DATE_EPOCH=${pkg_ts}
 
@@ -130,17 +169,14 @@ _finish_export() {
 	ls -lhgG >&2
 }
 
-# grab source package related files
-mkdir "$W/debian"
-find "${deb_folder}/" -mindepth 1 -maxdepth 1 -printf '%P\0' \
-| tar -C "${deb_folder}" ${tar_opts} --null -T - -cf - \
-| tar -C "$W/debian" -xf -
-
-chmod 755 "$W/debian/rules"
+# move files to "permanent" location
+tar -C "${temp_folder}" ${tar_opts} -cf - debian \
+| tar -C "$W" -xf -
+rm -rf "${temp_folder}" ; unset temp_folder
 
 if [ -z "${ver_upstream}" ] ; then
 	# native package
-	# grab all the things (except VCS )
+	# grab all the things (except Git)
 	(
 		cd "${deb_folder}/.."
 		if [ -n "${have_git}" ] ; then
@@ -148,38 +184,11 @@ if [ -z "${ver_upstream}" ] ; then
 		else
 			find ./ -mindepth 1 -maxdepth 1 -printf '%P\0'
 		fi \
-		| grep -zEv "^(\.git|debian|${deb_folder##*/})(/|\$)" \
+		| sed -zEn '/^(\.git|debian)(/|$)/d' \
 		| tar ${tar_opts} --null -T - -cf - \
 		| tar -C "$W" -xf -
 	) || { _cleanup ; exit 1 ; }
 fi
-
-(
-	deb_folder=$(readlink -e "${deb_folder}")
-
-	cd "$W"
-
-	set +e
-
-	# refresh control files
-	debian/rules debian/control
-	[ -s debian/control ] || debian/rules clean
-	debian/rules debian/changelog || cp -v "${deb_folder}/changelog" debian/
-	debian/rules debian/watch || cp -v "${deb_folder}/watch" debian/
-)
-[ -s "$W/debian/control" ]
-
-# re-retrieve Timestamp
-if ! dpkg-parsechangelog -l "$W/debian/changelog" >/dev/null ; then
-	_cleanup
-	exit 1
-fi
-pkg_ts=$(dpkg-parsechangelog -l "$W/debian/changelog" -S Timestamp)
-export SOURCE_DATE_EPOCH=${pkg_ts}
-
-# prepare/warmup GnuPG
-# if signing is disabled then it does nothing with files or GnuPG
-date > "$T/t" ; sign_file "$T/t" ; rm -f "$T/t"
 
 export TAR_OPTIONS="${tar_opts} --mtime @${pkg_ts} --sort=name --numeric-owner --owner=0 --group=0 --exclude-vcs"
 
@@ -206,31 +215,22 @@ pna="${pnd}_source"
 (
 	cd "${deb_folder}/.."
 
-	for d in '.' '..' ; do
-		if find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig*" -type f ; then
-			break
-		fi
-
-		# main tarball(s)
-		find "$d/" -mindepth 1 -maxdepth 1 -name "${pnu}.orig.*" \
-		-exec cp -aL -t "$T" {} +
-		# extra tarball(s)
-		find "$d/" -mindepth 1 -maxdepth 1 -name "${pnu}.orig-*.*" \
-		-exec cp -aL -t "$T" {} +
+	for d in '..' '.' ; do
+		# main tarball
+		find "$d/" -follow -mindepth 1 -maxdepth 1 -type f -name "${pnu}.orig.*" \
+		-exec cp -vaL -t "$T" {} +
+		# extra tarball(s) for multiple upstream tarball (MUT) package
+		find "$d/" -follow -mindepth 1 -maxdepth 1 -type f -name "${pnu}.orig-*.*" \
+		-exec cp -vaL -t "$T" {} +
 	done
 ) || { _cleanup ; exit 1 ; }
 
 cd "$W"
 
 (
-	# verify that we have upstream tarball
-	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig*" -type f || {
-		[ -s debian/watch ]
-
-		uscan_pre=
-		have_cmd uscan || uscan_pre='apt-wrap devscripts'
-		${uscan_pre} uscan --destdir "$T" --download-current-version --rename
-	}
+	# verify that we have upstream tarball(s)
+	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig.*" -type f \
+	|| uscan --destdir "$T" --download-current-version --rename
 
 	tar -cf - debian | xz -9 > "$T/${pnd}.debian.tar.xz"
 
