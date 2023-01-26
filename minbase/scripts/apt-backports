@@ -2,45 +2,87 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2023, Konstantin Demin
 
-set -ef
+set -f
 
 src_file='/etc/apt/sources.list.d/backports.list'
 
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} [enable|disable|status]
+	# usage: ${0##*/} [enable-pin|disable-pin|pin-status]
+	# usage: ${0##*/} [enable-all|disable-all]
+	EOF
+}
+
+status() {
+	status=$( [ -s "${src_file}" ] && echo enabled || echo disabled)
+	echo "# ${0##*/}: ${status}" >&2
+	[ -s "${src_file}" ]
+}
+
 if [ $# = 0 ] ; then
-	if [ -s "${src_file}" ] ; then
-		echo '# backports are enabled'
-	else
-		echo '# backports are disabled'
-	fi >&2
+	usage
+	echo >&2
+
+	set +e
+
+	status
+	apt-pin backports status
 	exit 0
 fi
 
 act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 case "${act}" in
 status)
-	[ -s "${src_file}" ]
+	status
 	exit
 ;;
-enable|enable-all)
-	. /etc/os-release
-	mawk 'NR==1{$3="'"${VERSION_CODENAME}"'-backports";print $0;}' \
-	< /etc/apt/sources.list \
-	> "${src_file}"
+pin-status)
+	apt-pin backports status
+	exit
 ;;
-disable|disable-all)
-	rm -f "${src_file}"
+# internal
+get-path)
+	echo "${src_file}"
+	exit 0
 ;;
+# internal
+get-pin-path)
+	apt-pin backports get-path
+	exit
+;;
+enable|enable-pin|enable-all) ;;
+disable|disable-pin|disable-all) ;;
 *)
-	env printf '# unknown apt-backports action: %q\n' "$1" >&2
+	env printf "# ${0##*/}: unknown action: %q\\n" "$1" >&2
 	exit 1
 ;;
 esac
 
 case "${act}" in
-enable-all)
+enable|enable-pin|enable-all)
+	. /etc/os-release || exit
+;;
+esac
+
+case "${act}" in
+enable|enable-all)
+	xsedx=$(printf '\027')
+	chanlist='(main|contrib|non-free|restricted|universe|multiverse)'
+
+	sed -En "\\${xsedx}^(deb\\s.+\\S)\\s+(${VERSION_CODENAME})\\s+(${chanlist}(|\\s.*\\S))\\s*\$${xsedx}{s//\\1 \\2-backports \\3/p}" \
+	< /etc/apt/sources.list > "${src_file}" || exit
+;;
+disable|disable-all)
+	rm -v "${src_file}" || :
+;;
+esac
+
+case "${act}" in
+enable-pin|enable-all)
 	apt-pin backports 500 "${VERSION_CODENAME}-backports" '*'
 ;;
-disable-all)
+disable-pin|disable-all)
 	apt-pin backports rm
 ;;
 esac
