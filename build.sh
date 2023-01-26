@@ -70,6 +70,19 @@ for distro_suite_tags in ${dst_list} ; do
 	  "${IMAGE_PATH}/${DISTRO}:${SUITE}" \
 	  ${extra_tags}
 
+done
+
+for distro_suite_tags in ${dst_list} ; do
+	extra_tags=
+	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
+	${distro_suite_tags}
+	EOF
+	if [ -n "${extra_tags}" ] ; then
+		extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
+	fi
+
+	export DISTRO SUITE
+
 	scripts/build-image.sh buildd \
 	  "${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}" \
 	  ${extra_tags}
