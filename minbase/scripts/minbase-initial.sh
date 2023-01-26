@@ -98,33 +98,186 @@ dpkg-filter "${dpkg_filter_cfg}"
 
 unset dpkg_filter_cfg util_linux_allowed allowed_regex
 
-# try generate CA bundle with minimal bloat
+# try generate CA bundle with minimal bloat and make it persistent to package removal
+persistence_package='container-persistent-ca-bundle'
 bundle='/etc/ssl/certs/ca-certificates.crt'
+java_bundle='/etc/ssl/certs/java/cacerts'
 local_certs='/usr/local/share/ca-certificates'
-ts_bundle=$(find_fresh_ts /etc -path "${bundle}")
-ts_certs=$(find_fresh_ts /usr/share/ca-certificates "${local_certs}")
 while : ; do
-	if [ ${ts_bundle} -gt ${ts_certs} ] ; then
+	if apt-list-installed | grep -qE "^${persistence_package}:" ; then
+		# refusing to override already installed package
 		break
 	fi
 
-	if have_cmd update-ca-certificates && update-ca-certificates ; then
-		break
+	export SOURCE_DATE_EPOCH=$(date -u +%s)
+	tar_opts='--blocking-factor=1 --format=gnu --no-selinux --no-xattrs --sparse --sort=name'
+	export TAR_OPTIONS="${tar_opts} --mtime @${SOURCE_DATE_EPOCH} --numeric-owner --owner=0 --group=0 --exclude-vcs"
+
+	# create package "inplace"
+	refine_trigger="${persistence_package}-verify"
+	script_path="/usr/lib/${persistence_package}/script.sh"
+	var_dir="/var/lib/${persistence_package}"
+
+	t=$(mktemp -d) ; : "${t:?}"
+
+	mkdir -p "$t/DEBIAN" "$t${var_dir}"
+
+	cat > "$t/DEBIAN/control" <<-EOF
+		Package: ${persistence_package}
+		Version: 20230127
+		Architecture: all
+		Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+		Installed-Size: 8
+		Essential: yes
+		Enhances: ca-certificates, ca-certificates-java
+		Section: misc
+		Priority: important
+		Multi-Arch: foreign
+		Description: container persistence - CA bundle
+		 This package maintains persistence of CA certificate bundles, namely:
+		 .
+		 - ${bundle}
+		 .
+		 - ${java_bundle}
+		 .
+		 Normally, this package tracks these files via deb-triggers(5).
+		 Hovewer, the one may run \`update-${persistence_package}'
+		 to ensure that stored CA bundles are in sync, or
+		 \`restore-${persistence_package}' to restore previous state
+		 of CA bundles.
+	EOF
+
+	cat > "$t/DEBIAN/triggers" <<-EOF
+		interest-await   /etc/ssl
+		interest-await   /usr/share/ca-certificates
+		interest-await   /usr/share/ca-certificates-java
+		interest-await   update-ca-certificates
+		interest-await   update-ca-certificates-fresh
+		interest-await   update-ca-certificates-java
+		interest-await   update-ca-certificates-java-fresh
+		interest-noawait ${refine_trigger}
+	EOF
+
+	cat > "$t/script" <<-'EOF'
+		#!/bin/sh
+		set -f ; set +e
+
+		# close stdin (/etc/ca-certificates/update.d/*)
+		exec </dev/null
+
+		self='@{persistence_package}'
+		files='@{bundle} @{java_bundle}'
+		var='@{var_dir}'
+		state="${var}/ca.sha256"
+		tarball="${var}/ca.tar.gz"
+		tar_opts='@{tar_opts}'
+		refine_trigger='@{refine_trigger}'
+
+		verify() {
+		    [ -s "${state}" ] || return 1
+		    sha256sum -c < "${state}" >/dev/null 2>&1
+		}
+		save() {
+		    ok=1
+		    for f in ${files} ; do
+		        [ -s "$f" ] || ok=0
+		    done
+		    [ "${ok}" = 1 ] || return 1
+
+		    sha256sum -b ${files} > "${state}"
+		    tar ${tar_opts} -cPf - ${files} | gzip -9 > "${tarball}"
+		}
+		restore() {
+		    [ -s "${tarball}" ] || return 1
+		    tar -xPf "${tarball}"
+		}
+
+		case "${0##*/}" in
+		@{persistence_package}-hook)
+		    verify || save
+		    # suppress errors for hook scripts under /etc
+		    exit 0
+		;;
+		update-@{persistence_package})
+		    verify || save
+		    exit
+		;;
+		restore-@{persistence_package})
+		    verify || restore
+		    exit
+		;;
+		esac
+
+		if [ -z "${DPKG_MAINTSCRIPT_NAME}" ] ; then
+		    echo 'this script is not intended to be ran in that way' >&2
+		    exit 1
+		fi
+
+		case "$1" in
+		triggered)
+		    case " $2 " in
+		    *" ${refine_trigger} "*)
+		        verify || restore
+		        exit 0
+		    ;;
+		    esac
+
+		    dpkg-trigger ${refine_trigger}
+
+		    verify || save
+		;;
+		esac
+		exit 0
+	EOF
+	sed -i -E \
+	  -e "s|@\{persistence_package\}|${persistence_package}|g" \
+	  -e "s|@\{refine_trigger\}|${refine_trigger}|g" \
+	  -e "s|@\{var_dir\}|${var_dir}|g" \
+	  -e "s|@\{bundle\}|${bundle}|g" \
+	  -e "s|@\{java_bundle\}|${java_bundle}|g" \
+	  -e "s|@\{tar_opts\}|${tar_opts}|g" \
+	"$t/script"
+	chmod +x "$t/script"
+	mkdir -p "$t/usr/lib/${persistence_package}"
+	mv "$t/script" "$t${script_path}"
+
+	cat > "$t/DEBIAN/postinst" <<-EOF
+		#!/bin/sh
+		set -e
+		. ${script_path}
+	EOF
+	chmod +x "$t/DEBIAN/postinst"
+
+	mkdir -p "$t/usr/sbin"
+	ln -s "${script_path}" "$t/usr/sbin/update-${persistence_package}"
+	ln -s "${script_path}" "$t/usr/sbin/restore-${persistence_package}"
+
+	mkdir -p "$t/etc/ca-certificates/update.d"
+	ln -s "${script_path}" "$t/etc/ca-certificates/update.d/${persistence_package}-hook"
+
+	chmod -R go-w "$t"
+
+	tmp_pkg="/tmp/${persistence_package}.deb"
+	dpkg-deb -b "$t" ${tmp_pkg}
+
+	unset SOURCE_DATE_EPOCH TAR_OPTIONS tar_opts refine_trigger var_dir script_path
+	rm -rf "$t" ; unset t
+
+	dpkg -i ${tmp_pkg} ; rm -f ${tmp_pkg}
+
+	if have_cmd update-ca-certificates ; then
+		update-ca-certificates
 	fi
 
 	if ! apt-update ; then
 		export APT_OPTS='-o Acquire::https::Verify-Peer=false -o Acquire::Check-Valid-Until=false -o Acquire::Max-FutureTime=7200'
 	fi
 
-	f='/usr/local/cabundle.tar'
-
-	apt-wrap 'ca-certificates' tar -cPf "$f" "${bundle}"
+	apt-wrap 'ca-certificates-java' true nords never back down
 
 	unset APT_OPTS
 
-	tar -xPf "$f"
-	rm -f "$f"
-	unset f
+	ls -l ${bundle} ${java_bundle}
 
 	if ! [ -d "${local_certs}" ] ; then
 		mkdir -p "${local_certs}"
@@ -133,7 +286,7 @@ while : ; do
 
 	break
 done
-unset bundle local_certs ts_bundle ts_certs
+unset persistence_package bundle java_bundle local_certs
 
 # set timezone
 [ -z "${TZ}" ] || {
