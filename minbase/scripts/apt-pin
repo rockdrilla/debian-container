@@ -2,40 +2,113 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2020-2023, Konstantin Demin
 
-set -ef
+set -f
 
-# $1 - ephemeral name
-# $2 - pin priority
-# $3 - pin selector
+me="${0##*/}"
+log() { echo ${1:+"# ${me}: $*"} >&2 ; }
+logf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
 
-# verify name and pin priority/action
-: "${1:?}" "${2:?}"
+usage() {
+	cat >&2 <<-EOF
+	# usage:
+	#   add:     ${me} <name> <priority> <selector> <package> [..<package>]
+	#   remove:  ${me} <name> (rm|remove)
+	#   status:  ${me} <name> status
+	EOF
+}
+status() {
+	status=$( [ -s "${pin_file}" ] && echo present || echo 'missing or empty')
+	log "# ${me}: ${name} is ${status}"
+	[ -s "${pin_file}" ]
+}
 
-name="$1"
-prio="$2"
-shift 2
-
-pin_file="/etc/apt/preferences.d/${name}"
-
-prio=$(printf '%s' "${prio}" | tr '[:upper:]' '[:lower:]')
-case "${prio}" in
-rm|remove|del|delete)
-	rm -fv "${pin_file}"
+# verify required parameters
+if [ $# -lt 1 ] ; then
+	usage
 	exit 0
+fi
+
+wrong_pin_name() {
+	if [ -n "$2" ] ; then
+		logf 'wrong pin name: %q -> %q' "$1" "$2"
+	else
+		logf 'wrong pin name: %q' "$1"
+	fi
+	log
+	usage
+	exit 1
+}
+
+# verify name
+name=
+while : ; do
+	if printf '%s' "$1" | grep -zqE '(^\.|\.\.|/|\\|[[:space:]])' ; then
+		break
+	fi
+	name="$1"
+	break
+done
+if [ -z "${name}" ] ; then
+	wrong_pin_name "$1"
+fi
+
+pin_file="/etc/apt/preferences.d/$1"
+if [ -h "${pin_file}" ] ; then
+	wrong_pin_name "$1"
+fi
+
+pin_file=$(readlink -f "${pin_file}")
+case "${pin_file}" in
+/etc/apt/preferences.d/*) ;;
+*)
+	wrong_pin_name "$1" "${pin_file}"
 ;;
 esac
 
-if ! printf '%s' "${prio}" | grep -zEq '^(0|-?[1-9][0-9]*)$' ; then
-	env printf '# wrong pin priority: %q\n' "${prio}" >&2
+if [ -h "${pin_file}" ] ; then
+	wrong_pin_name "$1" "${pin_file}"
+fi
+
+if [ -z "$2" ] ; then
+	usage
+	log
+
+	status
+	exit 0
+fi
+
+# verify priority/action
+prio=$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')
+case "${prio}" in
+rm|remove)
+	rm -v "${pin_file}" || :
+	exit
+;;
+status)
+	status
+	exit
+;;
+esac
+if ! printf '%s' "${prio}" | grep -zqE '^(0|-?[1-9][0-9]*)$' ; then
+	logf 'wrong pin priority/action: %q' "$2"
+	log
+	usage
 	exit 1
 fi
 
 # verify pin selector
+shift 2
+if [ -z "$1" ] ; then
+	log 'empty pin selector'
+	log
+	usage
+	exit 1
+fi
 pin="$1"
-shift
-[ -n "${pin}" ]
-
-touch "${pin_file}"
 
 case "${pin}" in
 # full qualified pinning stanza
@@ -44,13 +117,50 @@ case "${pin}" in
 *) pin="release a=${pin}" ;;
 esac
 
+padding=
+# ensure that we have at least two empty lines at the end
+if [ -s "${pin_file}" ] ; then
+	n=$(stat -c '%s' "${pin_file}") || exit
+	want_lf=2 i=$n
+	case "$n" in
+	0) want_lf=0 ;;
+	1) ;;
+	*) i=2 ;;
+	esac
+
+	read_byte_raw() {
+		od -A n -j "$1" -N 1 -t x1 < "${pin_file}" \
+		| tr -d '[:space:]'
+	}
+
+	while [ $i -gt 0 ] ; do
+		n=$((n - 1))
+		c=$(read_byte_raw $n) || exit
+		i=$((i - 1))
+
+		[ "$c" = '0a' ] || break
+		want_lf=$((want_lf - 1))
+	done
+
+	log "want_lf=${want_lf}"
+
+	case "${want_lf}" in
+	1) padding='\n' ;;
+	2) padding='\n\n' ;;
+	esac
+fi
+
+shift
 for i ; do
 	[ -n "$i" ] || continue
 
-	cat <<-EOF
+	[ -z "${padding}" ] || printf "${padding}" >> "${pin_file}"
+	padding=
 
+	cat >> "${pin_file}" <<-EOF
 	Package: $i
 	Pin: ${pin}
 	Pin-Priority: ${prio}
+
 	EOF
-done >> "${pin_file}"
+done
