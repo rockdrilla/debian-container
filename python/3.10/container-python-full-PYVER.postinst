@@ -1,0 +1,37 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+configure)
+	bin=/usr/bin
+
+	for alt in pip wheel ; do
+		update-alternatives --install \
+		  ${bin}/${alt} \
+		  ${alt} \
+		  ${bin}/${alt}@{PYTHON_BASE_VERSION} \
+		@{DEB_PYTHON_PRIO} \
+		\
+		--slave \
+		  ${bin}/${alt}3 \
+		  ${alt}3 \
+		  ${bin}/${alt}@{PYTHON_BASE_VERSION} \
+
+	done
+
+	if ! [ -e /etc/pip.conf ] ; then
+		cp /usr/share/python@{PYTHON_BASE_VERSION}/pip.conf /etc/pip.conf
+	fi
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

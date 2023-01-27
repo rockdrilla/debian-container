@@ -1,0 +1,44 @@
+Description: Debian: Configure multiarch tuple.
+ 1. Expose multiarchsubdir in sysconfig.
+ 2. Return the multiarch include dir in distutils.
+ 3. Install the .pc file into the multiarch path.
+
+Forwarded: no
+
+--- a/Lib/sysconfig.py
++++ b/Lib/sysconfig.py
+@@ -674,6 +674,12 @@ def get_config_vars(*args):
+             # the init-function.
+             _CONFIG_VARS['userbase'] = _getuserbase()
+ 
++        multiarch = get_config_var('MULTIARCH')
++        if multiarch:
++            _CONFIG_VARS['multiarchsubdir'] = '/' + multiarch
++        else:
++            _CONFIG_VARS['multiarchsubdir'] = ''
++
+         # Always convert srcdir to an absolute path
+         srcdir = _CONFIG_VARS.get('srcdir', _PROJECT_BASE)
+         if os.name == 'posix':
+--- a/Lib/distutils/sysconfig.py
++++ b/Lib/distutils/sysconfig.py
+@@ -298,6 +298,9 @@ def get_python_inc(plat_specific=0, pref
+                 incdir = os.path.join(get_config_var('srcdir'), 'Include')
+                 return os.path.normpath(incdir)
+         python_dir = 'python' + get_python_version() + build_flags
++        if not python_build and plat_specific:
++            import sysconfig
++            return sysconfig.get_path('platinclude')
+         return os.path.join(prefix, "include", python_dir)
+     elif os.name == "nt":
+         if python_build:
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -1268,6 +1268,7 @@ Modules/signalmodule.o: $(srcdir)/Module
+ 
+ Python/dynload_shlib.o: $(srcdir)/Python/dynload_shlib.c Makefile
+ 	$(CC) -c $(PY_CORE_CFLAGS) \
++		$(if $(MULTIARCH),-DMULTIARCH='"$(MULTIARCH)"') \
+ 		-DSOABI='"$(SOABI)"' \
+ 		-o $@ $(srcdir)/Python/dynload_shlib.c
+ 

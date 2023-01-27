@@ -1,0 +1,78 @@
+Source: container-python-@{PYTHON_BASE_VERSION}
+Section: python
+Priority: optional
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+               autoconf-archive,
+               g++ (>> 4:13) | g++-12 | g++-11 | g++-10,
+               jq,
+               libbluetooth-dev,
+               libbz2-dev,
+               libc6-dev,
+               libdb-dev | libgdbm-compat-dev,
+               libexpat1-dev,
+               libffi-dev,
+               libgdbm-dev,
+               liblzma-dev,
+               libmpdec-dev,
+               libncursesw5-dev,
+               libreadline-dev | libeditreadline-dev,
+               libsqlite3-dev,
+               libssl-dev,
+               media-types | mime-support,
+               pkg-config, @{dtrace_build_dep}
+               uuid-dev,
+               zlib1g-dev,
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://www.python.org/
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/python
+
+Package: container-python-full-@{PYTHON_BASE_VERSION}
+Architecture: all
+Multi-Arch: allowed
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
+         container-python-dev-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
+Suggests: ca-certificates,
+Provides: ${pip:autolist},
+Description: Python v@{PYTHON_BASE_VERSION} - full package
+ Python is a high-level, interactive, object-oriented language. Its v@{PYTHON_BASE_VERSION} version
+ includes an extensive class library with lots of goodies for
+ network programming, system administration, sounds and graphics.
+
+Package: container-python-@{PYTHON_BASE_VERSION}
+Architecture: any
+Pre-Depends: ${shlibs:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         media-types | mime-support,
+Recommends: container-python-full-@{PYTHON_BASE_VERSION},
+Suggests: binutils,
+Provides: python3 (= @{DEB_VERSION_UPSTREAM}),
+          python@{PYTHON_BASE_VERSION} (= @{DEB_VERSION_UPSTREAM}),
+Conflicts: python3,
+           python@{PYTHON_BASE_VERSION},
+Breaks: python3,
+        python@{PYTHON_BASE_VERSION},
+Description: Python v@{PYTHON_BASE_VERSION}
+ Almost full package for Python v@{PYTHON_BASE_VERSION}.
+
+Package: container-python-dev-@{PYTHON_BASE_VERSION}
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
+         libexpat1-dev,
+         zlib1g-dev,
+Recommends: libc6-dev | libc-dev,
+Description: Python v@{PYTHON_BASE_VERSION} - development files
+ Header files and development tools for building Python v@{PYTHON_BASE_VERSION} modules,
+ extending the Python interpreter or embedding Python v@{PYTHON_BASE_VERSION} in applications.
+
+Package: container-python-misc-@{PYTHON_BASE_VERSION}
+Architecture: any
+Multi-Arch: allowed
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-python-dev-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
+Description: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
+ Static library and auxiliary files for Python v@{PYTHON_BASE_VERSION}.

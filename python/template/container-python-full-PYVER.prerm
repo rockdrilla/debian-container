@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" != "upgrade" ] ; then
+	for alt in pip wheel ; do
+		update-alternatives --remove \
+		  ${alt} \
+		  /usr/bin/${alt}@{PYTHON_BASE_VERSION}
+	done
+	if cmp -s /etc/pip.conf /usr/share/python@{PYTHON_BASE_VERSION}/pip.conf ; then
+		rm -f /etc/pip.conf
+	fi
+fi
+
+if [ "$1" = "purge" ] ; then
+	grep -Fq '# DO NOT REMOVE' /etc/pip.conf || rm -f /etc/pip.conf
+fi
+
+#DEBHELPER#
+
+exit 0

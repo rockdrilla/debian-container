@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" != "upgrade" ]; then
+	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+		update-alternatives --remove \
+		  python${suffix} \
+		  /usr/bin/python@{PYTHON_BASE_VERSION}
+	done
+fi
+
+#DEBHELPER#
+
+exit 0

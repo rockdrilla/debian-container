@@ -1,0 +1,13 @@
+Description: Don't run the test suite in random order.
+Forwarded: not-needed.
+
+--- a/Tools/scripts/run_tests.py
++++ b/Tools/scripts/run_tests.py
+@@ -32,7 +32,6 @@ def main(regrtest_args):
+     args.extend(test.support.args_from_interpreter_flags())
+ 
+     args.extend(['-m', 'test',    # Run the test suite
+-                 '-r',            # Randomize test order
+                  '-w',            # Re-run failed tests in verbose mode
+                  ])
+     if sys.platform == 'win32':

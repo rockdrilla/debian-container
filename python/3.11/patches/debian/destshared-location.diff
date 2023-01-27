@@ -1,0 +1,17 @@
+Description: Keep the lib-dynload dir in the same place when configuring with
+ --libdir=/usr/bin/$(DEB_HOST_MULTIARCH)
+ FIXME: Expand?
+
+Forwarded: no
+
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -165,7 +165,7 @@ EXT_SUFFIX=	@EXT_SUFFIX@
+ LDSHARED=	@LDSHARED@ $(PY_LDFLAGS)
+ BLDSHARED=	@BLDSHARED@ $(PY_CORE_LDFLAGS)
+ LDCXXSHARED=	@LDCXXSHARED@
+-DESTSHARED=	$(BINLIBDEST)/lib-dynload
++DESTSHARED=	$(LIBDEST)/lib-dynload
+ 
+ # List of exported symbols for AIX
+ EXPORTSYMS=	@EXPORTSYMS@

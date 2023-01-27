@@ -1,0 +1,4 @@
+usr/bin/pip@{PYTHON_BASE_VERSION}
+usr/bin/wheel@{PYTHON_BASE_VERSION}
+usr/lib/python@{PYTHON_BASE_VERSION}/site-packages
+usr/share/python@{PYTHON_BASE_VERSION}/pip.conf

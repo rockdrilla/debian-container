@@ -1,0 +1,47 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+configure)
+	bin=/usr/bin
+	pkgcfg=/usr/lib/@{DEB_HOST_MULTIARCH}/pkgconfig
+
+	update-alternatives --install \
+	  ${bin}/2to3  2to3  ${bin}/2to3-@{PYTHON_BASE_VERSION} \
+	@{DEB_PYTHON_PRIO}
+
+	for stem in python python3 ; do
+		update-alternatives --install \
+		  ${bin}/@{DEB_HOST_MULTIARCH}-${stem}-config \
+		  @{DEB_HOST_MULTIARCH}-${stem}-config \
+		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
+		@{DEB_PYTHON_PRIO} \
+		\
+		--slave \
+		  ${bin}/${stem}-config \
+		  ${stem}-config \
+		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
+		--slave \
+		  ${pkgcfg}/${stem}.pc \
+		  ${stem}.pc-@{DEB_HOST_MULTIARCH} \
+		  ${pkgcfg}/python-@{PYTHON_BASE_VERSION}.pc \
+		--slave \
+		  ${pkgcfg}/${stem}-embed.pc \
+		  ${stem}-embed.pc-@{DEB_HOST_MULTIARCH} \
+		  ${pkgcfg}/python-@{PYTHON_BASE_VERSION}-embed.pc \
+
+	done
+
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

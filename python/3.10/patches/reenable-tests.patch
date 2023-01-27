@@ -1,0 +1,12 @@
+--- a/Lib/test/test_asyncore.py
++++ b/Lib/test/test_asyncore.py
+@@ -15,9 +15,6 @@ from test.support import threading_helpe
+ from test.support import warnings_helper
+ from io import BytesIO
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ import warnings
+ with warnings.catch_warnings():
+     warnings.simplefilter('ignore', DeprecationWarning)

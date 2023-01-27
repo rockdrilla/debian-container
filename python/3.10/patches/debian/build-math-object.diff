@@ -1,0 +1,13 @@
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -608,8 +608,9 @@ pybuilddir.txt: $(BUILDPYTHON)
+ 	fi
+ 
+ # This is shared by the math and cmath modules
++# don't build with -fPIC when building as math and cmath as builtins
+ Modules/_math.o: Modules/_math.c Modules/_math.h
+-	$(CC) -c $(CCSHARED) $(PY_CORE_CFLAGS) -o $@ $<
++	$(CC) -c $(if $(findstring _math.o, $(MODOBJS)),,$(CCSHARED)) $(PY_CORE_CFLAGS) -o $@ $<
+ 
+ # blake2s is auto-generated from blake2b
+ $(srcdir)/Modules/_blake2/blake2s_impl.c: $(srcdir)/Modules/_blake2/blake2b_impl.c $(srcdir)/Modules/_blake2/blake2b2s.py

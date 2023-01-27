@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+configure)
+	bin=/usr/bin
+	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+		update-alternatives --install \
+		  ${bin}/python${suffix} \
+		  python${suffix} \
+		  ${bin}/python@{PYTHON_BASE_VERSION} \
+		@{DEB_PYTHON_PRIO} \
+		--slave \
+		  ${bin}/pydoc${suffix} \
+		  pydoc${suffix} \
+		  ${bin}/pydoc@{PYTHON_BASE_VERSION} \
+
+	done
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

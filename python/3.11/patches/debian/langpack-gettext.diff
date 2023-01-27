@@ -1,0 +1,38 @@
+Description: Ubuntu: Support separate langpack packages
+ Support alternative gettext tree in /usr/share/locale-langpack; if a file is
+ present in both trees, prefer the newer one.
+ Ubuntu collates gettext from packages on the DVD into language packs, to
+ reduce disk-space on the image.
+ This is Ubuntu-Specific.
+
+Forwarded: not-needed
+
+--- a/Lib/gettext.py
++++ b/Lib/gettext.py
+@@ -492,11 +492,26 @@ def find(domain, localedir=None, languag
+         if lang == 'C':
+             break
+         mofile = os.path.join(localedir, lang, 'LC_MESSAGES', '%s.mo' % domain)
++        mofile_lp = os.path.join("/usr/share/locale-langpack", lang,
++                               'LC_MESSAGES', '%s.mo' % domain)
++
++	# first look into the standard locale dir, then into the 
++	# langpack locale dir
++
++	# standard mo file
+         if os.path.exists(mofile):
+             if all:
+                 result.append(mofile)
+             else:
+                 return mofile
++        
++	# langpack mofile -> use it
++        if os.path.exists(mofile_lp): 
++            if all:
++                result.append(mofile_lp)
++            else:
++                return mofile_lp
++
+     return result
+ 
+ 

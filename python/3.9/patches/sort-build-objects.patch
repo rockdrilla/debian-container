@@ -1,0 +1,13 @@
+filter out duplicate object files
+
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -22,7 +22,7 @@
+ 
+ MODBUILT_NAMES=    _MODBUILT_NAMES_
+ MODDISABLED_NAMES= _MODDISABLED_NAMES_
+-MODOBJS=           _MODOBJS_
++MODOBJS=           $(sort _MODOBJS_)
+ MODLIBS=           _MODLIBS_
+ 
+ # === Variables set by configure

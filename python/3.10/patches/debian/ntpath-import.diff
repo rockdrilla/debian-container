@@ -1,0 +1,21 @@
+# ntpath not in python-minimal
+
+--- a/Lib/pathlib.py
++++ b/Lib/pathlib.py
+@@ -1,7 +1,6 @@
+ import fnmatch
+ import functools
+ import io
+-import ntpath
+ import os
+ import posixpath
+ import re
+@@ -113,6 +112,8 @@ class _WindowsFlavour(_Flavour):
+     # Reference for Windows paths can be found at
+     # http://msdn.microsoft.com/en-us/library/aa365247%28v=vs.85%29.aspx
+ 
++    import ntpath
++
+     sep = '\\'
+     altsep = '/'
+     has_drv = True

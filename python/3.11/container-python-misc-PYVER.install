@@ -1,0 +1,3 @@
+usr/lib/${DEB_HOST_MULTIARCH}/libpython@{PYTHON_MAJOR_VERSION}.so
+usr/lib/python@{PYTHON_BASE_VERSION}/config-@{PYTHON_BASE_VERSION}-${DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.a
+usr/lib/python@{PYTHON_BASE_VERSION}/ensurepip

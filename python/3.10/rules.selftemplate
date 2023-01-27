@@ -1,0 +1,60 @@
+#!/usr/bin/make -f
+
+# -- package templating - here goes dragons! --
+
+_deb_control_templates +=$(sort $(wildcard debian/*.in debian/*PYVER*))
+
+_deb_ren1 =$(patsubst %.in,%,$(1))
+_deb_ren2 =$(subst PYVER,$(PYTHON_BASE_VERSION),$(1))
+_deb_rename =$(call _deb_ren1,$(call _deb_ren2,$(strip $(1))))
+
+_safe_var_rx :=^[a-zA-Z][a-zA-Z0-9_]+$$
+_safe_vars =$(shell printf '%s' '$(.VARIABLES)' | tr -s '[:space:]' '\0' | sed -zEn '/$(_safe_var_rx)/p' | tr -s '\0' ' ')
+
+# '@' + '{'
+_var_prefix :=$(shell printf '\100\173')
+# '}'
+_var_suffix :=$(shell printf '\175')
+_var =$(_var_prefix)$(strip $(1))$(_var_suffix)
+
+_deb_grep_var =$(findstring $(call _var,$(2)),$(file < $(1)))
+_deb_repl_var =$(file > $(1),$(subst $(call _var,$(2)),$($(2)),$(file < $(1))))
+
+define _deb_process_inplace =
+    $(foreach _w,$(_safe_vars),                        \
+        $(if $(call _deb_grep_var,$(strip $(1)),$(_w)), \
+            $(call _deb_repl_var,$(strip $(1)),$(_w))   \
+    ) )
+endef
+
+define _deb_process_template =
+    $(shell cp -af '$(strip $(1))' '$(strip $(2))')
+	$(call _deb_process_inplace,$(strip $(2)))
+    $(shell touch -r '$(strip $(1))' '$(strip $(2))')
+endef
+
+_deb_templates +=$(_deb_control_templates)
+
+_deb_control_files +=$(foreach _f,$(sort $(_deb_control_templates)),$(call _deb_rename,$(_f)))
+
+_deb_files +=$(foreach _f,$(sort $(_deb_templates)),$(call _deb_rename,$(_f)))
+
+# empty lines within "define" block are MANDATORY
+define _deb_recipe =
+
+
+$(strip $(1)): $(strip $(2))
+
+
+endef
+
+$(foreach _f,$(sort $(_deb_templates)),$(eval \
+    $(call _deb_recipe, $(call _deb_rename,$(_f)), $(_f) ) \
+))
+
+$(_deb_files):
+	$(call _deb_process_template,$(<),$(@))
+
+clean: $(_deb_control_files)
+
+build binary: $(_deb_files)
