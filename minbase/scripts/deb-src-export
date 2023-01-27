@@ -17,7 +17,7 @@ export LANG=C.UTF8
 have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 
 need_pkg=
-for i in 'git' 'gpg:gnupg' 'dpkg-parsechangelog:dpkg-dev' 'uscan:devscripts' ; do
+for i in 'dh:debhelper' 'gcc' 'git' 'gpg:gnupg' 'dpkg-parsechangelog:dpkg-dev' 'uscan:devscripts' ; do
 	IFS=: read -r bin pkg <<-EOF
 	$i
 	EOF
@@ -85,6 +85,8 @@ if [ "${deb_folder##*/}" = . ] ; then
 	deb_folder=$( ( cd "${deb_folder}" ; pwd ; ) )
 fi
 
+export SOURCE_DATE_EPOCH=$(date -u +%s)
+
 temp_folder=$(mktemp -d) ; : "${temp_folder:?}"
 
 # prepare/warmup GnuPG
@@ -105,8 +107,8 @@ chmod 0755 "${temp_folder}/debian/rules"
 	set +e
 
 	# refresh control files
+	debian/rules clean
 	debian/rules debian/control
-	[ -s debian/control ] || debian/rules clean
 	debian/rules debian/changelog
 	debian/rules debian/watch
 )
