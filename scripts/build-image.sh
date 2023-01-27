@@ -599,6 +599,8 @@ if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
 
 	run_script "${BUILD_IMAGE_SCRIPT_PRE}" pre base
 
+	[ -z "${BUILD_IMAGE_BASE_TARGET}" ] || append --target "${BUILD_IMAGE_BASE_TARGET}"
+
 	if [ "${BUILD_IMAGE_BASE_SCRIPT_CUSTOM}" = 1 ] ; then
 		run_script "${BUILD_IMAGE_BASE_SCRIPT}" build base
 	else
@@ -620,6 +622,8 @@ if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
 fi
 
 run_script "${BUILD_IMAGE_SCRIPT_PRE}" pre main
+
+[ -z "${BUILD_IMAGE_TARGET}" ] || append --target "${BUILD_IMAGE_TARGET}"
 
 if [ "${BUILD_IMAGE_SCRIPT_CUSTOM}" = 1 ] ; then
 	run_script "${BUILD_IMAGE_SCRIPT}" build main
