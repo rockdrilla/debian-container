@@ -60,8 +60,12 @@ for PYTHON_VERSION in ${python_versions} ; do
 	"${IMAGE_PATH}/python-min:${PYTHON_BASE_VERSION}-${SUITE}" ":${PYTHON_VERSION}-${SUITE}"
 
 	# share tarballs with next builds
-	find "$(build_artifacts_path "${stem}")/src" -name '*.tar.*' -type f \
-		-execdir cp -nv -t "$(shared_cache_path "${stem}")" '{}' '+'
+	(
+		cd "$(build_artifacts_path "${stem}")/src" || exit 1
+		dst="$(shared_cache_path "${stem}")"
+		find ./ -name '*.orig.tar.*'   -type f -exec cp -nv -t "${dst}" '{}' '+'
+		find ./ -name '*.orig-*.tar.*' -type f -exec cp -nv -t "${dst}" '{}' '+'
+	)
 
 	BUILD_IMAGE_TARGET=regular \
 	scripts/build-image.sh image-python/ \
