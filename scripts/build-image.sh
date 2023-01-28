@@ -375,7 +375,6 @@ fi
 : "${1:?}"
 
 BUILD_IMAGE_SCRIPT=
-BUILD_IMAGE_SCRIPT_CUSTOM=0
 BUILD_IMAGE_WORKDIR=
 
 if [ -f "$1" ] ; then
@@ -420,6 +419,8 @@ case "${BUILD_IMAGE_SCRIPT##*/}" in
 *Containerfile* | *Dockerfile* ) ;;
 *) : "${BUILD_IMAGE_SCRIPT_CUSTOM:=1}" ;;
 esac
+: "${BUILD_IMAGE_SCRIPT_CUSTOM:=0}"
+export BUILD_IMAGE_SCRIPT_CUSTOM
 
 : "${BUILD_IMAGE_CONTEXT:=${BUILD_IMAGE_WORKDIR}}"
 [ -n "${BUILD_IMAGE_CONTEXT}" ] || BUILD_IMAGE_CONTEXT=.
