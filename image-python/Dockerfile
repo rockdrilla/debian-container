@@ -37,13 +37,12 @@ RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo"
         mkdir -p ${_SRC_DIR} ; \
         deb-src-export ${_SRC_DIR} /tmp/debian ; \
         mkdir -p ${_PKG_DIR} ; \
-        if deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} ; then \
-            cleanup ; \
-        else \
+        if ! deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} ; then \
             cleanup ; \
             exit 1 ; \
         fi ; \
     fi ; \
+    cleanup ; \
     # linkage with final layer
     cp ${_PKG_DIR}/*_${PYTHON_VERSION}-*_*.buildinfo /tmp/
 
