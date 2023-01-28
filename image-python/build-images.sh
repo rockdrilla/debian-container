@@ -57,7 +57,7 @@ for PYTHON_VERSION in ${python_versions} ; do
 
 	BUILD_IMAGE_TARGET=minimal \
 	scripts/build-image.sh image-python/ \
-	"${IMAGE_PATH}/python-min:${PYTHON_BASE_VERSION}-${SUITE}"
+	"${IMAGE_PATH}/python-min:${PYTHON_BASE_VERSION}-${SUITE}" ":${PYTHON_VERSION}-${SUITE}"
 
 	# share tarballs with next builds
 	find "$(build_artifacts_path "${stem}")/src" -name '*.tar.*' -type f \
@@ -65,5 +65,5 @@ for PYTHON_VERSION in ${python_versions} ; do
 
 	BUILD_IMAGE_TARGET=regular \
 	scripts/build-image.sh image-python/ \
-	"${IMAGE_PATH}/python:${PYTHON_BASE_VERSION}-${SUITE}"
+	"${IMAGE_PATH}/python:${PYTHON_BASE_VERSION}-${SUITE}" ":${PYTHON_VERSION}-${SUITE}"
 done
