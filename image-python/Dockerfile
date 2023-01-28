@@ -20,10 +20,7 @@ ARG PYTHON_VERSION
 ARG PYTHON_BASE_VERSION
 
 # allows to preseed upstream tarballs
-# this directory should be mounted as RO volume
-ARG _TARBALL_DIR=/boot
-COPY ${_TARBALL_DIR}/         /tmp/
-
+COPY --from=tarballs /*       /tmp
 COPY /${PYTHON_BASE_VERSION}/ /tmp/debian/
 
 # preseed get-pip.py (this looks "ugly" but other methods are likely the same)

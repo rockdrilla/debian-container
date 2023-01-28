@@ -31,13 +31,11 @@ export BUILD_IMAGE_ARGS="
 	DEB_BUILD_OPTIONS
 	DEB_SRC_BUILD_PURGE
 	DEB_SRC_BUILD_DIR
-	_TARBALL_DIR
 	_SRC_DIR
 	_PKG_DIR
 "
 
 export DEB_SRC_BUILD_DIR=/srv
-export _TARBALL_DIR=/boot
 export _SRC_DIR=/media
 export _PKG_DIR=/mnt
 
@@ -50,8 +48,12 @@ for PYTHON_VERSION in ${python_versions} ; do
 
 	export BUILD_IMAGE_VOLUMES="$(build_cache_volumes)
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
-		$(shared_cache_path "${stem}"):${_TARBALL_DIR}:ro
 	"
+
+	export BUILD_IMAGE_CONTEXTS="
+		tarballs=$(shared_cache_path "${stem}")
+	"
+	touch "$(shared_cache_path "${stem}")/placeholder"
 
 	BUILD_IMAGE_TARGET=minimal \
 	scripts/build-image.sh image-python/ \
