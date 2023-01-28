@@ -57,6 +57,13 @@ build_cache_volumes() {
 
 }
 
+shared_cache_path() {
+	mkdir -p \
+		"${rootdir:?}/build-cache/${1:?}" \
+	>&2 || exit 1
+	printf '%s' "${rootdir}/build-cache/$1"
+}
+
 dst_list='
 	debian:bullseye:11:stable:latest
 	debian:bookworm:12

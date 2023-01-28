@@ -11,7 +11,7 @@ ARG BASE_IMAGE=${DISTRO}-min:${SUITE}
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE} as build
 SHELL [ "/bin/sh", "-ec" ]
 
-# it's recommended to mount these directories as RW volumes
+# these directories should be mounted as RW volumes
 ENV DEB_SRC_BUILD_DIR=/srv
 ENV _SRC_DIR=/media
 ENV _PKG_DIR=/mnt
@@ -20,7 +20,10 @@ ARG PYTHON_VERSION
 ARG PYTHON_BASE_VERSION
 
 # allows to preseed upstream tarballs
-COPY /.                       /tmp/
+# this directory should be mounted as RO volume
+ARG _TARBALL_DIR=/boot
+COPY ${_TARBALL_DIR}/         /tmp/
+
 COPY /${PYTHON_BASE_VERSION}/ /tmp/debian/
 
 # preseed get-pip.py (this looks "ugly" but other methods are likely the same)
@@ -32,7 +35,7 @@ RUN echo "${GET_PIP_SHA256} */tmp/debian/get-pip.py" | sha256sum -c -
 ARG DEB_SRC_BUILD_PURGE
 ARG DEB_BUILD_OPTIONS
 
-RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name '*.buildinfo' -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
+RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
         mkdir -p ${_SRC_DIR} ; \
         deb-src-export ${_SRC_DIR} /tmp/debian ; \
         mkdir -p ${_PKG_DIR} ; \
@@ -44,7 +47,7 @@ RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name '*.buildinfo' -type f -printf . -qu
         fi ; \
     fi ; \
     # linkage with final layer
-    cp ${_PKG_DIR}/*${PYTHON_VERSION}*.buildinfo /tmp/
+    cp ${_PKG_DIR}/*_${PYTHON_VERSION}-*_*.buildinfo /tmp/
 
 # ---
 

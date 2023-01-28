@@ -20,3 +20,5 @@ image-minbase/build-images.sh
 image-standard/build-images.sh
 
 image-buildd/build-images.sh
+
+image-python/build-images.sh
