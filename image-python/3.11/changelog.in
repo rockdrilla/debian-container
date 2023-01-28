@@ -1,5 +1,5 @@
-container-python-@{PYTHON_BASE_VERSION} (@{DEB_EPOCH}@{PYTHON_VERSION}-1) UNRELEASED; urgency=medium
+container-python-@{PYTHON_BASE_VERSION} (@{DEB_EPOCH}@{PYTHON_VERSION}-1) @{SUITE}; urgency=medium
 
-  * Initial release.
+  * New upstream version @{PYTHON_VERSION}.
 
  -- @{DEB_MAINTAINER}  @{DEB_CHANGELOG_DATE}

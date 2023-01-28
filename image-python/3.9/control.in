@@ -38,9 +38,13 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
 Suggests: ca-certificates,
 Provides: ${pip:autolist},
 Description: Python v@{PYTHON_BASE_VERSION} - full package
- Python is a high-level, interactive, object-oriented language. Its v@{PYTHON_BASE_VERSION} version
- includes an extensive class library with lots of goodies for
- network programming, system administration, sounds and graphics.
+ Python is a high-level, interactive, object-oriented language.
+ Its v@{PYTHON_BASE_VERSION} version includes an extensive class library
+ with lots of goodies for network programming, system administration,
+ sounds and graphics.
+ .
+ This package contains Python package manager "pip" besides packages
+ "setuptools" and "wheel".
 
 Package: container-python-@{PYTHON_BASE_VERSION}
 Architecture: any
@@ -56,7 +60,13 @@ Conflicts: python3,
 Breaks: python3,
         python@{PYTHON_BASE_VERSION},
 Description: Python v@{PYTHON_BASE_VERSION}
- Almost full package for Python v@{PYTHON_BASE_VERSION}.
+ Python is a high-level, interactive, object-oriented language.
+ Its v@{PYTHON_BASE_VERSION} version includes an extensive class library
+ with lots of goodies for network programming, system administration,
+ sounds and graphics.
+ .
+ This package contains almost full Python installation (executable,
+ shared library, runtime) except package manager and development files.
 
 Package: container-python-dev-@{PYTHON_BASE_VERSION}
 Architecture: any
@@ -66,8 +76,14 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
          zlib1g-dev,
 Recommends: libc6-dev | libc-dev,
 Description: Python v@{PYTHON_BASE_VERSION} - development files
- Header files and development tools for building Python v@{PYTHON_BASE_VERSION} modules,
- extending the Python interpreter or embedding Python v@{PYTHON_BASE_VERSION} in applications.
+ Python is a high-level, interactive, object-oriented language.
+ Its v@{PYTHON_BASE_VERSION} version includes an extensive class library
+ with lots of goodies for network programming, system administration,
+ sounds and graphics.
+ .
+ This package contains header files and development tools for building
+ Python v@{PYTHON_BASE_VERSION} modules, extending the Python interpreter
+ or embedding Python v@{PYTHON_BASE_VERSION} in applications.
 
 Package: container-python-misc-@{PYTHON_BASE_VERSION}
 Architecture: any
@@ -75,4 +91,10 @@ Multi-Arch: allowed
 Depends: ${shlibs:Depends}, ${misc:Depends},
          container-python-dev-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
 Description: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
- Static library and auxiliary files for Python v@{PYTHON_BASE_VERSION}.
+ Python is a high-level, interactive, object-oriented language.
+ Its v@{PYTHON_BASE_VERSION} version includes an extensive class library
+ with lots of goodies for network programming, system administration,
+ sounds and graphics.
+ .
+ This package contains static library and auxiliary files for
+ Python v@{PYTHON_BASE_VERSION}.
