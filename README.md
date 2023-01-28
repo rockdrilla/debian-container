@@ -8,7 +8,7 @@ Despite of name, Ubuntu is supported too (mostly).
 
 ### minimal image
 
-Minimal base image - `minbase/` ([readme](minbase/README.md))
+Minimal base image - `minbase/` ([readme](image-minbase/README.md))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian-min?tab=tags)
@@ -22,7 +22,7 @@ Images on Docker.io:
 
 ### standard image
 
-"Standard" image - `standard/` ([dockerfile](standard/Dockerfile))
+"Standard" image - `standard/` ([dockerfile](image-standard/Dockerfile))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian?tab=tags)
@@ -36,7 +36,7 @@ Images on Docker.io:
 
 ### buildd image
 
-"Buildd" image - `buildd/` ([dockerfile](buildd/Dockerfile))
+"Buildd" image - `buildd/` ([dockerfile](image-buildd/Dockerfile))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian-buildd?tab=tags)

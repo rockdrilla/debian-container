@@ -14,7 +14,8 @@ cd "${dir0:?}" || exit
 export PATH="${dir0}/scripts:${PATH}"
 
 SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-$(date -u '+%s')}
-export SOURCE_DATE_EPOCH
+BUILD_IMAGE_PUSH=${BUILD_IMAGE_PUSH:-0}
+export SOURCE_DATE_EPOCH BUILD_IMAGE_PUSH
 
 # set by env, e.g.:
 #   export IMAGE_REGISTRY='docker.io'
@@ -49,7 +50,7 @@ for distro_suite_tags in ${dst_list} ; do
 	fi
 
 	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}"
-	minbase/image.sh ${DISTRO} ${SUITE} "${image}"
+	image-minbase/image.sh ${DISTRO} ${SUITE} "${image}"
 	stub_build "${image}" ${extra_tags}
 done
 
@@ -66,11 +67,13 @@ for distro_suite_tags in ${dst_list} ; do
 
 	export DISTRO SUITE
 
-	scripts/build-image.sh standard \
+	scripts/build-image.sh image-standard/ \
 	  "${IMAGE_PATH}/${DISTRO}:${SUITE}" \
 	  ${extra_tags}
 
 done
+
+export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS} BASE_IMAGE"
 
 for distro_suite_tags in ${dst_list} ; do
 	extra_tags=
@@ -83,7 +86,7 @@ for distro_suite_tags in ${dst_list} ; do
 
 	export DISTRO SUITE
 
-	scripts/build-image.sh buildd \
+	scripts/build-image.sh image-buildd/ \
 	  "${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}" \
 	  ${extra_tags}
 
