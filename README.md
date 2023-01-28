@@ -8,7 +8,7 @@ Despite of name, Ubuntu is supported too (mostly).
 
 ### minimal image
 
-Minimal base image - `minbase/` ([readme](image-minbase/README.md))
+Minimal base image - `image-minbase/` ([readme](image-minbase/README.md))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian-min?tab=tags)
@@ -22,7 +22,7 @@ Images on Docker.io:
 
 ### standard image
 
-"Standard" image - `standard/` ([dockerfile](image-standard/Dockerfile))
+Standard base image - `image-standard/` ([dockerfile](image-standard/Dockerfile))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian?tab=tags)
@@ -36,7 +36,7 @@ Images on Docker.io:
 
 ### buildd image
 
-"Buildd" image - `buildd/` ([dockerfile](image-buildd/Dockerfile))
+Package building image - `image-buildd/` ([dockerfile](image-buildd/Dockerfile))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian-buildd?tab=tags)
@@ -47,3 +47,23 @@ Images on Docker.io:
 [Debian](https://hub.docker.com/r/rockdrilla/debian-buildd/tags)
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-buildd/tags)
+
+### Python - minimal/standard images
+
+Python image/packages - `image-python/` ([dockerfile](image-python/Dockerfile))
+
+Versions:
+
+- 3.9.16
+- 3.10.9
+- 3.11.1
+
+Images on Quay.io:
+[minimal](https://quay.io/repository/rockdrilla/python-min?tab=tags)
+|
+[standard](https://quay.io/repository/rockdrilla/python?tab=tags)
+
+Images on Docker.io:
+[minimal](https://hub.docker.com/r/rockdrilla/python-min/tags)
+|
+[standard](https://hub.docker.com/r/rockdrilla/python/tags)
