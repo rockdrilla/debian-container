@@ -83,6 +83,8 @@ RUN cd ${_PKG_DIR} ; \
     set -xv ; \
     python3 --version
 
+CMD [ "python3" ]
+
 # ---
 
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular
@@ -123,6 +125,8 @@ RUN cd ${_PKG_DIR} ; \
     python3 --version ; \
     pip3 --version
 
+CMD [ "python3" ]
+
 # ---
 
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal-apt
@@ -150,6 +154,8 @@ RUN apt-install container-python-${PYTHON_BASE_VERSION} ; \
     # smoke/qa
     set -xv ; \
     python3 --version
+
+CMD [ "python3" ]
 
 # ---
 
@@ -179,3 +185,5 @@ RUN apt-install container-python-full-${PYTHON_BASE_VERSION} ; \
     set -xv ; \
     python3 --version ; \
     pip3 --version
+
+CMD [ "python3" ]
