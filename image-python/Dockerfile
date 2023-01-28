@@ -34,15 +34,21 @@ ARG DEB_SRC_BUILD_PURGE
 ARG DEB_BUILD_OPTIONS
 
 RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
+        build_start=$(date -R) ; \
         mkdir -p ${_SRC_DIR} ; \
         deb-src-export ${_SRC_DIR} /tmp/debian ; \
         mkdir -p ${_PKG_DIR} ; \
-        if ! deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} ; then \
-            cleanup ; \
-            exit 1 ; \
-        fi ; \
+        set +e ; \
+        deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} ; \
+        result=$? ; \
+        set -e ; \
+        build_finish=$(date -R) ; \
+        cleanup ; \
+        echo "# build started at:  ${build_start}" ; \
+        echo "# build finished at: ${build_finish}" ; \
+        echo "# build return code: ${result}" ; \
+        [ "${result}" = 0 ] || exit ${result} ; \
     fi ; \
-    cleanup ; \
     # linkage with final layer
     cp ${_PKG_DIR}/*_${PYTHON_VERSION}-*_*.buildinfo /tmp/
 
