@@ -1,2 +1,5 @@
 # ignore IDE
 .vscode/
+
+build-artifacts/
+build-cache/

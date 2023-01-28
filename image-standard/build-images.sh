@@ -24,6 +24,8 @@ for distro_suite_tags in ${dst_list} ; do
 
 	export DISTRO SUITE
 
+	export BUILD_IMAGE_VOLUMES="$(build_cache_volumes)"
+
 	scripts/build-image.sh image-standard/ \
 	  "${IMAGE_PATH}/${DISTRO}:${SUITE}" \
 	  ${extra_tags}
