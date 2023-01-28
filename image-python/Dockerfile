@@ -123,3 +123,60 @@ RUN cd ${_PKG_DIR} ; \
     set -xv ; \
     python3 --version ; \
     pip3 --version
+
+# ---
+
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal-apt
+SHELL [ "/bin/sh", "-ec" ]
+
+ARG PYTHON_BASE_VERSION
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# "urllib" requires this
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+# "requests" requires this
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+RUN apt-install container-python-${PYTHON_BASE_VERSION} ; \
+    # HACK: enforce system CA bundle usage in "requests"/"certifi"
+#   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
+#   | while read -r f ; do \
+#       dpkg-divert --divert "$f.local" --rename "$f" ; \
+#       rm -f "$f" ; \
+#       ln -vs ${REQUESTS_CA_BUNDLE} "$f" ; \
+#   done ; \
+    cleanup ; \
+    # smoke/qa
+    set -xv ; \
+    python3 --version
+
+# ---
+
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular-apt
+SHELL [ "/bin/sh", "-ec" ]
+
+ARG PYTHON_BASE_VERSION
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# "urllib" requires this
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+# "requests" requires this
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+RUN apt-install container-python-full-${PYTHON_BASE_VERSION} ; \
+    # HACK: enforce system CA bundle usage in "requests"/"certifi"
+#   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
+#   | while read -r f ; do \
+#       dpkg-divert --divert "$f.local" --rename "$f" ; \
+#       rm -f "$f" ; \
+#       ln -vs ${REQUESTS_CA_BUNDLE} "$f" ; \
+#   done ; \
+    cleanup ; \
+    # smoke/qa
+    set -xv ; \
+    python3 --version ; \
+    pip3 --version
