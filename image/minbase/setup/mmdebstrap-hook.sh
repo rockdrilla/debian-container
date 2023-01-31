@@ -35,6 +35,16 @@ if [ "$0" != "$c" ] ; then
 	exit
 fi
 
+find_fast() {
+	find "$@" -printf . -quit | grep -Fq .
+}
+
+renmov() {
+	[ -f "$1" ]
+	mkdir -p "$(dirname "$2")"
+	mv "$1" "$2"
+}
+
 # fix ownership:
 # mmdebstrap's actions 'sync-in' and 'copy-in' preserves source user/group
 fix_ownership() {
@@ -65,13 +75,71 @@ find /usr/local/ -xdev -name '*.md' -type f -delete
 sed -i -E 's/ \[[^]]+]//' /etc/apt/sources.list
 
 # rename/move apt&dpkg configuration
-renmov() {
-	[ -f "$1" ]
-	mkdir -p "$(dirname "$2")"
-	mv "$1" "$2"
-}
 renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
 renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
+
+preseed='/usr/local/preseed'
+if [ -d "${preseed}" ] ; then
+	# apt configuration
+	s="${preseed}/apt"
+	if find_fast "$s" -mindepth 1 ; then
+		# sources
+		find "$s" -name '*.list' -type f \
+		  -execdir mv -vt /etc/apt/sources.list.d '{}' ';'
+		# keyrings
+		find "$s" -name '*.asc' -type f \
+		  -execdir mv -vt /etc/apt/trusted.gpg.d '{}' ';'
+		find "$s" -name '*.gpg' -type f \
+		  -execdir mv -vt /etc/apt/trusted.gpg.d '{}' ';'
+		# generic configuration
+		find "$s" -name '*.conf' -type f \
+		  -execdir mv -vt /etc/apt/apt.conf.d '{}' ';'
+		# apt pinning
+		find "$s" -name '*.pin' -type f \
+		  -execdir mv -vt /etc/apt/preferences.d '{}' ';'
+
+		rm -vrf "$s"
+	fi
+	rm -rf "$s"
+
+	# CA certificates
+	s="${preseed}/crt"
+	if find_fast "$s" -mindepth 1 ; then
+		d='/usr/local/share/ca-certificates'
+		mkdir -p "$d"
+
+		find "$s" -name '*.crt' -type f \
+		  -execdir mv -vnt "$d" '{}' ';'
+
+		# rename *.pem -> *.crt (if any)
+		(
+		cd "$s"
+		find "$s" -iname '*.pem' -type f -printf '%P\n' \
+		| while read -r f ; do
+			[ -n "$f" ] || continue
+			f_new="${f%.*}.crt"
+			mv -v "$f" "${f_new}"
+		done
+		)
+
+		find "$s" -name '*.crt' -type f \
+		  -execdir mv -vnt "$d" '{}' ';'
+
+		rm -vrf "$s"
+	fi
+	rm -rf "$s"
+
+	# other files - extracted in root (!)
+	s="${preseed}/files"
+	if find_fast "$s" -mindepth 1 ; then
+		tar -C "$s" -cf - . | tar -C / -xvf -
+
+		rm -rf "$s"
+	fi
+	rm -rf "$s"
+
+	rm -vrf "${preseed}"
+fi
 
 case "$2:$3" in
 # script "apt-backports" is irrelevant for sid/unstable

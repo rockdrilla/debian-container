@@ -9,6 +9,7 @@ suite="${2:?}"
 tarball="$3"
 
 dir0=$(readlink -f "$(dirname "$0")")
+rootdir=$(readlink -e "${dir0}/../..")
 
 ts=
 . "${dir0}/_common.sh"
@@ -25,6 +26,11 @@ fi
 # only affects installations with "libpam-tmpdir" installed
 orig_tmp="${TMPDIR:-/tmp}"
 export TMPDIR=/tmp TEMPDIR=/tmp TMP=/tmp TEMP=/tmp
+
+have_preseed=
+if [ -d "${rootdir}/preseed" ] ; then
+	have_preseed=1
+fi
 
 if [ "${distro}" = ubuntu ] ; then
 	# HACK: substitute dpkg-deb with own wrapper
@@ -96,6 +102,8 @@ mmdebstrap \
   --components="${comps}" \
   --aptopt="${dir0}/setup/apt.conf" \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
+  ${have_preseed:+ --customize-hook='chroot "$1" mkdir -p /usr/local/preseed' } \
+  ${have_preseed:+ --customize-hook="sync-in '${rootdir}/preseed' /usr/local/preseed" } \
   --customize-hook="sync-in '${dir0}/conf' /usr/local/etc" \
   --customize-hook="sync-in '${dir0}/lib' /usr/local/lib" \
   --customize-hook="sync-in '${dir0}/scripts' /usr/local/bin" \
