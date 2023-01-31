@@ -8,7 +8,7 @@ set -f
 # : "${BUILDAH_FORMAT:=docker}"
 # export BUILDAH_FORMAT
 
-rootdir=$(readlink -e "$(dirname "$0")/..")
+rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
 export PATH="${rootdir}/scripts:${PATH}"
@@ -56,7 +56,7 @@ for PYTHON_VERSION in ${python_versions} ; do
 	touch "$(shared_cache_path "${stem}")/placeholder"
 
 	BUILD_IMAGE_TARGET=minimal \
-	scripts/build-image.sh image-python/ \
+	scripts/build-image.sh image/python/ \
 	"${IMAGE_PATH}/python-min:${PYTHON_BASE_VERSION}-${SUITE}" ":${PYTHON_VERSION}-${SUITE}"
 
 	# share tarballs with next builds
@@ -68,6 +68,6 @@ for PYTHON_VERSION in ${python_versions} ; do
 	)
 
 	BUILD_IMAGE_TARGET=regular \
-	scripts/build-image.sh image-python/ \
+	scripts/build-image.sh image/python/ \
 	"${IMAGE_PATH}/python:${PYTHON_BASE_VERSION}-${SUITE}" ":${PYTHON_VERSION}-${SUITE}"
 done

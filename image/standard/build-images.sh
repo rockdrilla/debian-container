@@ -8,7 +8,7 @@ set -f
 # : "${BUILDAH_FORMAT:=docker}"
 # export BUILDAH_FORMAT
 
-rootdir=$(readlink -e "$(dirname "$0")/..")
+rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
 export PATH="${rootdir}/scripts:${PATH}"
@@ -22,7 +22,11 @@ for distro_suite_tags in ${dst_list} ; do
 	EOF
     [ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
 
-	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}"
-	image-minbase/image.sh ${DISTRO} ${SUITE} "${image}"
-	stub_build "${image}" ${extra_tags}
+	export DISTRO SUITE
+
+	export BUILD_IMAGE_VOLUMES="$(build_cache_volumes)"
+
+	scripts/build-image.sh image/standard/ \
+	  "${IMAGE_PATH}/${DISTRO}:${SUITE}" \
+	  ${extra_tags}
 done

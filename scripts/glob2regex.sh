@@ -1,1 +1,1 @@
-../minbase/scripts/glob2regex
+../image/minbase/scripts/glob2regex

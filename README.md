@@ -4,11 +4,11 @@ Alternative Debian GNU/Linux container image approach.
 
 Despite of name, Ubuntu is supported too (mostly).
 
-## contents
+## container images
 
-### minimal image
+### minimal
 
-Minimal base image - `image-minbase/` ([readme](image-minbase/README.md))
+Minimal base image - `image/minbase/` ([readme](image/minbase/README.md))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian-min?tab=tags)
@@ -20,9 +20,9 @@ Images on Docker.io:
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-min/tags)
 
-### standard image
+### standard
 
-Standard base image - `image-standard/` ([dockerfile](image-standard/Dockerfile))
+Standard base image - `image/standard/` ([dockerfile](image/standard/Dockerfile))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian?tab=tags)
@@ -34,9 +34,9 @@ Images on Docker.io:
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu/tags)
 
-### buildd image
+### buildd
 
-Package building image - `image-buildd/` ([dockerfile](image-buildd/Dockerfile))
+Package building image - `image/buildd/` ([dockerfile](image/buildd/Dockerfile))
 
 Images on Quay.io:
 [Debian](https://quay.io/repository/rockdrilla/debian-buildd?tab=tags)
@@ -48,9 +48,9 @@ Images on Docker.io:
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-buildd/tags)
 
-### Python - minimal/standard images
+### python - minimal/standard
 
-Python image/packages - `image-python/` ([dockerfile](image-python/Dockerfile))
+Python image/packages - `image/python/` ([dockerfile](image/python/Dockerfile))
 
 Versions:
 
