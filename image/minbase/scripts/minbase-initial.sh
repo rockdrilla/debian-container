@@ -30,9 +30,6 @@ find_fresh_ts() {
 	} | sort -rn | head -n 1
 }
 
-# bootstrap apt&dpkg configuration
-tar -C /usr/local/etc/ -cf - apt dpkg | tar -C /etc -xf -
-
 # debconf itself:
 debconf-set-selections <<-EOF
 	debconf  debconf/frontend  select  Noninteractive

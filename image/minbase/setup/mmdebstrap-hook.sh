@@ -11,7 +11,8 @@
 
 set -e
 
-if [ -d "$1" ] ; then
+c="/tmp/${0##*/}"
+if [ "$0" != "$c" ] ; then
 	dir0=$(dirname "$0")
 
 	# read environment from file (except PATH)
@@ -26,7 +27,6 @@ if [ -d "$1" ] ; then
 	EOF
 
 	# copy self inside chroot
-	c="/${0##*/}"
 	cp -a "$0" "$1$c"
 
 	# reexec within chroot
@@ -39,7 +39,7 @@ fi
 # mmdebstrap's actions 'sync-in' and 'copy-in' preserves source user/group
 fix_ownership() {
 	s="${1%%|*}" ; a="${1##*|}"
-	find /usr/local $s -exec $a '{}' '+'
+	find /usr/local/ -xdev $s -exec $a '{}' '+'
 }
 
 [ "$4" = 0 ] || fix_ownership "-uid $4|chown -h 0"
@@ -56,23 +56,22 @@ if [ -f "$f" ] ; then
 fi
 
 # remove "keep" files (if any)
-find /usr/local/ -name .keep -type f -delete
+find /usr/local/ -xdev -name .keep -type f -delete
 
 # remove docs (if any)
-find /usr/local -name '*.md' -type f -delete
+find /usr/local/ -xdev -name '*.md' -type f -delete
 
 # strip apt keyrings from sources.list:
 sed -i -E 's/ \[[^]]+]//' /etc/apt/sources.list
 
 # rename/move apt&dpkg configuration
-# (to be copied back by minbase-initial.sh)
 renmov() {
 	[ -f "$1" ]
 	mkdir -p "$(dirname "$2")"
 	mv "$1" "$2"
 }
-renmov /etc/apt/apt.conf.d/99mmdebstrap  /usr/local/etc/apt/apt.conf.d/container
-renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /usr/local/etc/dpkg/dpkg.cfg.d/container
+renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
+renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
 
 case "$2:$3" in
 # script "apt-backports" is irrelevant for sid/unstable
@@ -83,7 +82,6 @@ debian:unstable | debian:sid)
 	ln -s /bin/true "$f"
 ;;
 # enable backports for these releases
-# NB: do "apt-backports enable-all" to setup apt pinning too
 debian:bullseye | ubuntu:focal)
 	apt-backports enable
 	apt-pin backports-dev 500 "$3-backports" src:debhelper src:devscripts
