@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e
+
+. /usr/lib/container-persistence/ca-bundle.sh
+
+set -e
+
+#DEBHELPER#
