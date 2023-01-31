@@ -142,13 +142,6 @@ if [ -d "${preseed}" ] ; then
 fi
 
 case "$2:$3" in
-# script "apt-backports" is irrelevant for sid/unstable
-# replace with stub
-debian:unstable | debian:sid)
-	f='/usr/local/bin/apt-backports'
-	rm -f "$f"
-	ln -s /bin/true "$f"
-;;
 # enable backports for these releases
 debian:bullseye | ubuntu:focal)
 	apt-backports enable

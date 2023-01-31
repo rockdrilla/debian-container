@@ -20,6 +20,23 @@ status() {
 	[ -s "${src_file}" ]
 }
 
+VERSION_CODENAME=$( ( . /etc/os-release || : ; printf '%s' "${VERSION_CODENAME}" ; ) )
+: "${VERSION_CODENAME:?}"
+
+xsedx=$(printf '\027')
+chanlist='(main|contrib|non-free|restricted|universe|multiverse)'
+sed_sources="\\${xsedx}^\\s*(deb\\s.+\\S)\\s+(${VERSION_CODENAME})\\s+(${chanlist}(|\\s.*\\S))\\s*\$${xsedx}{s//\\1 \\2-backports \\3/p}"
+
+rolling=
+if [ "$(sed -En "${sed_sources}" < /etc/apt/sources.list | wc -l)" = 0 ] ; then
+	rolling=1
+fi
+
+if [ -n "${rolling}" ] ; then
+	echo "# ${0##*/}: irrelevant for rolling release channels" >&2
+	exit 0
+fi
+
 if [ $# = 0 ] ; then
 	usage
 	echo >&2
@@ -60,18 +77,8 @@ disable|disable-pin|disable-all) ;;
 esac
 
 case "${act}" in
-enable|enable-pin|enable-all)
-	. /etc/os-release || exit
-;;
-esac
-
-case "${act}" in
 enable|enable-all)
-	xsedx=$(printf '\027')
-	chanlist='(main|contrib|non-free|restricted|universe|multiverse)'
-
-	sed -En "\\${xsedx}^(deb\\s.+\\S)\\s+(${VERSION_CODENAME})\\s+(${chanlist}(|\\s.*\\S))\\s*\$${xsedx}{s//\\1 \\2-backports \\3/p}" \
-	< /etc/apt/sources.list > "${src_file}" || exit
+	sed -En "${sed_sources}" < /etc/apt/sources.list > "${src_file}" || exit
 ;;
 disable|disable-all)
 	rm -v "${src_file}" || :
