@@ -110,7 +110,6 @@ chmod 0755 "${temp_folder}/debian/rules"
 	debian/rules clean
 	debian/rules debian/control
 	debian/rules debian/changelog
-	debian/rules debian/watch
 )
 if ! [ -s "${temp_folder}/debian/control" ] ; then
 	echo "# ${0##*/}: debian/control is missing/unreproducible for ${deb_folder}/!"
@@ -228,6 +227,8 @@ pna="${pnd}_source"
 ) || { _cleanup ; exit 1 ; }
 
 cd "$W"
+
+debian/rules debian/watch || :
 
 (
 	# verify that we have upstream tarball(s)
