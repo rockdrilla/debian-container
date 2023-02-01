@@ -145,7 +145,7 @@ case "$2:$3" in
 # enable backports for these releases
 debian:bullseye | ubuntu:focal)
 	apt-backports enable
-	apt-pin backports-dev 500 "$3-backports" src:debhelper src:devscripts
+	apt-pin backports-dev 500 "$3-backports" src:debhelper src:devscripts src:dh-golang src:dh-cargo
 ;;
 esac
 
