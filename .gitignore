@@ -1,5 +1,11 @@
 # ignore IDE
 .vscode/
 
+# ignore build-time artifacts and cache
 build-artifacts/
 build-cache/
+
+# ignore preseed
+preseed/apt/
+preseed/crt/
+preseed/files/
