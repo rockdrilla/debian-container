@@ -32,7 +32,7 @@ Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/image/pyth
 Package: container-python-full-@{PYTHON_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
-Depends: ${shlibs:Depends}, ${misc:Depends},
+Depends: ${misc:Depends},
          container-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
          container-python-dev-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
 Suggests: ca-certificates,
