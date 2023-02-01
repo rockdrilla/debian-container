@@ -1,3 +1,9 @@
+container-persistent-ca-bundle (20230201) stable; urgency=medium
+
+  * Refactor paths.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Wed, 01 Feb 2023 11:44:00 +0300
+
 container-persistent-ca-bundle (20230131) stable; urgency=medium
 
   * Split package.

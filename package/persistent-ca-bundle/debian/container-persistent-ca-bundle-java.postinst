@@ -2,7 +2,7 @@
 
 set -e
 
-. /usr/lib/container-persistence/ca-bundle-java.sh
+. /lib/container/persistence/ca-bundle-java.sh
 
 set -e
 

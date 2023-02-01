@@ -5,7 +5,7 @@ set -f ; set +e
 exec </dev/null
 
 orig_file='/etc/ssl/certs/java/cacerts'
-var='/var/lib/container-persistence'
+var='/var/lib/container/persistence'
 state="${var}/ca-bundle-java.sha256"
 backup="${var}/ca-bundle-java.gz"
 refine_trigger='verify-container-persistent-ca-bundle-java'
@@ -67,7 +67,7 @@ triggered)
     exit 0
 ;;
 purge)
-    rm -vf "${state}" "${backup}" "${orig_file}"
+    rm -vf "${state}" "${backup}"
     find_fast "${var}" -mindepth 1 || rm -vrf "${var}"
     exit 0
 ;;

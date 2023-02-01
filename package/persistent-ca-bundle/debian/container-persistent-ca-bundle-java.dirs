@@ -1,2 +1,3 @@
-usr/sbin
 etc/ca-certificates/update.d
+sbin
+var/lib/container/persistence
