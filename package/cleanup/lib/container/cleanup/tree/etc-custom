@@ -9,5 +9,5 @@ set -f
 rm="rm -rf${VERBOSE:+v}"
 [ -z "${DEBUG}" ] || set -xv
 
-xglob /etc /usr/local/etc/cleanup/etc -- ${rm} </dev/null
+xglob /etc /usr/local/etc/container/cleanup/etc -- ${rm} </dev/null
 exit 0

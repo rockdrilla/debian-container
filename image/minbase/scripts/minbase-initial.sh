@@ -75,7 +75,7 @@ divert /usr/bin/deb-systemd-helper
 divert /usr/bin/deb-systemd-invoke
 
 # reduce impact from util-linux{,-extra}
-dpkg_filter_cfg='/usr/local/etc/dpkg-filter/util-linux.auto'
+dpkg_filter_cfg='/usr/local/etc/container/dpkg-filter/util-linux.auto'
 
 util_linux_allowed='choom chrt fallocate findmnt flock getopt hardlink
 ionice ipcmk ipcrm ipcs lscpu lsfd lsipc lslocks lsmem lsns more

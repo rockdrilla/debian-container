@@ -31,7 +31,7 @@ if [ "$0" != "$c" ] ; then
 
 	# reexec within chroot
 	chroot "$1" "$c" "$@"
-	rm "$1$c"
+	rm -f "$1$c"
 	exit
 fi
 

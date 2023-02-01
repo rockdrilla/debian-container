@@ -4,7 +4,7 @@
 
 set -f
 
-lib='/usr/local/lib/cleanup'
+lib='/usr/local/lib/container/cleanup'
 tags='apt tree var'
 
 # reset locale to default one

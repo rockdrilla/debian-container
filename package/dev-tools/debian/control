@@ -1,0 +1,26 @@
+Source: container-dev-tools
+Section: misc
+Priority: optional
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/rockdrilla/debian-container
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/dev-tools
+
+Package: container-dev-tools
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+Suggests: build-essential,
+          debhelper,
+          devscripts,
+          eatmydata,
+          fakeroot,
+          gcc,
+          git,
+          gnupg,
+Description: container - dev tools
+ This package contains development scripts and tools for containers.

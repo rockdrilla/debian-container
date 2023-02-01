@@ -9,6 +9,7 @@ for i ; do
     case "$i" in
     -y* | -q*y*) want_y= ;;
     esac
+    [ -n "${want_y}" ] || break
 done
 
 apt-update ${APT_OPTS}
