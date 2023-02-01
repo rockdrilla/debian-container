@@ -314,6 +314,23 @@ build_image_ex() {
 	build_image "$@"
 }
 
+push_image_by_ref() {
+	log "push: ${1:?}"
+	podman push "$1" || return 1
+
+	while read -r _image ; do
+		[ -n "${_image}" ] || continue
+
+		log "copy: $1 -> ${_image}"
+		skopeo copy "docker://$1" "docker://${_image}" || continue
+	done <<-EOF
+	$(podman images --format='{{.Repository}}:{{.Tag}}' --filter "reference=$1" | grep -Fxv -e "$1" || :)
+	EOF
+	unset _image
+}
+
+# TODO: push_image_by_id() is needed or not?
+
 adjust_script_name() {
 	if [ "$1" = "${1##*/}" ] ; then
 		printf '%s' "./$1"
@@ -644,25 +661,26 @@ fi
 
 run_script "${BUILD_IMAGE_SCRIPT_POST}" post main
 
+# implicit iteration over "$@""
+for _arg ; do
+	case "${_arg}" in
+	:*) _image="${BUILD_IMAGE_NAME%:*}${_arg}" ;;
+	*:) _image="${_arg}${BUILD_IMAGE_NAME#*:}" ;;
+	*) _image="${_arg}" ;;
+	esac
+
+	log "tag: ${BUILD_IMAGE_NAME} -> ${_image}"
+	podman tag "${BUILD_IMAGE_NAME}" "${_image}"
+done ; unset _arg _image
+
 if [ "${BUILD_IMAGE_PUSH}" = 1 ] ; then
 	if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
-		podman push "${BUILD_IMAGE_BASE_NAME}"
+		push_image_by_ref "${BUILD_IMAGE_BASE_NAME}"
 	fi
-	podman push "${BUILD_IMAGE_NAME}"
 
-	# implicit iteration over "$@""
-	for _arg ; do
-		case "${_arg}" in
-		:*) _image="${BUILD_IMAGE_NAME%:*}${_arg}" ;;
-		*:) _image="${_arg}${BUILD_IMAGE_NAME#*:}" ;;
-		*) _image="${_arg}" ;;
-		esac
-
-        log "copy: ${BUILD_IMAGE_NAME} -> ${_image}"
-		skopeo copy "docker://${BUILD_IMAGE_NAME}" "docker://${_image}"
-	done ; unset _arg _image
+	push_image_by_ref "${BUILD_IMAGE_NAME}"
 else
-	log "NOT pushing image${*:+(s)}: ${BUILD_IMAGE_NAME}${*:+ $*}"
+	log "NOT pushing image${*:+(s)}: ${BUILD_IMAGE_BASE_NAME:+${BUILD_IMAGE_BASE_NAME} }${BUILD_IMAGE_NAME}${*:+ $*}"
 fi
 
 # list images
