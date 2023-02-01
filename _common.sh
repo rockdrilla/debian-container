@@ -66,8 +66,8 @@ shared_cache_path() {
 
 dst_list='
 	debian:bullseye:11:stable:latest
-	debian:bookworm:12
-	debian:sid
+	debian:bookworm:12:testing
+	debian:sid:unstable
 	ubuntu:focal:20.04:lts
 	ubuntu:jammy:22.04:stable:latest
 '
