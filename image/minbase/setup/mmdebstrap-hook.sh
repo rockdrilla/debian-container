@@ -181,6 +181,10 @@ bootstrap='/usr/local/bootstrap'
 )
 rm -rf "${bootstrap}"
 
+# fixtures
+update-container-persistent-ca-bundle
+update-container-persistent-ca-bundle-java
+
 # remove bootstrap packages
 apt-list-installed | grep -E '^container-bootstrap' \
 | xargs -r dpkg -P || :
