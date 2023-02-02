@@ -17,7 +17,7 @@ export LANG=C.UTF8
 have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 
 need_pkg=
-for i in 'dh:debhelper' 'gcc' 'git' 'gpg:gnupg' 'dpkg-parsechangelog:dpkg-dev' 'uscan:devscripts' ; do
+for i in 'dh:debhelper' 'gcc' 'git' 'gpg:gnupg' 'dpkg-parsechangelog:dpkg-dev' ; do
 	IFS=: read -r bin pkg <<-EOF
 	$i
 	EOF
@@ -185,7 +185,7 @@ if [ -z "${ver_upstream}" ] ; then
 		else
 			find ./ -mindepth 1 -maxdepth 1 -printf '%P\0'
 		fi \
-		| sed -zEn '/^(\.git|debian)(/|$)/d' \
+		| sed -zE '/^(\.git|debian)(\/|$)/d' \
 		| tar ${tar_opts} --null -T - -cf - \
 		| tar -C "$W" -xf -
 	) || { _cleanup ; exit 1 ; }
@@ -232,8 +232,11 @@ debian/rules debian/watch || :
 
 (
 	# verify that we have upstream tarball(s)
-	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig.*" -type f \
-	|| uscan --destdir "$T" --download-current-version --rename
+	find_fast "$T" -mindepth 1 -maxdepth 1 -name "${pnu}.orig.*" -type f || {
+		uscan_pre=
+		have_cmd uscan || uscan_pre='apt-wrap devscripts'
+		${uscan_pre} uscan --destdir "$T" --download-current-version --rename
+	}
 
 	tar -cf - debian | xz -9 > "$T/${pnd}.debian.tar.xz"
 
