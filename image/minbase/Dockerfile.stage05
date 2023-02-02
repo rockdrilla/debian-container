@@ -1,0 +1,42 @@
+ARG IMAGE_REGISTRY=docker.io
+ARG IMAGE_DIRECTORY=rockdrilla
+ARG DISTRO=debian
+ARG SUITE=stable
+
+ARG BUILD_IMAGE=${DISTRO}-min-stage0:${SUITE}
+
+# ---
+
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE}
+SHELL [ "/bin/sh", "-ec" ]
+
+# these directories should be mounted as RW volumes
+ENV DEB_SRC_BUILD_DIR=/srv
+ENV _SRC_DIR=/media
+ENV _PKG_DIR=/mnt
+
+ARG DEB_SRC_BUILD_PURGE
+ARG DEB_BUILD_OPTIONS
+
+# install almost all build dependencies to speed up batch package build
+RUN apt-install build-essential debhelper eatmydata fakeroot gcc git gnupg ; \
+    cleanup
+
+COPY /package/ /tmp/package/
+
+RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ; do \
+        stem="${dir##*/}" ; \
+        echo "${dir}" ; \
+        echo ; \
+        cd "${dir}" ; \
+        mkdir -p "${_SRC_DIR}/${stem}" ; \
+        # quirk
+        tar -xPf /usr/local/cabundle.tar ; \
+        deb-src-export "${_SRC_DIR}/${stem}" ; \
+        cd "${_SRC_DIR}/${stem}" ; \
+        # quirk
+        tar -xPf /usr/local/cabundle.tar ; \
+        deb-src-build ./*.dsc ${_PKG_DIR} ; \
+        echo ; \
+    done ; \
+    cleanup

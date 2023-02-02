@@ -1,0 +1,95 @@
+#!/bin/sh
+
+set -ef
+
+refine_trigger='refresh-container-exe-filter'
+
+# close stdin (for good)
+exec </dev/null
+
+# list of potentially unwanted binaries
+inline_cfg() {
+    for i in \
+      'e2scrub*' 'fsck.*' 'mkfs.*' \
+      \
+      addpart agetty badblocks blkdiscard blkid blkzone blockdev chcpu chmem \
+      ctrlaltdel debugfs delpart dmesg dumpe2fs e2freefrag e2fsck e2image \
+      e2label e2mmpstatus e2scrub e2undo e4crypt e4defrag fdformat fincore \
+      findfs findmnt fsck fsfreeze fstrim getty hwclock isosize last lastb \
+      ldattach lsblk lslogins mcookie mesg mke2fs mkfs mklost+found mkswap \
+      mount mountpoint partx pivot_root raw readprofile resize2fs resizepart \
+      rtcwake su sulogin swaplabel swapoff swapon switch_root tune2fs utmpdump \
+      wall wdctl wipefs zramctl \
+      \
+    ; do
+        printf 'match=%s\n' "$i"
+    done
+}
+
+do_work() {
+    w=$(mktemp -d) ; : "${w:?}"
+
+    inline_cfg | sort -uV > "$w/cfg"
+
+    for d in /bin /sbin /usr/bin /usr/sbin ; do
+        xglob "$d" "$w/cfg" -- printf '%s\n' \
+        | sed -E 's,^/usr,,'
+        # ^ workaround for "merged /usr"
+    done \
+    | sort -uV > "$w/exe.0"
+
+    # one more workaround for "merged /usr"
+    sed -E 's,^,/usr,' < "$w/exe.0" > "$w/exe.1"
+    cat "$w/exe.0" "$w/exe.1" > "$w/exe"
+    rm -f "$w/exe.0" "$w/exe.1"
+
+    set +e
+    grep -FxRl -f "$w/exe" "${DPKG_ADMINDIR:-/var/lib/dpkg}/info/" \
+    | grep -E '\.list$' \
+    | sort -uV > "$w/lists"
+    set -e
+
+    while read -r pkg_list ; do
+        pkg_name="${pkg_list##*/}"
+        pkg_name="${pkg_name%.list}"
+
+        out="/etc/container/dpkg-filter/${pkg_name}.auto"
+
+        set +e
+        (
+            cat "${out}" 2>/dev/null
+
+            grep -Fx -f "$w/exe" < "${pkg_list}" \
+            | sed -E 's,^,delete=,'
+        ) \
+        | grep -Ev '^$' \
+        | sort -uV > "$w/out.tmp"
+
+        if ! cmp -s "$w/out.tmp" "${out}" ; then
+            echo "# '#PACKAGE#' is going to install/update 'container-cleanup' configuration:"
+            echo "# file: ${out}"
+            sed -E 's/^/# > /' < "$w/out.tmp"
+        fi >&2
+
+        cat < "$w/out.tmp" > "${out}"
+        set -e
+    done < "$w/lists"
+
+    rm -rf "$w"
+}
+
+case "$1" in
+triggered)
+    case " $2 " in
+    *" ${refine_trigger} "*)
+        do_work
+        exit 0
+    ;;
+    esac
+
+    dpkg-trigger ${refine_trigger}
+    exit 0
+;;
+esac
+
+#DEBHELPER#

@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+
+SHELL       :=/bin/sh
+.SHELLFLAGS :=-ec
+
+MAKEFLAGS += --no-print-directory
+
+export DH_VERBOSE := 1
+
+include /usr/share/dpkg/default.mk
+
+.NOTPARALLEL:
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+
+override_dh_auto_build:
+
+override_dh_auto_install:
+
+override_dh_auto_test:
+
+.PHONY: build
+build:
