@@ -342,10 +342,12 @@ adjust_script_name() {
 run_script() {
 	[ -s "$1" ] || return 0
 	if [ -x "$1" ] ; then
-		"$@"
+		"$@" \
+		|| log "run_script: '$*' returned $?"
 	else
 		__BUILD_IMAGE_X=1 \
-		"$0" "$@"
+		"$0" "$@" \
+		|| log "run_script: '$*' returned $?"
 	fi
 }
 
@@ -619,14 +621,22 @@ if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
 
 	[ -z "${BUILD_IMAGE_BASE_TARGET}" ] || append --target "${BUILD_IMAGE_BASE_TARGET}"
 
+	result=0
 	if [ "${BUILD_IMAGE_BASE_SCRIPT_CUSTOM}" = 1 ] ; then
 		run_script "${BUILD_IMAGE_BASE_SCRIPT}" build base
+		result=$?
 	else
 		BUILD_IMAGE_SCRIPT="${BUILD_IMAGE_BASE_SCRIPT}" \
 		build_image_ex \
 		  -t "${BUILD_IMAGE_BASE_NAME}" \
 		  -f "${BUILD_IMAGE_BASE_SCRIPT}" \
 		"${BUILD_IMAGE_CONTEXT:-.}"
+		result=$?
+	fi
+
+	if [ ${result} -ne 0 ] ; then
+		log "build FAILED, return code: ${result}"
+		exit ${result}
 	fi
 
 	unset BUILD_IMAGE_LABEL_PREFIX
@@ -643,20 +653,29 @@ run_script "${BUILD_IMAGE_SCRIPT_PRE}" pre main
 
 [ -z "${BUILD_IMAGE_TARGET}" ] || append --target "${BUILD_IMAGE_TARGET}"
 
+result=0
 if [ "${BUILD_IMAGE_SCRIPT_CUSTOM}" = 1 ] ; then
 	run_script "${BUILD_IMAGE_SCRIPT}" build main
+	result=$?
 else
 	if [ "${BUILD_IMAGE_BASE}" = 1 ] ; then
 		build_image \
 		  -t "${BUILD_IMAGE_NAME}" \
 		  -f "${BUILD_IMAGE_SCRIPT}" \
 		"${BUILD_IMAGE_CONTEXT:-.}"
+		result=$?
 	else
 		build_image_ex \
 		  -t "${BUILD_IMAGE_NAME}" \
 		  -f "${BUILD_IMAGE_SCRIPT}" \
 		"${BUILD_IMAGE_CONTEXT:-.}"
+		result=$?
 	fi
+fi
+
+if [ ${result} -ne 0 ] ; then
+	log "build FAILED, return code: ${result}"
+	exit ${result}
 fi
 
 run_script "${BUILD_IMAGE_SCRIPT_POST}" post main
