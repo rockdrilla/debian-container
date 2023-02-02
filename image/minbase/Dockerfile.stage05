@@ -22,7 +22,7 @@ ARG DEB_BUILD_OPTIONS
 RUN apt-install build-essential debhelper eatmydata fakeroot gcc git gnupg ; \
     cleanup
 
-COPY /package/ /tmp/package/
+COPY /package/container-essential/ /tmp/package/
 
 RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ; do \
         stem="${dir##*/}" ; \

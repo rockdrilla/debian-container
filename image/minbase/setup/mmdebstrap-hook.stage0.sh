@@ -14,6 +14,18 @@ set -e
 c="/tmp/${0##*/}"
 if [ "$0" != "$c" ] ; then
 	dir0=$(dirname "$0")
+	rootdir=$(readlink -e "${dir0}/../../..")
+	pkg_dir="${rootdir}/package/container-essential"
+
+	echo "# rootdir: ${rootdir}" >&2
+	echo "# pkg_dir: ${pkg_dir}" >&2
+
+	# naive copy of container essential packages inside chroot
+	# e.g.: package/container-essential/common-tools/bin -> /usr/local/bin
+	find "${pkg_dir}/" -mindepth 2 -maxdepth 2 ! -name debian -type d \
+	| while read -r dir ; do
+		cp -vaR "${dir}/" "$1/usr/local/"
+	done
 
 	# read environment from file (except PATH)
 	while read -r i ; do

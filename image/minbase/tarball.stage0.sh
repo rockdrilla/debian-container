@@ -104,14 +104,6 @@ mmdebstrap \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
   ${have_preseed:+ --customize-hook='chroot "$1" mkdir -p /usr/local/preseed' } \
   ${have_preseed:+ --customize-hook="sync-in '${rootdir}/preseed' /usr/local/preseed" } \
-  --customize-hook="sync-in '${rootdir}/package/bootstrap-settings/lib' /usr/local/lib" \
-  --customize-hook="sync-in '${rootdir}/package/cleanup/bin' /usr/local/bin" \
-  --customize-hook="sync-in '${rootdir}/package/cleanup/etc' /usr/local/etc" \
-  --customize-hook="sync-in '${rootdir}/package/cleanup/lib' /usr/local/lib" \
-  --customize-hook="sync-in '${rootdir}/package/common-tools/bin' /usr/local/bin" \
-  --customize-hook="sync-in '${rootdir}/package/dev-tools/bin' /usr/local/bin" \
-  --customize-hook="sync-in '${rootdir}/package/dpkg-filter/bin' /usr/local/bin" \
-  --customize-hook="sync-in '${rootdir}/package/dpkg-filter/lib' /usr/local/lib" \
   --customize-hook="'${dir0}/setup/mmdebstrap-hook.stage0.sh' \"\$1\" ${distro} ${suite} ${uid} ${gid}" \
   --skip=cleanup/apt \
   --skip=cleanup/tmp \
