@@ -57,8 +57,8 @@ RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo"
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
-# it's recommended to mount this directory as RW volume
-ARG _PKG_DIR=/mnt
+# this directory should be mounted as volume
+# ARG _PKG_DIR=/mnt
 
 ARG PYTHON_BASE_VERSION
 
@@ -73,9 +73,9 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # "requests" requires this
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-RUN cd ${_PKG_DIR} ; \
-    dpkg -i \
-        container-python-${PYTHON_BASE_VERSION}_*.deb \
+RUN arch=$(dpkg --print-architecture) ; \
+    find /mnt -regextype egrep -regex ".+/container-python-${PYTHON_BASE_VERSION}_.+_(all|${arch})\\.deb\$" -type f \
+      -exec dpkg -i '{}' '+' \
     || apt-install --fix-broken ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
 #   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
@@ -96,8 +96,8 @@ CMD [ "python3" ]
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
-# it's recommended to mount this directory as RW volume
-ARG _PKG_DIR=/mnt
+# this directory should be mounted as volume
+# ARG _PKG_DIR=/mnt
 
 ARG PYTHON_BASE_VERSION
 
@@ -112,11 +112,9 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # "requests" requires this
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-RUN cd ${_PKG_DIR} ; \
-    dpkg -i \
-        container-python-${PYTHON_BASE_VERSION}_*.deb \
-        container-python-dev-${PYTHON_BASE_VERSION}_*.deb \
-        container-python-full-${PYTHON_BASE_VERSION}_*.deb \
+RUN arch=$(dpkg --print-architecture) ; \
+    find /mnt -regextype egrep -regex ".+/container-python(|-dev|-full)-${PYTHON_BASE_VERSION}_.+_(all|${arch})\\.deb\$" -type f \
+      -exec dpkg -i '{}' '+' \
     || apt-install --fix-broken ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
 #   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
