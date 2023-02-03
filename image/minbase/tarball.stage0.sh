@@ -15,7 +15,7 @@ ts=
 . "${dir0}/_common.sh"
 
 # mmdebstrap companion script
-: "${TARFILTER:-tarfilter}"
+: "${TARFILTER:=tarfilter}"
 if ! command -v "${TARFILTER%% *}" >/dev/null ; then
 	# try Debian one
 	TARFILTER='mmtarfilter'

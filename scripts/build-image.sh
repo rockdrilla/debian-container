@@ -340,6 +340,7 @@ adjust_script_name() {
 }
 
 run_script() {
+	[ -n "$1" ] || return 0
 	[ -s "$1" ] || return 0
 	if [ -x "$1" ] ; then
 		"$@" \
