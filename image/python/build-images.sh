@@ -21,6 +21,9 @@ python_versions='
 	3.11.1
 '
 
+: "${DEB_BUILD_OPTIONS:=pgo_full lto_part=none}"
+export DEB_BUILD_OPTIONS
+
 # build only Debian variant (for now)
 export DISTRO=debian SUITE=bullseye
 
