@@ -48,16 +48,21 @@ ubuntu) comps='main restricted universe multiverse' ;;
 esac
 
 sources_tmp=
-if [ -n "${MMDEBSTRAP_MIRROR}" ] ; then
+while : ; do
 	case "${distro}" in
 	debian)
+		[ -n "${MMDEBSTRAP_MIRROR_DEBIAN}" ] || break
+
 		case "${suite}" in
 		unstable|sid) ;;
 		*)
-			# if MMDEBSTRAP_MIRROR is set then MMDEBSTRAP_SECMIRROR must be set too
-			: "${MMDEBSTRAP_SECMIRROR:?}"
+			# if MMDEBSTRAP_MIRROR_DEBIAN is set then MMDEBSTRAP_SECMIRROR_DEBIAN must be set too
+			: "${MMDEBSTRAP_SECMIRROR_DEBIAN:?}"
 		;;
 		esac
+	;;
+	ubuntu)
+		[ -n "${MMDEBSTRAP_MIRROR_UBUNTU}" ] || break
 	;;
 	esac
 
@@ -65,33 +70,37 @@ if [ -n "${MMDEBSTRAP_MIRROR}" ] ; then
 	case "${distro}" in
 	debian)
 		: "${MMDEBSTRAP_KEYRING:=/usr/share/keyrings/debian-archive-keyring.gpg}"
+
 		case "${suite}" in
 		unstable|sid)
 			cat <<-EOF
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite} ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite} ${comps}
 			EOF
 		;;
 		*)
 			cat <<-EOF
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite} ${comps}
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-updates ${comps}
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-proposed-updates ${comps}
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_SECMIRROR} ${suite}-security ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite} ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite}-updates ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite}-proposed-updates ${comps}
+			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_SECMIRROR_DEBIAN} ${suite}-security ${comps}
 			EOF
 		;;
 		esac
 	;;
 	ubuntu)
 		: "${MMDEBSTRAP_KEYRING:=/usr/share/keyrings/ubuntu-archive-keyring.gpg}"
+
 		cat <<-EOF
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite} ${comps}
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-updates ${comps}
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-proposed ${comps}
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR} ${suite}-security ${comps}
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite} ${comps}
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite}-updates ${comps}
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite}-proposed ${comps}
+		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite}-security ${comps}
 		EOF
 	;;
 	esac > "${sources_tmp}"
-fi
+
+	break
+done
 
 tarball_tmp=$(mktemp -u)'.tar'
 
