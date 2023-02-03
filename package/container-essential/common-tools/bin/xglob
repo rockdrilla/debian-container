@@ -128,7 +128,7 @@ fi
 
 topmost="$1" ; shift
 
-## work directory
+# work directory
 w=$(mktemp -d) ; : "${w:?}"
 
 _cleanup() {

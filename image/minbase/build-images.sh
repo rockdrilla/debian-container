@@ -27,7 +27,7 @@ for distro_suite_tags in ${dst_list} ; do
 	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
 	${distro_suite_tags}
 	EOF
-    [ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
+	[ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
 
 	# for latter usage
 	export DISTRO SUITE
@@ -81,7 +81,7 @@ for distro_suite_tags in ${dst_list} ; do
 	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
 	${distro_suite_tags}
 	EOF
-    [ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
+	[ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
 
 	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}"
 	image/minbase/image.sh ${DISTRO} ${SUITE} "${image}"
