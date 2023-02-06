@@ -13,7 +13,7 @@ cd "${rootdir:?}" || exit
 
 export PATH="${rootdir}/scripts:${PATH}"
 
-. ./_common.sh
+. ./scripts/_common.sh
 
 image/minbase/build-images.sh
 

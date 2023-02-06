@@ -13,7 +13,7 @@ cd "${rootdir:?}" || exit
 
 export PATH="${rootdir}/scripts:${PATH}"
 
-. "${rootdir}/_common.sh"
+. "${rootdir}/scripts/_common.sh"
 
 python_versions='
 	3.9.16

@@ -13,7 +13,7 @@ cd "${rootdir:?}" || exit
 
 export PATH="${rootdir}/scripts:${PATH}"
 
-. "${rootdir}/_common.sh"
+. "${rootdir}/scripts/_common.sh"
 
 for distro_suite_tags in ${dst_list} ; do
 	extra_tags=
