@@ -117,22 +117,8 @@ rm -vrf "${preseed}"
 mkdir -p /etc/container/dpkg-filter/
 /usr/local/lib/container/bootstrap/settings.sh
 
-# try generate CA bundle with minimal bloat and make it persistent to package removal
-bundle='/etc/ssl/certs/ca-certificates.crt'
-java_bundle='/etc/ssl/certs/java/cacerts'
-
-if ! apt-update ; then
-	export APT_OPTS='-o Acquire::https::Verify-Peer=false -o Acquire::Check-Valid-Until=false -o Acquire::Max-FutureTime=7200'
-fi
-
-f='/usr/local/cabundle.tar'
-apt-wrap 'ca-certificates-java' sh -c "update-ca-certificates --fresh ; tar -cPf $f ${bundle} ${java_bundle}"
-tar -xPf "$f" ; unset f
-# NB: file is preserved for "stage 1/2"
-
-unset APT_OPTS
-
-ls -l "${bundle}" "${java_bundle}"
+# generate CA bundles
+update-ca-certificates --fresh
 
 # set timezone
 [ -z "${TZ}" ] || {

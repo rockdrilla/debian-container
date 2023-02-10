@@ -30,12 +30,8 @@ RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ;
         echo ; \
         cd "${dir}" ; \
         mkdir -p "${_SRC_DIR}/${stem}" ; \
-        # quirk
-        tar -xPf /usr/local/cabundle.tar ; \
         deb-src-export "${_SRC_DIR}/${stem}" ; \
         cd "${_SRC_DIR}/${stem}" ; \
-        # quirk
-        tar -xPf /usr/local/cabundle.tar ; \
         deb-src-build ./*.dsc ${_PKG_DIR} ; \
         echo ; \
     done ; \

@@ -109,6 +109,7 @@ mmdebstrap \
   --format=tar \
   --variant=apt \
   --components="${comps}" \
+  --include='ca-certificates-java' \
   --aptopt="${dir0}/setup/apt.conf" \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
   ${have_preseed:+ --customize-hook='chroot "$1" mkdir -p /usr/local/preseed' } \
