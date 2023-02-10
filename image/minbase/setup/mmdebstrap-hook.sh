@@ -70,6 +70,14 @@ find /usr/local/bin/ -type f -exec chmod 0755 {} +
 # strip apt keyrings from sources.list:
 sed -i -E 's/ \[[^]]+]//' /etc/apt/sources.list
 
+# symlink (missing) keyrings (also deduplicate files a bit)
+find /usr/share/keyrings/ -follow ! -name '*removed*' -type f -size +1c \
+| sort -V \
+| while read -r keyring ; do
+	[ -n "${keyring}" ] || continue
+	ln -fvs "${keyring}" "/etc/apt/trusted.gpg.d/${keyring##*/}"
+done
+
 # rename/move apt&dpkg configuration
 renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
 renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container

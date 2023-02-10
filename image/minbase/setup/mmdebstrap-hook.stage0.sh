@@ -79,9 +79,6 @@ fix_ownership() {
 # fix script permissions (if broken)
 find /usr/local/bin/ -type f -exec chmod 0755 {} +
 
-# strip apt keyrings from sources.list:
-sed -i -E 's/ \[[^]]+]//' /etc/apt/sources.list
-
 # rename/move apt&dpkg configuration
 renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
 renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
