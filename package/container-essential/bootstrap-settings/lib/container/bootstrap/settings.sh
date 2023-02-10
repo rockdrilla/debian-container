@@ -21,14 +21,14 @@ divert() {
 
 setup() {
 
-	suite=$( ( . /etc/os-release || : ; printf '%s' "${suite}" ; ) )
-	case "${suite}" in
+	VERSION_CODENAME=$( ( . /etc/os-release || : ; printf '%s' "${VERSION_CODENAME}" ; ) )
+	case "${VERSION_CODENAME}" in
 	# enable backports for these releases:
 	# bullseye - Debian 11
 	# focal    - Ubuntu 20.04
 	bullseye | focal)
 		apt-backports enable
-		apt-pin backports-dev 500 "${suite}-backports" src:debhelper src:devscripts src:dh-golang src:dh-cargo src:golang src:rustc src:cargo
+		apt-pin backports-dev 500 "${VERSION_CODENAME}-backports" src:debhelper src:devscripts src:dh-golang src:dh-cargo src:golang src:rustc src:cargo
 	;;
 	esac
 
