@@ -19,9 +19,9 @@ Description: container persistence - CA bundle
  - /etc/ssl/certs/ca-certificates.crt
  .
  Normally, this package tracks this file via deb-triggers(5).
- Hovewer, the one may run \`update-container-persistent-ca-bundle'
+ Hovewer, the one may run `update-container-persistent-ca-bundle'
  to ensure that stored CA bundles are in sync, or
- \`restore-container-persistent-ca-bundle' to restore previous state
+ `restore-container-persistent-ca-bundle' to restore previous state
  of CA bundles.
 
 Package: container-persistent-ca-bundle-java
@@ -34,7 +34,7 @@ Description: container persistence - Java CA bundle
  - /etc/ssl/certs/java/cacerts
  .
  Normally, this package tracks this file via deb-triggers(5).
- Hovewer, the one may run \`update-container-persistent-ca-bundle-java'
+ Hovewer, the one may run `update-container-persistent-ca-bundle-java'
  to ensure that stored CA bundles are in sync, or
- \`restore-container-persistent-ca-bundle-java' to restore previous state
+ `restore-container-persistent-ca-bundle-java' to restore previous state
  of CA bundles.
