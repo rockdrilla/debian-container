@@ -17,8 +17,8 @@ export PATH="${rootdir}/scripts:${PATH}"
 
 python_versions='
 	3.9.16
-	3.10.9
-	3.11.1
+	3.10.10
+	3.11.2
 '
 
 : "${DEB_BUILD_OPTIONS:=pgo_full lto_part=none}"
