@@ -1,13 +1,13 @@
 ARG IMAGE_REGISTRY=docker.io
 ARG IMAGE_DIRECTORY=rockdrilla
 ARG DISTRO=debian
-ARG SUITE=stable
+ARG SUITE=testing
 
 ARG BUILD_IMAGE=${DISTRO}-min-stage0:${SUITE}
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE}
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE} as build
 SHELL [ "/bin/sh", "-ec" ]
 
 # these directories should be mounted as RW volumes
@@ -18,8 +18,10 @@ ENV _PKG_DIR=/mnt
 ARG DEB_SRC_BUILD_PURGE
 ARG DEB_BUILD_OPTIONS
 
+ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot gcc git gnupg'
+
 # install almost all build dependencies to speed up batch package build
-RUN apt-install build-essential debhelper eatmydata fakeroot gcc git gnupg ; \
+RUN apt-install ${BUILD_DEPS} ; \
     cleanup
 
 COPY /package/container-essential/ /tmp/package/
@@ -35,4 +37,14 @@ RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ;
         deb-src-build ./*.dsc ${_PKG_DIR} ; \
         echo ; \
     done ; \
-    cleanup
+    apt-remove ${BUILD_DEPS} ; \
+    apt-autoremove ; \
+    cleanup ; \
+    touch /tmp/placeholder
+
+# ---
+
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE}
+
+# linkage with build layer
+COPY --from=build  /tmp/placeholder  /tmp/
