@@ -370,6 +370,8 @@ define buildrepro_aio
 
 endef
 
+PIP_CONF = $(word 1,$(wildcard debian/pip.conf.local) debian/pip.conf)
+
 limb_PYTHONHOME = $(CURDIR)/debian/tmp/usr
 limb_LD_LIBRARY_PATH = $(limb_PYTHONHOME)/lib/$(DEB_HOST_MULTIARCH)$(if $(LD_LIBRARY_PATH),:$(LD_LIBRARY_PATH))
 limb_python_bin = $(limb_PYTHONHOME)/bin/python$(PYTHON_BASE_VERSION)
@@ -380,12 +382,12 @@ limb_python = LD_LIBRARY_PATH='$(limb_LD_LIBRARY_PATH)' \
 	PYTHONUNBUFFERED=1 \
 	SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
 	REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+	PIP_CONFIG_FILE='$(CURDIR)/$(PIP_CONF)' \
 	fakeroot $(limb_python_bin)
 
 execute_before_dh_install:
 	mkdir -p debian/tmp/usr/share/python$(PYTHON_BASE_VERSION)
-	cp $(word 1,$(wildcard debian/pip.conf.local) debian/pip.conf) \
-	  debian/tmp/usr/share/python$(PYTHON_BASE_VERSION)/pip.conf
+	cp $(PIP_CONF) debian/tmp/usr/share/python$(PYTHON_BASE_VERSION)/pip.conf
 
 	$(call fix_hashbangs_r, debian/tmp )
 
