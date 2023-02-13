@@ -46,10 +46,12 @@ with_pgo_full := $(if $(filter pgo_full,$(DEB_BUILD_OPTIONS)),yes,no)
 arch_pgo := amd64 armel armhf arm64 i386 powerpc ppc64 ppc64el s390x
 with_pgo := $(if $(findstring $(DEB_HOST_ARCH),$(arch_pgo)),yes)
 with_pgo := $(if $(filter nopgo,$(DEB_BUILD_OPTIONS)),no,$(with_pgo))
+with_pgo := $(if $(filter noopt,$(DEB_BUILD_OPTIONS)),no,$(with_pgo))
 
 arch_lto := amd64 armel armhf arm64 i386 powerpc ppc64 ppc64el s390x
 with_lto := $(if $(findstring $(DEB_HOST_ARCH),$(arch_lto)),yes)
 with_lto := $(if $(filter nolto,$(DEB_BUILD_OPTIONS)),no,$(with_lto))
+with_lto := $(if $(filter noopt,$(DEB_BUILD_OPTIONS)),no,$(with_lto))
 
 ifeq ($(distribution),Ubuntu)
   # test_ssl assumes that openssl is compiled with security level set to 1
@@ -98,13 +100,6 @@ config_site = \
 	ac_cv_file__dev_ptc=yes \
 	ac_cv_posix_semaphores_enabled=yes \
 
-
-libmpdec_ver := $(shell dpkg-query --show --showformat='$${Version}' libmpdec-dev 2>/dev/null || echo 0)
-ifneq ($(libmpdec_ver),0)
-  ifeq (0,$(shell dpkg --compare-versions $(libmpdec_ver) gt 2.5 ; echo $$?))
-    libmpdec_conf = --with-system-libmpdec
-  endif
-endif
 
 dtrace_build_dep =
 ifeq ($(with_dtrace),yes)
@@ -166,9 +161,10 @@ override_dh_auto_configure:
 	  --enable-ipv6 \
 	  --with-computed-gotos $(if $(filter yes,$(with_pgo)),--enable-optimizations) \
 	  --with-system-expat \
-	  --with-system-ffi $(libmpdec_conf) $(dtrace_conf) \
+	  --with-system-ffi $(dtrace_conf) \
 	  --enable-loadable-sqlite-extensions \
 	  --with-dbmliborder=bdb:gdbm \
+	  --with-ssl-default-suites=openssl \
 	  --without-ensurepip \
 	  MKDIR_P="/bin/mkdir -p"
 
