@@ -4,8 +4,6 @@
 
 set -e
 
-[ -s "$1" ] || exit 0
-
 t=$(mktemp) ; : "${t:?}"
 
 for i ; do
@@ -21,9 +19,9 @@ $0 == "" { print }
 /^[[:space:]]/ {
     if (m == 1) next;
     print $0;
-}' < "$1" > "$t"
+}' < "$i" > "$t"
 
-	cat < "$t" > "$1"
+	cat < "$t" > "$i"
 done
 
 rm -f "$t"
