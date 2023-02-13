@@ -18,7 +18,7 @@ if ! command -v setpriv >/dev/null ; then
 	exit 126
 fi
 
-is_id() { echo "$1" | grep -Eq '^(0|[1-9][0-9]*)$' ; }
+is_id() { printf '%s' "$1" | grep -Eqz '^(0|[1-9][0-9]*)$' ; }
 
 etcfile_has() {
 	grep -Fxq "$2" <<-EOF
@@ -27,12 +27,14 @@ etcfile_has() {
 }
 
 etcfile_get() {
-	while read -r n ; do
-		[ -n "$n" ] || continue
-		mawk -F : "NR==$n { print \$$3; }" "$4"
+	unset __n
+	while read -r __n ; do
+		[ -n "${__n}" ] || continue
+		mawk -F : "NR==${__n} { print \$$3; }" "$4"
 	done <<-EOF
 	$(cut -d : -f "$1" "$4" | grep -Fxn "$2" | cut -d : -f 1)
 	EOF
+	unset __n
 }
 
 etc_passwd_has() { etcfile_has "$1" "$2" /etc/passwd ; }
@@ -49,12 +51,12 @@ get_name_by_uid()  { etc_passwd_get 3 "$1" 1 ; }
 get_gid_by_user()  { etc_passwd_get 1 "$1" 4 ; }
 get_home_by_user() { etc_passwd_get 1 "$1" 6 ; }
 
-userspec="${1:?}" ; shift
+unset user_group_spec ; user_group_spec="${1:?}" ; shift
 
-user=
-group=
+unset user group xtra
+# user[:group]
 IFS=':' read -r user group xtra <<-EOF
-${userspec}
+${user_group_spec}
 EOF
 
 if [ -z "${user}" ] ; then
@@ -67,6 +69,7 @@ if [ -n "${xtra}" ] ; then
 	msg "'user:group' spec warning: extra data: %q" "${xtra}"
 fi
 
+_has_user=1
 if has_user "${user}" ; then
 	# do nothing - seems to be ok
 	:
@@ -75,14 +78,14 @@ elif has_uid "${user}" ; then
 	user=$(get_name_by_uid "${user}")
 elif is_id "${user}" ; then
 	# accept unknown/random uid
-	:
+	_has_user=0
 else
 	msg "'user:group' spec error: 'user' is malformed - not exist nor numeric."
 	exit 1
 fi
 
 if [ -z "${group}" ] ; then
-	if has_user "${user}" ; then
+	if [ ${_has_user} = 1 ] ; then
 		_group=$(get_gid_by_user "${user}")
 	else
 		_group=nogroup
@@ -101,7 +104,7 @@ fi
 username='__non_existent_user__'
 init_groups='--clear-groups'
 homedir='/'
-if has_user "${user}" ; then
+if [ ${_has_user} = 1 ] ; then
 	username="${user}"
 	init_groups='--init-groups'
 	homedir=$(get_home_by_user "${user}")
@@ -109,9 +112,9 @@ fi
 
 inh_caps=
 
-unset exec
+unset __exec__
 _runas() {
-	${exec:+ exec env -u exec } \
+	${__exec__:+ exec env -u __exec__ } \
 	setpriv \
 	  --reuid="${user}" \
 	  --regid="${group}" \
@@ -159,6 +162,6 @@ fi
 
 
 if [ $# = 0 ] ; then
-	exec=1 _runas id
+	__exec__=1 _runas id
 fi
-exec=1 _runas "$@"
+__exec__=1 _runas "$@"

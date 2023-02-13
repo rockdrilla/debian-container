@@ -1,0 +1,93 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+_printf() { env printf "$@" ; }
+_msg() {  _printf "${0##*/}: ${__PRINTF_FMT}\n" "$@" >&2 ; }
+
+msg() {
+	export __PRINTF_FMT="$1" ; shift
+	_msg "$@"
+	unset __PRINTF_FMT
+}
+
+prio_spec="${1:?}" ; shift
+
+unset nice_level ionice_spec chrt_spec xtra
+# nice_level[:ionice_class[ ionice_level][:chrt_level[ chrt_options]]]
+IFS=':' read -r nice_level ionice_spec chrt_spec xtra <<-EOF
+${prio_spec}
+EOF
+
+if [ -n "${xtra}" ] ; then
+	msg "prio spec warning: extra data: %q" "${xtra}"
+fi
+
+unset _t ; _t=''
+
+if [ -n "${nice_level}" ] ; then
+	if nice -n "${nice_level}" true >&2 ; then
+		_t="${_t}${_t:+ }nice -n ${nice_level}"
+	fi
+fi
+
+while [ -n "${ionice_spec}" ] ; do
+	unset ionice_class ionice_level ionice_xtra
+	read -r ionice_class ionice_level ionice_xtra <<-EOF
+	${ionice_spec}
+	EOF
+
+	if [ -n "${ionice_xtra}" ] ; then
+		msg "ionice spec warning: extra data: %q" "${ionice_xtra}"
+	fi
+
+	if [ -n "${ionice_level}" ] ; then
+		if ionice -c "${ionice_class}" -n "${ionice_level}" true >&2 ; then
+			_t="${_t}${_t:+ }ionice -c ${ionice_class} -n ${ionice_level}"
+			break
+		fi
+	fi
+
+	if ionice -c "${ionice_class}" true >&2 ; then
+		_t="${_t}${_t:+ }ionice -c ${ionice_class}"
+		break
+	fi
+
+	break
+done
+
+while [ -n "${chrt_spec}" ] ; do
+	unset chrt_prio chrt_opt
+	read -r chrt_prio chrt_opt <<-EOF
+	${chrt_spec}
+	EOF
+
+	if [ -n "${chrt_opt}" ] ; then
+		if chrt ${chrt_opt} "${chrt_prio}" true >&2 ; then
+			_t="${_t}${_t:+ }chrt ${chrt_opt} ${chrt_prio}"
+			break
+		fi
+	fi
+
+	if chrt "${chrt_prio}" true >&2 ; then
+		_t="${_t}${_t:+ }chrt ${chrt_prio}"
+		break
+	fi
+
+	break
+done
+
+if [ $# = 0 ] ; then
+	set +e
+	exec >&2
+	echo "launch prefix: ${_t}"
+	printf 'nice: '
+	${_t} nice
+	printf 'ionice: '
+	${_t} ionice
+	exit 0
+else
+	exec ${_t} "$@"
+fi

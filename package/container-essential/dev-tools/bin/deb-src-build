@@ -76,7 +76,8 @@ case "$1" in
 	pkg_ver_list=$(deb-ver-parse "${pkg_ver}")
 	[ -n "${pkg_ver_list}" ]
 
-	IFS='|' read ver_epoch ver_upstream ver_revision <<-EOF
+	unset ver_epoch ver_upstream ver_revision
+	IFS='|' read -r ver_epoch ver_upstream ver_revision <<-EOF
 	${pkg_ver_list}
 	EOF
 

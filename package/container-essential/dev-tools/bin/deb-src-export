@@ -18,6 +18,7 @@ have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 
 need_pkg=
 for i in 'dh:debhelper' 'gcc' 'git' 'gpg:gnupg' 'dpkg-parsechangelog:dpkg-dev' ; do
+	unset bin pkg
 	IFS=: read -r bin pkg <<-EOF
 	$i
 	EOF
@@ -134,7 +135,8 @@ export SOURCE_DATE_EPOCH=${pkg_ts}
 pkg_ver_list=$(deb-ver-parse "${pkg_ver}")
 [ -n "${pkg_ver_list}" ]
 
-IFS='|' read ver_epoch ver_upstream ver_revision <<EOF
+unset ver_epoch ver_upstream ver_revision
+IFS='|' read -r ver_epoch ver_upstream ver_revision <<EOF
 ${pkg_ver_list}
 EOF
 

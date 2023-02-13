@@ -1,3 +1,9 @@
+container-dev-tools (20230213) stable; urgency=medium
+
+  * deb-src-{build,export}: improve behavior (minor).
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Mon, 13 Feb 2023 11:18:00 +0300
+
 container-dev-tools (20230201) stable; urgency=medium
 
   * Initial release.
