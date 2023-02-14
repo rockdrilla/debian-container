@@ -179,14 +179,15 @@ echo apt \
 
 rm -rf "$w"
 
-# install own packages
+# simple regex for matching *.deb
 arch=$(dpkg --print-architecture)
+deb_file_mask=$(printf '.+_(all|%s)\.deb$' "${arch:?}")
+
+# install own packages
 bootstrap='/usr/local/bootstrap'
-(
-	cd "${bootstrap}"
-	find ./ -regextype egrep -regex ".+_(all|${arch})\\.deb\$" -type f \
-	-exec dpkg -i '{}' '+' || apt-get -y --fix-broken
-)
+env -C "${bootstrap}" \
+find ./ -regextype egrep -regex "${deb_file_mask}" -type f \
+  -exec dpkg -i '{}' '+' || apt-get -y --fix-broken
 rm -rf "${bootstrap}"
 
 # fixtures
@@ -214,16 +215,12 @@ fi
 
 preseed='/usr/local/preseed'
 if [ -d "${preseed}" ] ; then
-	arch=$(dpkg --print-architecture)
 	# extra packages
 	s="${preseed}/pkg"
-	if find_fast "$s/" -regextype egrep -regex ".+_(all|${arch})\\.deb\$" -type f ; then
-		(
-			cd "$s"
-			apt-env \
-			find ./ -regextype egrep -regex ".+_(all|${arch})\\.deb\$" -type f \
-			-exec dpkg -i '{}' '+' || apt-install --fix-broken
-		)
+	if find_fast "$s/" -regextype egrep -regex "${deb_file_mask}" -type f ; then
+		env -C "$s" apt-env \
+		find ./ -regextype egrep -regex "${deb_file_mask}" -type f \
+		  -exec dpkg -i '{}' '+' || apt-install --fix-broken
 
 		rm -vrf "$s"
 	fi

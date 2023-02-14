@@ -1,0 +1,57 @@
+ARG IMAGE_REGISTRY=docker.io
+ARG IMAGE_DIRECTORY=rockdrilla
+ARG DISTRO=debian
+ARG SUITE=testing
+
+ARG BUILD_IMAGE=${DISTRO}-min-stage0:${SUITE}
+
+# ---
+
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE} as build
+SHELL [ "/bin/sh", "-ec" ]
+
+# these directories should be mounted as RW volumes
+ENV DEB_SRC_BUILD_DIR=/srv
+ENV _SRC_DIR=/media
+ENV _PKG_DIR=/mnt
+
+ARG DEB_SRC_BUILD_PURGE
+ARG DEB_BUILD_OPTIONS
+
+ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot git gnupg'
+
+# install almost all build dependencies to speed up batch package build
+RUN apt-install ${BUILD_DEPS} ; \
+    cleanup
+
+COPY /package/container-essential/ /tmp/package/
+
+RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ; do \
+        stem="${dir##*/}" ; \
+        echo "${dir}" ; \
+        echo ; \
+        # build only arch:all packages
+        pkg_bin_arch=$(deb822-get-field Architecture "${dir}/debian/control" | tr -s '[:space:]' '\n' | sed -E '/^all$/d' | sort -uV) ; \
+        if [ -n "${pkg_bin_arch}" ] ; then \
+            echo "${stem}: skipping, has 'arch:any' packages" ; \
+            echo ; \
+            continue ; \
+        fi ; \
+        cd "${dir}" ; \
+        mkdir -p "${_SRC_DIR}/${stem}" ; \
+        deb-src-export "${_SRC_DIR}/${stem}" ; \
+        cd "${_SRC_DIR}/${stem}" ; \
+        deb-src-build ./*.dsc ${_PKG_DIR} ; \
+        echo ; \
+    done ; \
+    apt-remove ${BUILD_DEPS} ; \
+    apt-autoremove ; \
+    cleanup ; \
+    touch /tmp/placeholder
+
+# ---
+
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE}
+
+# linkage with build layer
+COPY --from=build  /tmp/placeholder  /tmp/

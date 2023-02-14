@@ -7,7 +7,7 @@ Rules-Requires-Root: no
 Standards-Version: 4.6.2
 Homepage: https://github.com/rockdrilla/debian-container
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
-Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/common-tools
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/container-essential/common-tools
 
 Package: container-common-tools
 Architecture: all

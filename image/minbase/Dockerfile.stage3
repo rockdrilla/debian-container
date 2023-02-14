@@ -1,9 +1,9 @@
 ARG IMAGE_REGISTRY=docker.io
 ARG IMAGE_DIRECTORY=rockdrilla
 ARG DISTRO=debian
-ARG SUITE=testing
+ARG SUITE=stable
 
-ARG BUILD_IMAGE=${DISTRO}-min-stage0:${SUITE}
+ARG BUILD_IMAGE=${DISTRO}-min-stage2:${SUITE}
 
 # ---
 
@@ -18,7 +18,7 @@ ENV _PKG_DIR=/mnt
 ARG DEB_SRC_BUILD_PURGE
 ARG DEB_BUILD_OPTIONS
 
-ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot gcc git gnupg'
+ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot git gnupg'
 
 # install almost all build dependencies to speed up batch package build
 RUN apt-install ${BUILD_DEPS} ; \
@@ -30,6 +30,13 @@ RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ;
         stem="${dir##*/}" ; \
         echo "${dir}" ; \
         echo ; \
+        # build only arch:any packages
+        pkg_bin_arch=$(deb822-get-field Architecture "${dir}/debian/control" | tr -s '[:space:]' '\n' | sed -E '/^all$/d' | sort -uV) ; \
+        if [ -z "${pkg_bin_arch}" ] ; then \
+            echo "${stem}: skipping, has only 'arch:all' packages" ; \
+            echo ; \
+            continue ; \
+        fi ; \
         cd "${dir}" ; \
         mkdir -p "${_SRC_DIR}/${stem}" ; \
         deb-src-export "${_SRC_DIR}/${stem}" ; \

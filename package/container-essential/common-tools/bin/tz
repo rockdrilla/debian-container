@@ -26,6 +26,8 @@ file="${TZDIR}/$v"
 
 [ -f "${file}" ]
 
+# NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
+# ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733
 echo "$v" > /etc/timezone
 ln -fs "${file}" /etc/localtime
 
