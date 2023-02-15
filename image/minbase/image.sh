@@ -42,6 +42,7 @@ imgconf --label "distro.name=${distro}"
 imgconf --label "distro.suite=${suite}"
 imgconf --label "tarball.ts=${ts}"
 imgconf --label "tarball.hash=${tar_sha256}"
+imgconf --entrypoint '["/ciep.sh"]'
 imgconf --workingdir /
 imgconf --cmd bash
 

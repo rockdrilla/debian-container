@@ -22,7 +22,8 @@ if [ "$0" != "$c" ] ; then
 
 	# naive copy of container essential packages inside chroot
 	# e.g.: package/container-essential/common-tools/bin -> /usr/local/bin
-	find "${pkg_dir}/" -mindepth 2 -maxdepth 2 ! -name debian -type d \
+	find "${pkg_dir}/" -mindepth 2 -maxdepth 2 -type d \
+	| grep -E '/(bin|etc|lib|sbin|share)$' \
 	| while read -r dir ; do
 		cp -vaR "${dir}/" "$1/usr/local/"
 	done

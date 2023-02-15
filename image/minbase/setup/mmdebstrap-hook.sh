@@ -187,7 +187,7 @@ deb_file_mask=$(printf '.+_(all|%s)\.deb$' "${arch:?}")
 bootstrap='/usr/local/bootstrap'
 env -C "${bootstrap}" \
 find ./ -regextype egrep -regex "${deb_file_mask}" -type f \
-  -exec dpkg -i '{}' '+' || apt-get -y --fix-broken
+  -exec dpkg -i '{}' '+' || apt-get -y --fix-broken install
 rm -rf "${bootstrap}"
 
 # fixtures
