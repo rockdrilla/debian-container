@@ -1,3 +1,9 @@
+container-common-tools (20230216) stable; urgency=medium
+
+  * overlay-dir-list: introduce.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Thu, 16 Feb 2023 00:48:00 +0300
+
 container-common-tools (20230213) stable; urgency=medium
 
   * run-prio: introduce.
