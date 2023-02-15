@@ -86,9 +86,9 @@ fi
 
 if [ -z "${group}" ] ; then
 	if [ ${_has_user} = 1 ] ; then
-		_group=$(get_gid_by_user "${user}")
+		group=$(get_gid_by_user "${user}")
 	else
-		_group=nogroup
+		group=nogroup
 	fi
 else
 	if has_group "${group}" || has_gid "${group}" || is_id "${group}" ; then

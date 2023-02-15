@@ -1,6 +1,7 @@
 container-common-tools (20230216) stable; urgency=medium
 
   * overlay-dir-list: introduce.
+  * run-as: fix group handling.
 
  -- Konstantin Demin <rockdrilla@gmail.com>  Thu, 16 Feb 2023 00:48:00 +0300
 
