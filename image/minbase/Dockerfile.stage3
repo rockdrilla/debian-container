@@ -31,7 +31,7 @@ RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ;
         echo "${dir}" ; \
         echo ; \
         # build only arch:any packages
-        pkg_bin_arch=$(deb822-get-field Architecture "${dir}/debian/control" | tr -s '[:space:]' '\n' | sed -E '/^all$/d' | sort -uV) ; \
+        pkg_bin_arch=$(deb822-get-field Architecture ${dir}/debian/control* | tr -s '[:space:]' '\n' | sed -E '/^all$/d' | sort -uV) ; \
         if [ -z "${pkg_bin_arch}" ] ; then \
             echo "${stem}: skipping, has only 'arch:all' packages" ; \
             echo ; \

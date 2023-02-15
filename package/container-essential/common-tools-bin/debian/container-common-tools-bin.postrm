@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+remove)
+	b='/usr/bin/nproc'
+    rm -fv $b
+	dpkg-divert --package '#PACKAGE#' --rename --remove $b
+	unset b
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

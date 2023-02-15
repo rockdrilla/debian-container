@@ -1,0 +1,11 @@
+bin/
+lib/
+
+*.o
+
+is-elf
+ufind
+xvp
+nproc.container
+nprocfix.shallow
+libnprocfix.so
