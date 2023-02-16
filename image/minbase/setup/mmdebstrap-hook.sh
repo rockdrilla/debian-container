@@ -205,6 +205,8 @@ if apt-install usr-is-merged >/dev/null 2>&1 ; then
 fi
 
 # set timezone
+# NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
+# ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733
 [ -z "${TZ}" ] || {
 	f='/usr/local/tzdata.tar'
 

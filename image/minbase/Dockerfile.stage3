@@ -21,7 +21,7 @@ ARG DEB_BUILD_OPTIONS
 ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot git gnupg'
 
 # install almost all build dependencies to speed up batch package build
-RUN apt-install ${BUILD_DEPS} ; \
+RUN quiet apt-install ${BUILD_DEPS} ; \
     cleanup
 
 COPY /package/container-essential/ /tmp/package/
@@ -44,8 +44,8 @@ RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ;
         deb-src-build ./*.dsc ${_PKG_DIR} ; \
         echo ; \
     done ; \
-    apt-remove ${BUILD_DEPS} ; \
-    apt-autoremove ; \
+    quiet apt-remove ${BUILD_DEPS} ; \
+    quiet apt-autoremove ; \
     cleanup ; \
     touch /tmp/placeholder
 

@@ -119,6 +119,8 @@ mkdir -p /etc/container/dpkg-filter/
 update-ca-certificates --fresh
 
 # set timezone
+# NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
+# ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733
 [ -z "${TZ}" ] || {
 	f='/usr/local/tzdata.tar'
 
