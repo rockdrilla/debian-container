@@ -4,19 +4,22 @@ set -e
 
 case "$1" in
 configure)
+	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
 	pkgcfg=/usr/lib/@{DEB_HOST_MULTIARCH}/pkgconfig
 
 	update-alternatives --install \
 	  ${bin}/2to3  2to3  ${bin}/2to3-@{PYTHON_BASE_VERSION} \
-	@{DEB_PYTHON_PRIO}
+	${prio}
 
-	for stem in python python3 ; do
+	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+		stem=python${suffix}
+
 		update-alternatives --install \
 		  ${bin}/@{DEB_HOST_MULTIARCH}-${stem}-config \
 		  @{DEB_HOST_MULTIARCH}-${stem}-config \
 		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
-		@{DEB_PYTHON_PRIO} \
+		${prio} \
 		\
 		--slave \
 		  ${bin}/${stem}-config \
@@ -32,7 +35,6 @@ configure)
 		  ${pkgcfg}/python-@{PYTHON_BASE_VERSION}-embed.pc \
 
 	done
-
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

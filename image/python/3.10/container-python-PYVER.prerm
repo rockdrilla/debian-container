@@ -3,10 +3,12 @@
 set -e
 
 if [ "$1" != "upgrade" ]; then
+	bin=/usr/bin
+
 	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
 		update-alternatives --remove \
 		  python${suffix} \
-		  /usr/bin/python@{PYTHON_BASE_VERSION}
+		  ${bin}/python@{PYTHON_BASE_VERSION}
 	done
 fi
 

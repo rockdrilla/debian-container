@@ -4,13 +4,15 @@ set -e
 
 case "$1" in
 configure)
+	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
+
 	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
 		update-alternatives --install \
 		  ${bin}/python${suffix} \
 		  python${suffix} \
 		  ${bin}/python@{PYTHON_BASE_VERSION} \
-		@{DEB_PYTHON_PRIO} \
+		${prio} \
 		--slave \
 		  ${bin}/pydoc${suffix} \
 		  pydoc${suffix} \

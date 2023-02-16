@@ -2,26 +2,27 @@
 
 set -e
 
+pip_conf=/etc/pip.conf
+pip_conf_dist=/usr/share/python@{PYTHON_BASE_VERSION}/pip.conf
+
 case "$1" in
 configure)
+	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
 
-	for alt in pip wheel ; do
-		update-alternatives --install \
-		  ${bin}/${alt} \
-		  ${alt} \
-		  ${bin}/${alt}@{PYTHON_BASE_VERSION} \
-		@{DEB_PYTHON_PRIO} \
-		\
-		--slave \
-		  ${bin}/${alt}3 \
-		  ${alt}3 \
-		  ${bin}/${alt}@{PYTHON_BASE_VERSION} \
+	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+		for exe in pip wheel ; do
+			update-alternatives --install \
+			  ${bin}/${exe}${suffix} \
+			  ${exe}${suffix} \
+			  ${bin}/${exe}@{PYTHON_BASE_VERSION} \
+			${prio} \
 
+		done
 	done
 
-	if ! [ -e /etc/pip.conf ] ; then
-		cp /usr/share/python@{PYTHON_BASE_VERSION}/pip.conf /etc/pip.conf
+	if ! [ -e ${pip_conf} ] ; then
+		cp ${pip_conf_dist} ${pip_conf}
 	fi
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)

@@ -9,7 +9,9 @@ if [ "$1" != "upgrade" ]; then
 	  2to3 \
 	  ${bin}/2to3-@{PYTHON_BASE_VERSION}
 
-	for stem in python python3 ; do
+	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+		stem=python${suffix}
+
 		update-alternatives --remove \
 		  @{DEB_HOST_MULTIARCH}-${stem}-config \
 		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config
