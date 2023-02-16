@@ -1,0 +1,71 @@
+#!/bin/sh
+
+set -ef
+
+wrapper=/usr/lib/python@{PYTHON_BASE_VERSION}/thin-ci.sh
+
+case "$1" in
+configure)
+	prio=@{DEB_PYTHON_PRIO}
+	bin=/usr/bin
+
+	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+
+		# container-python-@{PYTHON_BASE_VERSION}
+
+		update-alternatives --install \
+		  ${bin}/python${suffix} \
+		  python${suffix} \
+		  ${wrapper} \
+		${prio} \
+		--slave \
+		  ${bin}/pydoc${suffix} \
+		  pydoc${suffix} \
+		  ${wrapper} \
+
+		# container-python-full-@{PYTHON_BASE_VERSION}
+
+		for exe in pip wheel ; do
+			update-alternatives --install \
+			  ${bin}/${exe}${suffix} \
+			  ${exe}${suffix} \
+			  ${wrapper} \
+			${prio} \
+
+		done
+
+		# container-python-dev-@{PYTHON_BASE_VERSION}
+
+		stem=python${suffix}
+
+		update-alternatives --install \
+		  ${bin}/@{DEB_HOST_MULTIARCH}-${stem}-config \
+		  @{DEB_HOST_MULTIARCH}-${stem}-config \
+		  ${wrapper} \
+		${prio} \
+		\
+		--slave \
+		  ${bin}/${stem}-config \
+		  ${stem}-config \
+		  ${wrapper} \
+
+	done
+
+	# container-python-dev-@{PYTHON_BASE_VERSION}
+
+	update-alternatives --install \
+	  ${bin}/2to3  2to3  ${wrapper} \
+	${prio}
+
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

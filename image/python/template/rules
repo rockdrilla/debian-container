@@ -382,6 +382,8 @@ limb_python = LD_LIBRARY_PATH='$(limb_LD_LIBRARY_PATH)' \
 	fakeroot $(limb_python_bin)
 
 execute_before_dh_install:
+	chmod +x debian/thin-ci.sh
+
 	mkdir -p debian/tmp/usr/share/python$(PYTHON_BASE_VERSION)
 	cp $(PIP_CONF) debian/tmp/usr/share/python$(PYTHON_BASE_VERSION)/pip.conf
 

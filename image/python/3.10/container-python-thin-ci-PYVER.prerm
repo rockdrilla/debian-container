@@ -1,0 +1,46 @@
+#!/bin/sh
+
+set -ef
+
+wrapper=/usr/lib/python@{PYTHON_BASE_VERSION}/thin-ci.sh
+
+if [ "$1" != "upgrade" ]; then
+	bin=/usr/bin
+
+	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+
+		# container-python-@{PYTHON_BASE_VERSION}
+
+		update-alternatives --remove \
+		  python${suffix} \
+		  ${wrapper}
+
+		# container-python-full-@{PYTHON_BASE_VERSION}
+
+		for exe in pip wheel ; do
+			update-alternatives --install \
+			  ${exe}${suffix} \
+			  ${wrapper}
+		done
+
+		# container-python-dev-@{PYTHON_BASE_VERSION}
+
+		stem=python${suffix}
+
+		update-alternatives --remove \
+		  @{DEB_HOST_MULTIARCH}-${stem}-config \
+		  ${wrapper}
+
+	done
+
+	# container-python-dev-@{PYTHON_BASE_VERSION}
+
+	update-alternatives --remove \
+	  2to3 \
+	  ${wrapper}
+
+fi
+
+#DEBHELPER#
+
+exit 0

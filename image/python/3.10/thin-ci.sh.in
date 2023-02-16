@@ -1,0 +1,37 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+set -ef
+
+pkg_min='container-python-@{PYTHON_BASE_VERSION}'
+pkg_dev='container-python-dev-@{PYTHON_BASE_VERSION}'
+pkg_full='container-python-full-@{PYTHON_BASE_VERSION}'
+
+pkg=
+case "${0##*/}" in
+python | python@{PYTHON_MAJOR_VERSION})
+	pkg="${pkg_min}"
+;;
+pydoc | pydoc@{PYTHON_MAJOR_VERSION} )
+	pkg="${pkg_min}"
+;;
+pip | pip@{PYTHON_MAJOR_VERSION})
+	pkg="${pkg_full}"
+;;
+wheel | wheel@{PYTHON_MAJOR_VERSION} )
+	pkg="${pkg_full}"
+;;
+python@{PYTHON_MAJOR_VERSION}-config | @{DEB_HOST_MULTIARCH}-python@{PYTHON_MAJOR_VERSION}-config )
+	pkg="${pkg_dev}"
+;;
+python-config | @{DEB_HOST_MULTIARCH}-python-config )
+	pkg="${pkg_dev}"
+;;
+*)
+	echo "can't determine required package on (this) binary name: ${0##*/}" >&2
+	exit 1
+;;
+esac
+
+apt-install ${pkg}
+exec "$0" "$@"

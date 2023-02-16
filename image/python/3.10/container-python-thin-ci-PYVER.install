@@ -1,0 +1,1 @@
+debian/thin-ci.sh usr/lib/python@{PYTHON_BASE_VERSION}/
