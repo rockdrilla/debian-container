@@ -2,11 +2,10 @@
 
 # -- package templating - here goes dragons! --
 
-_deb_control_templates +=$(sort $(wildcard debian/*.in debian/*PYVER*))
+_deb_control_templates +=$(sort $(wildcard debian/*.in))
 
 _deb_ren1 =$(patsubst %.in,%,$(1))
-_deb_ren2 =$(subst PYVER,$(PYTHON_BASE_VERSION),$(1))
-_deb_rename =$(call _deb_ren1,$(call _deb_ren2,$(strip $(1))))
+_deb_rename =$(call _deb_ren1,$(strip $(1)))
 
 _safe_var_rx :=^[a-zA-Z][a-zA-Z0-9_]+$$
 _safe_vars =$(shell printf '%s' '$(.VARIABLES)' | tr -s '[:space:]' '\0' | sed -zEn '/$(_safe_var_rx)/p' | tr -s '\0' ' ')
