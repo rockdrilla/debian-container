@@ -1,0 +1,21 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -f
+
+have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+
+if have_cmd dpkg-buildflags ; then
+	eval "$(dpkg-buildflags --export=sh | sed -En '/^(export )?([^=]+)=(.+)$/{s//export \2=\3\nexport CGO_\2=\3/;p;}')"
+fi
+
+if have_cmd go ; then
+	eval "$(go env | sed -En '/^(export )?([^=]+)=(.+)$/{s//export \2=\3/;p;}')"
+fi
+
+if [ $# = 0 ] ; then
+	env
+else
+	exec "$@"
+fi

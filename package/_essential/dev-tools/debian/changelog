@@ -1,3 +1,9 @@
+container-dev-tools (20230220) stable; urgency=medium
+
+  * deb-go-env: introduce.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Mon, 20 Feb 2023 21:18:00 +0300
+
 container-dev-tools (20230213) stable; urgency=medium
 
   * deb-src-{build,export}: improve behavior (minor).
