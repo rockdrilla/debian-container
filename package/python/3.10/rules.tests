@@ -3,7 +3,10 @@
 TEST_RESOURCES = all,-network,-urlfetch
 
 # never test them
-TEST_EXCLUDES = test_distutils test_ensurepip test_venv test_lib2to3 test_compiler test_compileall
+TEST_EXCLUDES = test_distutils test_ensurepip test_venv test_lib2to3
+
+# avoid compile-related tasks
+TEST_EXCLUDES += test_compiler test_compileall test_cppext test_tools
 
 # TODO: fix these tests
 TEST_EXCLUDES += test_asyncio test_email test_ioctl test_minidom test_mmap test_posix test_selectors test_socket test_socketserver
