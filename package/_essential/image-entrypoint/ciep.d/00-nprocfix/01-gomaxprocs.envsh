@@ -1,0 +1,30 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+while : ; do
+    if [ -n "${FORCE_GOMAXPROCS}" ] ; then
+        log "FORCE_GOMAXPROCS is in effect: GOMAXPROCS=${FORCE_GOMAXPROCS}"
+        export GOMAXPROCS="${FORCE_GOMAXPROCS}"
+        break
+    else
+        unset FORCE_GOMAXPROCS
+    fi
+
+    if [ -n "${GOMAXPROCS}" ] ; then
+        # use GOMAXPROCS as NPROC soft limit for nproc.container
+        __GOMAXPROCS=$(NPROC="-${GOMAXPROCS}" nproc.container || :)
+        if [ -n "${__GOMAXPROCS}" ] ; then
+            [ "${GOMAXPROCS}" != "${__GOMAXPROCS}" ] || break
+            log "adjusting GOMAXPROCS to ${__GOMAXPROCS}"
+            export GOMAXPROCS="${__GOMAXPROCS}"
+            break
+        fi
+    else
+        unset GOMAXPROCS
+    fi
+
+    [ -z "${NPROC}" ] || export GOMAXPROCS="${NPROC}"
+    break
+done
+unset __GOMAXPROCS

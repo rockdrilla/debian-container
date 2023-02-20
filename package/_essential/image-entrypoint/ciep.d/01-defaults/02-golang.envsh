@@ -1,0 +1,6 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+: "${CGO_ENABLED:=0}"
+export CGO_ENABLED

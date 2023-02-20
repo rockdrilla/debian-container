@@ -6,4 +6,6 @@ NPROC=$(nproc.container || :)
 if [ -n "${NPROC}" ] ; then
     export NPROC
     export LD_PRELOAD="libnprocfix.so${LD_PRELOAD:+:$LD_PRELOAD}"
+else
+    unset NPROC
 fi
