@@ -150,6 +150,12 @@ build_image() {
 		[ -z "${BUILD_IMAGE_VARIANT}" ] || append --variant "${BUILD_IMAGE_VARIANT}"
 	fi
 
+	: "${BUILD_IMAGE_NETWORK:=host}"
+	case "${BUILD_IMAGE_NETWORK}" in
+	none) append --http-proxy=false ;;
+	esac
+	append "--net=${BUILD_IMAGE_NETWORK}"
+
 	# record source script file
 	[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
 	append_label "git.file=$(git_ro rev-parse --show-prefix 2>/dev/null || :)${BUILD_IMAGE_SCRIPT}"
