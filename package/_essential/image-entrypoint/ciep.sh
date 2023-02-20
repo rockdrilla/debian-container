@@ -6,15 +6,15 @@
 
 # common shell functions: begin
 
-log_verbose() {
+log_always() {
 	if [ $# = 0 ] ; then
 		echo "# ${__CIEP_SOURCE}: $(date +'%Y-%m-%d %H:%M:%S %z')"
 	else
 		echo "# ${__CIEP_SOURCE}: $*"
 	fi 1>&2
 }
-if [ -n "${CIEP_VERBOSE}" ] ; then
-	log() { log_verbose "$@" ; }
+if [ "${CIEP_VERBOSE:-0}" = 1 ] ; then
+	log() { log_always "$@" ; }
 else
 	log() { : ;}
 fi
