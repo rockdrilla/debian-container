@@ -42,6 +42,9 @@ export DEB_SRC_BUILD_DIR=/usr/local/src
 export _SRC_DIR=/usr/local/include
 export _PKG_DIR=/usr/local/lib
 
+export BUILD_IMAGE_ENV="PYTHON_VERSION"
+export BUILD_IMAGE_ENV_FILE=image/python/python.env
+
 build_single() {
 	[ -n "$1" ] || continue
 

@@ -1,0 +1,6 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+: "${SSL_CERT_FILE:=/etc/ssl/certs/ca-certificates.crt}"
+export SSL_CERT_FILE

@@ -19,7 +19,6 @@ ARG _PKG_DIR
 
 ARG DISTRO
 ARG SUITE
-ARG PYTHON_VERSION
 ARG PYTHON_BASE_VERSION
 
 COPY /${PYTHON_BASE_VERSION}/ /tmp/debian/
@@ -58,17 +57,6 @@ COPY --from=build  /tmp/*.buildinfo  /tmp/
 # this directory should be mounted as volume
 # ARG _PKG_DIR=/usr/local/lib
 
-ARG PYTHON_VERSION
-ENV PYTHON_VERSION=${PYTHON_VERSION}
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# "urllib" requires this
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-# "requests" requires this
-ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-
 RUN arch=$(dpkg --print-architecture) ; \
     pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
     find /usr/local/lib/ -regextype egrep -regex ".+/container-python-${pybasever}_.+_(all|${arch})\\.deb\$" -type f \
@@ -96,17 +84,6 @@ SHELL [ "/bin/sh", "-ec" ]
 # this directory should be mounted as volume
 # ARG _PKG_DIR=/usr/local/lib
 
-ARG PYTHON_VERSION
-ENV PYTHON_VERSION=${PYTHON_VERSION}
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# "urllib" requires this
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-# "requests" requires this
-ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-
 RUN arch=$(dpkg --print-architecture) ; \
     pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
     find /usr/local/lib/ -regextype egrep -regex ".+/container-python-${pybasever}(|-dev|-full)_.+_(all|${arch})\\.deb\$" -type f \
@@ -132,17 +109,6 @@ CMD [ "python3" ]
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal-apt
 SHELL [ "/bin/sh", "-ec" ]
 
-ARG PYTHON_VERSION
-ENV PYTHON_VERSION=${PYTHON_VERSION}
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# "urllib" requires this
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-# "requests" requires this
-ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-
 RUN pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
     apt-install container-python-${pybasever} ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
@@ -163,17 +129,6 @@ CMD [ "python3" ]
 
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular-apt
 SHELL [ "/bin/sh", "-ec" ]
-
-ARG PYTHON_VERSION
-ENV PYTHON_VERSION=${PYTHON_VERSION}
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# "urllib" requires this
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-# "requests" requires this
-ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
     apt-install container-python-${pybasever}-full ; \

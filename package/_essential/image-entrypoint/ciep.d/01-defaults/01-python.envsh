@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+: "${PYTHONDONTWRITEBYTECODE:=1}"
+: "${PYTHONUNBUFFERED:=1}"
+export PYTHONDONTWRITEBYTECODE PYTHONUNBUFFERED
+
+# "requests" requires this
+: "${REQUESTS_CA_BUNDLE:=${SSL_CERT_FILE}}"
+export REQUESTS_CA_BUNDLE
