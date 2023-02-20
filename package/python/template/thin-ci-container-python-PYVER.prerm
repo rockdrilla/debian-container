@@ -5,7 +5,7 @@ set -ef
 wrapper=/usr/lib/python@{PYTHON_BASE_VERSION}/thin-ci.sh
 
 if [ "$1" != "upgrade" ]; then
-	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
 
 		# container-python-@{PYTHON_BASE_VERSION}
 
@@ -16,7 +16,7 @@ if [ "$1" != "upgrade" ]; then
 		# container-python-@{PYTHON_BASE_VERSION}-full
 
 		for exe in pip wheel ; do
-			update-alternatives --install \
+			update-alternatives --remove \
 			  ${exe}${suffix} \
 			  ${wrapper}
 		done

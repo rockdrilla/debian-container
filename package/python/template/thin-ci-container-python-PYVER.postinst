@@ -9,7 +9,7 @@ configure)
 	prio=@{DEB_PYTHON_PRIO}
 	bin=/usr/bin
 
-	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
 
 		# container-python-@{PYTHON_BASE_VERSION}
 

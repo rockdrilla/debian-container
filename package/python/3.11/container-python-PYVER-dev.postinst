@@ -8,7 +8,7 @@ configure)
 	bin=/usr/bin
 	pkgcfg=/usr/lib/@{DEB_HOST_MULTIARCH}/pkgconfig
 
-	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
 		stem=python${suffix}
 
 		update-alternatives --install \

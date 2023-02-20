@@ -14,7 +14,7 @@ configure)
 	  ${bin}/2to3  2to3  ${bin}/2to3-@{PYTHON_BASE_VERSION} \
 	${prio}
 
-	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
 		for exe in pip wheel ; do
 			update-alternatives --install \
 			  ${bin}/${exe}${suffix} \

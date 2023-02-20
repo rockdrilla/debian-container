@@ -6,7 +6,7 @@ if [ "$1" != "upgrade" ]; then
 	bin=/usr/bin
 	lib=/usr/lib/python@{PYTHON_BASE_VERSION}
 
-	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
 		update-alternatives --remove \
 		  python${suffix} \
 		  ${bin}/python@{PYTHON_BASE_VERSION}
