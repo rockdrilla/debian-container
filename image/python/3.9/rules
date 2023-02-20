@@ -63,7 +63,7 @@ ifeq ($(distribution),Ubuntu)
 endif
 
 # try to build with fresh gcc available
-gcc_latest =$(strip $(shell apt-cache search '^gcc-[0-9.]+' | mawk '/^gcc-[0-9.]+ /{print $$1}' | sort -rV | head -n 1 | cut -d - -f 2))
+gcc_latest =$(strip $(shell apt-cache search 'gcc-' | mawk '/^gcc-[0-9.]+ /{print $$1}' | sort -rV | head -n 1 | cut -d - -f 2))
 
 CC     = $(DEB_HOST_GNU_TYPE)-gcc-$(gcc_latest)
 CXX    = $(DEB_HOST_GNU_TYPE)-g++-$(gcc_latest)

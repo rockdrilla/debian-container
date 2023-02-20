@@ -42,28 +42,6 @@ build_artifacts_volumes() {
 
 }
 
-build_cache_path() {
-	printf '%s' "${rootdir:?}/build-cache/${DISTRO:?}-${SUITE:?}"
-}
-
-build_cache_volumes() {
-	mkdir -p \
-		"$(build_cache_path)/apt-cache" \
-		"$(build_cache_path)/apt-lists" \
-	>&2 || exit 1
-	printf ' %s ' \
-		"$(build_cache_path)/apt-cache:/var/cache/apt/archives" \
-		"$(build_cache_path)/apt-lists:/var/lib/apt/lists" \
-
-}
-
-shared_cache_path() {
-	mkdir -p \
-		"${rootdir:?}/build-cache/${1:?}" \
-	>&2 || exit 1
-	printf '%s' "${rootdir}/build-cache/$1"
-}
-
 dst_list='
 	debian:bullseye:11:stable:latest
 	debian:bookworm:12:testing

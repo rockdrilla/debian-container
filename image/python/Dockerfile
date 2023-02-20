@@ -22,9 +22,6 @@ ARG SUITE
 ARG PYTHON_VERSION
 ARG PYTHON_BASE_VERSION
 
-# allows to preseed get-pip.py and upstream tarballs
-# NB: get-pip.py isn't used and even present (for now)
-COPY --from=preseed /*        /tmp
 COPY /${PYTHON_BASE_VERSION}/ /tmp/debian/
 
 ARG DEB_SRC_BUILD_PURGE
@@ -32,8 +29,8 @@ ARG DEB_BUILD_OPTIONS
 
 RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
         build_start=$(date -R) ; \
+        apt-update ; \
         mkdir -p ${_SRC_DIR} ; \
-        : mv /tmp/get-pip.py /tmp/debian/ ; \
         deb-src-export ${_SRC_DIR} /tmp/debian ; \
         mkdir -p ${_PKG_DIR} ; \
         set +e ; \

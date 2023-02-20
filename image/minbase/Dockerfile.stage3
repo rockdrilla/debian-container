@@ -21,8 +21,7 @@ ARG DEB_BUILD_OPTIONS
 ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot git gnupg'
 
 # install almost all build dependencies to speed up batch package build
-RUN quiet apt-install ${BUILD_DEPS} ; \
-    cleanup
+RUN quiet apt-install ${BUILD_DEPS}
 
 COPY /package/_essential/ /tmp/package/
 

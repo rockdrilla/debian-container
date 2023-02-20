@@ -55,7 +55,7 @@ done
 	stem="container-packages"
 	rm -rf "$(build_artifacts_path "${stem}")"
 
-	export BUILD_IMAGE_VOLUMES="$(build_cache_volumes)
+	export BUILD_IMAGE_VOLUMES="
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
@@ -107,7 +107,7 @@ for distro_suite_tags in ${dst_list} ; do
 		stem="container-packages-arch"
 		rm -rf "$(build_artifacts_path "${stem}")"
 
-		export BUILD_IMAGE_VOLUMES="$(build_cache_volumes)
+		export BUILD_IMAGE_VOLUMES="
 			$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 		"
 
