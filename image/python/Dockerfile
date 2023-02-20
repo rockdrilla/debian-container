@@ -112,7 +112,7 @@ ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN arch=$(dpkg --print-architecture) ; \
     pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
-    find /usr/local/lib/ -regextype egrep -regex ".+/container-python(|-dev|-full)-${pybasever}_.+_(all|${arch})\\.deb\$" -type f \
+    find /usr/local/lib/ -regextype egrep -regex ".+/container-python-${pybasever}(|-dev|-full)_.+_(all|${arch})\\.deb\$" -type f \
       -exec dpkg -i '{}' '+' \
     || apt-install --fix-broken ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
@@ -179,7 +179,7 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
-    apt-install container-python-full-${pybasever} ; \
+    apt-install container-python-${pybasever}-full ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
 #   find /usr/lib/python${pybasever}/ -name cacert.pem -type f \
 #   | while read -r f ; do \

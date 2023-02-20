@@ -13,7 +13,7 @@ if [ "$1" != "upgrade" ]; then
 		  python${suffix} \
 		  ${wrapper}
 
-		# container-python-full-@{PYTHON_BASE_VERSION}
+		# container-python-@{PYTHON_BASE_VERSION}-full
 
 		for exe in pip wheel ; do
 			update-alternatives --install \
@@ -21,7 +21,7 @@ if [ "$1" != "upgrade" ]; then
 			  ${wrapper}
 		done
 
-		# container-python-dev-@{PYTHON_BASE_VERSION}
+		# container-python-@{PYTHON_BASE_VERSION}-dev
 
 		stem=python${suffix}
 
@@ -31,7 +31,7 @@ if [ "$1" != "upgrade" ]; then
 
 	done
 
-	# container-python-full-@{PYTHON_BASE_VERSION}
+	# container-python-@{PYTHON_BASE_VERSION}-full
 
 	update-alternatives --remove \
 	  2to3 \

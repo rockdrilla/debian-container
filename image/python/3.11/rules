@@ -417,14 +417,14 @@ execute_before_dh_install:
 include debian/rules.install
 
 override_dh_install:
-	$(call dh_install_move, container-python-misc-$(PYTHON_BASE_VERSION) )
+	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-misc )
 
-	$(call dh_install_move, container-python-dev-$(PYTHON_BASE_VERSION) )
+	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-dev )
 
 	: # we're have "clean" Python at this point, but we need to get pip working,
 	: # so using standard "dh_install" instead of our "dh_install_move"
 	dh_install -pcontainer-python-$(PYTHON_BASE_VERSION)
-	: # these directories go to container-python-full-$(PYTHON_BASE_VERSION)
+	: # these directories go to container-python-$(PYTHON_BASE_VERSION)-full
 	cd debian/container-python-$(PYTHON_BASE_VERSION)/usr/lib/python$(PYTHON_BASE_VERSION) ; \
 	rm -rf ensurepip lib2to3 dist-packages
 
@@ -471,10 +471,10 @@ override_dh_install:
 
 	rm -f debian/tmp/pip.json
 
-	: # move non-native platform files to container-python-misc-$(PYTHON_BASE_VERSION)
+	: # move non-native platform files to container-python-$(PYTHON_BASE_VERSION)-misc
 	find debian/tmp/ -iname '*.exe' -printf '%P\0' \
 	| tar -C debian/tmp --null -T - -cf - \
-	| tar -C debian/container-python-misc-$(PYTHON_BASE_VERSION) -xf -
+	| tar -C debian/container-python-$(PYTHON_BASE_VERSION)-misc -xf -
 	find debian/tmp/ -iname '*.exe' -delete
 
 	: # remove Python cache
@@ -491,7 +491,7 @@ override_dh_install:
 
 	: # install remaining packages
 	dh_install -pthin-ci-container-python-$(PYTHON_BASE_VERSION)
-	$(call dh_install_move, container-python-full-$(PYTHON_BASE_VERSION) )
+	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-full )
 
 	: # fix hashbangs in scripts and change permissions on them
 	$(foreach p, $(shell dh_listpackages), $(call fix_hashbangs_r, debian/$(p)) )

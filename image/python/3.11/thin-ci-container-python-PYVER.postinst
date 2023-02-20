@@ -23,7 +23,7 @@ configure)
 		  pydoc${suffix} \
 		  ${wrapper}
 
-		# container-python-full-@{PYTHON_BASE_VERSION}
+		# container-python-@{PYTHON_BASE_VERSION}-full
 
 		for exe in pip wheel ; do
 			update-alternatives --install \
@@ -33,7 +33,7 @@ configure)
 			${prio}
 		done
 
-		# container-python-dev-@{PYTHON_BASE_VERSION}
+		# container-python-@{PYTHON_BASE_VERSION}-dev
 
 		stem=python${suffix}
 
@@ -45,7 +45,7 @@ configure)
 
 	done
 
-	# container-python-full-@{PYTHON_BASE_VERSION}
+	# container-python-@{PYTHON_BASE_VERSION}-full
 
 	update-alternatives --install \
 	  ${bin}/2to3  2to3  ${wrapper} \

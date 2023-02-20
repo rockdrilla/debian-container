@@ -4,8 +4,8 @@
 set -ef
 
 pkg_min='container-python-@{PYTHON_BASE_VERSION}'
-pkg_dev='container-python-dev-@{PYTHON_BASE_VERSION}'
-pkg_full='container-python-full-@{PYTHON_BASE_VERSION}'
+pkg_dev='container-python-@{PYTHON_BASE_VERSION}-dev'
+pkg_full='container-python-@{PYTHON_BASE_VERSION}-full'
 
 pkg=
 case "${0##*/}" in
