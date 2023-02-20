@@ -123,7 +123,11 @@ builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
 
 build_dir = $(CURDIR)/debian.build
 
+export SSL_CERT_FILE = /etc/ssl/certs/ca-certificates.crt
+export REQUESTS_CA_BUNDLE = /etc/ssl/certs/ca-certificates.crt
+
 PIP_CONF = $(word 1,$(wildcard debian/pip.conf.local) debian/pip.conf)
+export PIP_CONFIG_FILE = $(CURDIR)/$(PIP_CONF)
 
 export PYTHONDONTWRITEBYTECODE = 1
 
@@ -134,16 +138,12 @@ x_python_LD_LIBRARY_PATH = $(1)$(if $(2),/$(2))$(if $(LD_LIBRARY_PATH),:$(LD_LIB
 # $1 = PYTHONHOME
 # $2 = library subdirectory (may be empty)
 # $3 = path to binary
+# $4 - wrapper cmd
 x_python = env \
 	LD_LIBRARY_PATH='$(call x_python_LD_LIBRARY_PATH,$(strip $(1)),$(strip $(2)))' \
 	PYTHONHOME='$(strip $(1))' \
 	PYTHONUNBUFFERED=1 \
-	SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
-	REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-	PIP_CONFIG_FILE='$(CURDIR)/$(PIP_CONF)' \
-	DEB_PYTHON_INSTALL_LAYOUT=deb_system \
-	fakeroot \
-	$(strip $(1))/$(strip $(3))
+	$(strip $(4)) $(strip $(1))/$(strip $(3))
 
 # TEST_OPTS and TEST_EXCLUDES are defined here
 include debian/rules.tests
@@ -215,11 +215,9 @@ override_dh_auto_build:
 	$(build_dir)/Makefile
 	dh_auto_build $(DH_ARGS_shared)
 
-ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+test_python = $(call x_python, $(build_dir) , , python , env -u PYTHONHOME )
 
-test_python = $(call x_python, $(build_dir) , , python )
-
-execute_before_dh_auto_test:
+execute_after_dh_auto_build:
 	: # check that things are correctly built
   ifneq (,$(filter $(DEB_HOST_ARCH_OS),linux))
 	$(test_python) -c 'from _multiprocessing import SemLock'
@@ -230,43 +228,36 @@ execute_before_dh_auto_test:
 override_dh_auto_test:
 	dh_auto_test $(DH_ARGS_shared) -- TESTOPTS="$(TEST_OPTS)"
 
-else
-
-# ensure that dh_auto_test isn't called in any case
-override_dh_auto_test:
-
-endif
-
 override_dh_auto_install:
 	dh_auto_install $(DH_ARGS_shared)
+
+define remove_pycache
+
+	: # $(strip $(1)): remove Python cache
+	find $(strip $(1))/ -name __pycache__ -type d -exec rm -rf '{}' '+'
+	find $(strip $(1))/ -name '*.py[co]' -ls -delete
+
+endef
 
 execute_after_dh_auto_install:
 	: # remove manpages
 	rm -rf debian/tmp/usr/share/man/
 
-	: # remove Python cache
-	find debian/tmp/ -name __pycache__ -type d -exec rm -rf '{}' '+'
-	find debian/tmp/ -name '*.py[co]' -ls -delete
-
-	: # move /usr/local/* -> /usr/*
-	tar -C debian/tmp/usr/local -cf - . | tar -C debian/tmp/usr/ -xf -
-	rm -rf debian/tmp/usr/local
+	$(call remove_pycache, debian/tmp )
 
 	: # remove builtin testsuite
 	find debian/tmp/ -path '*/lib/python$(PYTHON_BASE_VERSION)/*/test' -type d -exec rm -rf '{}' '+'
 	find debian/tmp/ -path '*/lib/python$(PYTHON_BASE_VERSION)/*/tests' -type d -exec rm -rf '{}' '+'
 
-	: # preserve only small part of /lib/python$(PYTHON_BASE_VERSION)/test/
-	find debian/tmp/ -path '*/lib/python$(PYTHON_BASE_VERSION)/test' -type d \
-	| while read -r d ; do \
-		rm -f debian/test.tar ; \
-		find "$$d" -regextype egrep \
-		  -regex '.+/test/(libregrtest|support|(__.+|ann_module.*|regrtest|test_support)\.py)$$' \
-		  -exec tar -cf debian/test.tar '{}' '+' ; \
-		rm -rf "$$d" ; \
-		tar -xf debian/test.tar ; \
-		rm -f debian/test.tar ; \
-	done
+	: # preserve only small part of /usr/lib/python$(PYTHON_BASE_VERSION)/test/
+	d='debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/test' ; \
+	rm -f debian/test.tar ; \
+	find "$$d" -regextype egrep \
+	  -regex '.+/test/(libregrtest|support|(__.+|ann_module.*|regrtest|test_support)\.py)$$' \
+	  -exec tar -cf debian/test.tar '{}' '+' ; \
+	rm -rf "$$d" ; \
+	tar -xf debian/test.tar ; \
+	rm -f debian/test.tar
 
 	: # remove non-fully versioned symlinks
 	find debian/tmp/ -path '*/bin/*' -type l -exec rm -vf '{}' '+'
@@ -381,7 +372,7 @@ define buildrepro_aio
 
 endef
 
-limb_python = $(call x_python, $(CURDIR)/debian/tmp/usr , lib/$(DEB_HOST_MULTIARCH) , bin/python$(PYTHON_BASE_VERSION) )
+limb_python = $(call x_python, $(CURDIR)/debian/tmp/usr , lib/$(DEB_HOST_MULTIARCH) , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
 
 execute_before_dh_install:
 	chmod +x debian/thin-ci.sh
@@ -414,6 +405,18 @@ execute_before_dh_install:
 	$(call buildrepro_compare, debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py )
 
 include debian/rules.install
+
+define move_usr_local_to_usr
+
+	: # $(strip $(1)): move /usr/local/* -> /usr/*
+	src='$(CURDIR)/$(strip $(1))/usr/local' ; \
+	dst='$(CURDIR)/$(strip $(1))/usr' ; \
+	if [ -d "$${src}" ] ; then \
+		tar -C "$${src}" -cf - . | tar -C "$${dst}" -xvf - ; \
+		rm -rf "$${src}" ; \
+	fi
+
+endef
 
 override_dh_install:
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-misc )
@@ -450,6 +453,9 @@ override_dh_install:
 	$(limb_python) -m pip \
 	  --disable-pip-version-check --no-cache-dir \
 	  install wheel
+
+	$(call remove_pycache, debian/tmp )
+	$(call move_usr_local_to_usr, debian/tmp )
 
 	: # list installed packages (refreshing version info)
 	$(limb_python) -m pip \
