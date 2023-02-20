@@ -45,8 +45,10 @@ export _PKG_DIR=/usr/local/lib
 export BUILD_IMAGE_ENV="PYTHON_VERSION"
 export BUILD_IMAGE_ENV_FILE=image/python/python.env
 
+export BUILD_IMAGE_CONTEXT=package/python
+
 build_single() {
-	[ -n "$1" ] || continue
+	[ -n "$1" ] || return 0
 
 	export PYTHON_VERSION="$1"
 
