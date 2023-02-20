@@ -194,33 +194,37 @@ build_image() {
 	fi
 
 	for _i in ${BUILD_IMAGE_ARGS} ; do
+		[ -n "${_i}" ] || continue
 		append_arg "${_i}"
 	done ; unset _i
 
 	for _i in ${BUILD_IMAGE_SECRETS} ; do
+		[ -n "${_i}" ] || continue
 		append_secret "${_i}"
 	done ; unset _i
 
 	for _i in ${BUILD_IMAGE_CONTEXTS} ; do
+		[ -n "${_i}" ] || continue
 		append_build_ctx "${_i}"
 	done ; unset _i
 
 	for _i in ${BUILD_IMAGE_ULIMITS} ; do
+		[ -n "${_i}" ] || continue
 		append_ulimit "${_i}"
 	done ; unset _i
 
 	for _i in ${BUILD_IMAGE_CAPABILITIES} ; do
+		[ -n "${_i}" ] || continue
 		append_cap "${_i}"
 	done ; unset _i
 
 	for _i in ${BUILD_IMAGE_VOLUMES} ; do
+		[ -n "${_i}" ] || continue
 		append_volume "${_i}"
 	done ; unset _i
 
 	# append arguments
-	if [ $# != 0 ] ; then
-		append "$@"
-	fi
+	[ $# = 0 ] || append "$@"
 
 	if [ -z "${BUILD_IMAGE_ARG0_FILE}" ] ; then
 		log "nothing to do: arg0_file was not created"
@@ -243,11 +247,14 @@ build_image() {
 
 build_image_ex() {
 	for _i in ${BUILD_IMAGE_ENV} ; do
+		[ -n "${_i}" ] || continue
 		append_env "${_i}"
 	done ; unset _i
 
-	if [ -n "${BUILD_IMAGE_ENV_FILE}" ] ; then
-		for _f in "${BUILD_IMAGE_ENV_FILE}" ${BUILD_IMAGE_WORKDIR+:"${BUILD_IMAGE_WORKDIR}${BUILD_IMAGE_ENV_FILE}"} ; do
+	for _n in ${BUILD_IMAGE_ENV_FILE} ; do
+		[ -n "${_n}" ] || continue
+
+		for _f in "${_n}" ${BUILD_IMAGE_WORKDIR:+"${BUILD_IMAGE_WORKDIR}${_n}"} ; do
 			[ -n "${_f}" ] || continue
 
 			log_verbose "env: trying file ${_f}"
@@ -265,14 +272,17 @@ build_image_ex() {
 
 			break
 		done ; unset _f
-	fi
+	done ; unset _n
 
 	for _i in ${BUILD_IMAGE_LABELS} ; do
+		[ -n "${_i}" ] || continue
 		append_label "${_i}"
 	done ; unset _i
 
-	if [ -n "${BUILD_IMAGE_LABELS_FILE}" ] ; then
-		for _f in "${BUILD_IMAGE_LABELS_FILE}" ${BUILD_IMAGE_WORKDIR+:"${BUILD_IMAGE_WORKDIR}${BUILD_IMAGE_LABELS_FILE}"} ; do
+	for _n in ${BUILD_IMAGE_LABELS_FILE} ; do
+		[ -n "${_n}" ] || continue
+
+		for _f in "${_n}" ${BUILD_IMAGE_WORKDIR:+"${BUILD_IMAGE_WORKDIR}${_n}"} ; do
 			[ -n "${_f}" ] || continue
 
 			log_verbose "labels: trying file ${_f}"
@@ -290,14 +300,17 @@ build_image_ex() {
 
 			break
 		done ; unset _f
-	fi
+	done ; unset _n
 
 	for _i in ${BUILD_IMAGE_ANNOTATIONS} ; do
+		[ -n "${_i}" ] || continue
 		append_annotation "${_i}"
 	done ; unset _i
 
-	if [ -n "${BUILD_IMAGE_ANNOTATIONS_FILE}" ] ; then
-		for _f in "${BUILD_IMAGE_ANNOTATIONS_FILE}" ${BUILD_IMAGE_WORKDIR+:"${BUILD_IMAGE_WORKDIR}${BUILD_IMAGE_ANNOTATIONS_FILE}"} ; do
+	for _n in ${BUILD_IMAGE_ANNOTATIONS_FILE} ; do
+		[ -n "${_n}" ] || continue
+
+		for _f in "${_n}" ${BUILD_IMAGE_WORKDIR:+"${BUILD_IMAGE_WORKDIR}${_n}"} ; do
 			[ -n "${_f}" ] || continue
 
 			log_verbose "annotations: trying file ${_f}"
@@ -315,7 +328,7 @@ build_image_ex() {
 
 			break
 		done ; unset _f
-	fi
+	done ; unset _n
 
 	build_image "$@"
 }
