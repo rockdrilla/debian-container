@@ -1,0 +1,21 @@
+Source: container-exe-filter
+Section: misc
+Priority: optional
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/rockdrilla/debian-container
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/_essential/exe-filter
+
+Package: container-exe-filter
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+         container-cleanup,
+Enhances: container-cleanup,
+Description: container - "exe" filter
+ This package maintains "potentially unwanted list" (or "blocklist")
+ of executables in common paths for "container-cleanup" package.

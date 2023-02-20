@@ -1,0 +1,20 @@
+Source: container-image-entrypoint
+Section: misc
+Priority: optional
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/rockdrilla/debian-container
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/_essential/image-entrypoint
+
+Package: container-image-entrypoint
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+         dumb-init,
+Recommends: container-common-tools-bin,
+Description: container - image entrypoint
+ This package contains extensible image entrypoint script for containers.

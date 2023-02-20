@@ -1,0 +1,20 @@
+Source: container-common-tools
+Section: misc
+Priority: optional
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/rockdrilla/debian-container
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/_essential/common-tools
+
+Package: container-common-tools
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         apt,
+Suggests: curl,
+          gnupg,
+Description: container - common tools
+ This package contains common scripts and tools for containers.

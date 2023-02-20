@@ -15,13 +15,13 @@ c="/tmp/${0##*/}"
 if [ "$0" != "$c" ] ; then
 	dir0=$(dirname "$0")
 	rootdir=$(readlink -e "${dir0}/../../..")
-	pkg_dir="${rootdir}/package/container-essential"
+	pkg_dir="${rootdir}/package/_essential"
 
 	echo "# rootdir: ${rootdir}" >&2
 	echo "# pkg_dir: ${pkg_dir}" >&2
 
 	# naive copy of container essential packages inside chroot
-	# e.g.: package/container-essential/common-tools/bin -> /usr/local/bin
+	# e.g.: package/_essential/common-tools/bin -> /usr/local/bin
 	find "${pkg_dir}/" -mindepth 2 -maxdepth 2 -type d \
 	| grep -E '/(bin|etc|lib|sbin|share)$' \
 	| while read -r dir ; do

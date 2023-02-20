@@ -1,0 +1,40 @@
+Source: container-persistent-ca-bundle
+Section: misc
+Priority: optional
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/rockdrilla/debian-container
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/_essential/persistent-ca-bundle
+
+Package: container-persistent-ca-bundle
+Architecture: all
+Multi-Arch: allowed
+Enhances: ca-certificates,
+Description: container persistence - CA bundle
+ This package maintains persistence of CA certificate bundle, namely:
+ .
+ - /etc/ssl/certs/ca-certificates.crt
+ .
+ Normally, this package tracks this file via deb-triggers(5).
+ Hovewer, the one may run `update-container-persistent-ca-bundle'
+ to ensure that stored CA bundles are in sync, or
+ `restore-container-persistent-ca-bundle' to restore previous state
+ of CA bundles.
+
+Package: container-persistent-ca-bundle-java
+Architecture: all
+Multi-Arch: allowed
+Enhances: ca-certificates-java,
+Description: container persistence - Java CA bundle
+ This package maintains persistence of Java CA certificate bundle, namely:
+ .
+ - /etc/ssl/certs/java/cacerts
+ .
+ Normally, this package tracks this file via deb-triggers(5).
+ Hovewer, the one may run `update-container-persistent-ca-bundle-java'
+ to ensure that stored CA bundles are in sync, or
+ `restore-container-persistent-ca-bundle-java' to restore previous state
+ of CA bundles.

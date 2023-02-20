@@ -24,7 +24,7 @@ ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot git gnupg'
 RUN quiet apt-install ${BUILD_DEPS} ; \
     cleanup
 
-COPY /package/container-essential/ /tmp/package/
+COPY /package/_essential/ /tmp/package/
 
 RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ; do \
         stem="${dir##*/}" ; \
