@@ -73,7 +73,7 @@ build_single() {
 
 	BUILD_IMAGE_TARGET=minimal \
 	scripts/build-image.sh image/python/ \
-	"${IMAGE_PATH}/python-min:${PYTHON_BASE_VERSION}-${SUITE}" ":${PYTHON_VERSION}-${SUITE}"
+	"${IMAGE_PATH}/python-min:${PYTHON_VERSION}-${SUITE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
 
 	set +e
 
@@ -88,7 +88,7 @@ build_single() {
 
 	BUILD_IMAGE_TARGET=regular \
 	scripts/build-image.sh image/python/ \
-	"${IMAGE_PATH}/python:${PYTHON_BASE_VERSION}-${SUITE}" ":${PYTHON_VERSION}-${SUITE}"
+	"${IMAGE_PATH}/python:${PYTHON_VERSION}-${SUITE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
 
 	set +e
 

@@ -1,7 +1,7 @@
 Source: container-python-@{PYTHON_BASE_VERSION}
 Section: python
 Priority: optional
-Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Maintainer: @{DEB_MAINTAINER}
 Build-Depends: debhelper-compat (= 13),
                autoconf-archive,
                g++-@{gcc_latest},
