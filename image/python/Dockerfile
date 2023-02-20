@@ -33,7 +33,9 @@ RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo"
         deb-src-export ${_SRC_DIR} /tmp/debian ; \
         mkdir -p ${_PKG_DIR} ; \
         set +e ; \
-        deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} ; \
+        # "/ciep.sh env" ensures that container limits are taken in account
+        /ciep.sh env \
+          deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} ; \
         result=$? ; \
         set -e ; \
         build_finish=$(date -R) ; \
