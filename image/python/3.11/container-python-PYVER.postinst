@@ -6,6 +6,7 @@ case "$1" in
 configure)
 	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
+	lib=/usr/lib/python@{PYTHON_BASE_VERSION}
 
 	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
 		update-alternatives --install \
@@ -19,6 +20,11 @@ configure)
 		  ${bin}/pydoc@{PYTHON_BASE_VERSION} \
 
 	done
+
+	# precompile Python bytecode (no matter what packages were installed with it)
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONUNBUFFERED=1 \
+	${bin}/python@{PYTHON_BASE_VERSION} -m compileall -q ${lib}
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

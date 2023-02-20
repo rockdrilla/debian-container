@@ -1,3 +1,9 @@
+Description: Configure linking for C-library wrapping modules
+ Use the system C libraries, rather than sources bundled with cPython, or
+ anything from /usr/local.
+
+Forwarded: not-needed
+
 --- a/Modules/Setup
 +++ b/Modules/Setup
 @@ -178,7 +178,7 @@ _symtable symtablemodule.c

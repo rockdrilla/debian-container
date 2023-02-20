@@ -1,6 +1,5 @@
 Description: C compiler flags:
  1. Don't duplicate /usr/local in gcc search paths.
-    FIXME: Not sure why.
  2. Respect CPPFLAGS
 
 Forwarded: no

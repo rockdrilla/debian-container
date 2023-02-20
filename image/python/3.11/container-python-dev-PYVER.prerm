@@ -5,16 +5,17 @@ set -e
 if [ "$1" != "upgrade" ]; then
 	bin=/usr/bin
 
-	update-alternatives --remove \
-	  2to3 \
-	  ${bin}/2to3-@{PYTHON_BASE_VERSION}
-
 	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
 		stem=python${suffix}
 
 		update-alternatives --remove \
 		  @{DEB_HOST_MULTIARCH}-${stem}-config \
 		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config
+
+		update-alternatives --remove \
+		  ${stem}-config \
+		  ${bin}/python@{PYTHON_BASE_VERSION}-config
+
 	done
 fi
 

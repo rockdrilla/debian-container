@@ -1,7 +1,5 @@
-usr/bin/2to3-@{PYTHON_BASE_VERSION}
 usr/bin/${DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config
 usr/include/python@{PYTHON_BASE_VERSION}
 usr/lib/${DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.so
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig
-usr/lib/python@{PYTHON_BASE_VERSION}/config-@{PYTHON_BASE_VERSION}-${DEB_HOST_MULTIARCH}
-usr/lib/python@{PYTHON_BASE_VERSION}/lib2to3
+usr/lib/python@{PYTHON_BASE_VERSION}/config-*/

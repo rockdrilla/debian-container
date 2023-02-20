@@ -1,5 +1,3 @@
-# ntpath not in python-minimal
-
 --- a/Lib/pathlib.py
 +++ b/Lib/pathlib.py
 @@ -1,7 +1,6 @@

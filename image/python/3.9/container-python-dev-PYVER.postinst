@@ -8,10 +8,6 @@ configure)
 	bin=/usr/bin
 	pkgcfg=/usr/lib/@{DEB_HOST_MULTIARCH}/pkgconfig
 
-	update-alternatives --install \
-	  ${bin}/2to3  2to3  ${bin}/2to3-@{PYTHON_BASE_VERSION} \
-	${prio}
-
 	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
 		stem=python${suffix}
 
@@ -20,11 +16,13 @@ configure)
 		  @{DEB_HOST_MULTIARCH}-${stem}-config \
 		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
 		${prio} \
-		\
-		--slave \
+
+		update-alternatives --install \
 		  ${bin}/${stem}-config \
 		  ${stem}-config \
 		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
+		${prio} \
+		\
 		--slave \
 		  ${pkgcfg}/${stem}.pc \
 		  ${stem}.pc-@{DEB_HOST_MULTIARCH} \

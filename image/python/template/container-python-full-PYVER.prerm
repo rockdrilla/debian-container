@@ -12,6 +12,10 @@ fi
 if [ "$1" != "upgrade" ] ; then
 	bin=/usr/bin
 
+	update-alternatives --remove \
+	  2to3 \
+	  ${bin}/2to3-@{PYTHON_BASE_VERSION}
+
 	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
 		for exe in pip wheel ; do
 			update-alternatives --remove \

@@ -28,6 +28,9 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
+# Ubuntu mangles png files by default, which can break some files.
+export NO_PNG_PKG_MANGLE := 1
+
 # handles DATE and TIME in Modules/getbuildinfo.c
 export SOURCE_DATE_EPOCH
 
@@ -120,6 +123,28 @@ builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
 
 build_dir = $(CURDIR)/debian.build
 
+PIP_CONF = $(word 1,$(wildcard debian/pip.conf.local) debian/pip.conf)
+
+export PYTHONDONTWRITEBYTECODE = 1
+
+# $1 = PYTHONHOME
+# $2 = library subdirectory (may be empty)
+x_python_LD_LIBRARY_PATH = $(1)$(if $(2),/$(2))$(if $(LD_LIBRARY_PATH),:$(LD_LIBRARY_PATH))
+
+# $1 = PYTHONHOME
+# $2 = library subdirectory (may be empty)
+# $3 = path to binary
+x_python = env \
+	LD_LIBRARY_PATH='$(call x_python_LD_LIBRARY_PATH,$(strip $(1)),$(strip $(2)))' \
+	PYTHONHOME='$(strip $(1))' \
+	PYTHONUNBUFFERED=1 \
+	SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+	REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+	PIP_CONFIG_FILE='$(CURDIR)/$(PIP_CONF)' \
+	DEB_PYTHON_INSTALL_LAYOUT=deb_system \
+	fakeroot \
+	$(strip $(1))/$(strip $(3))
+
 # TEST_OPTS and TEST_EXCLUDES are defined here
 include debian/rules.tests
 
@@ -165,7 +190,6 @@ override_dh_auto_configure:
 	  --enable-loadable-sqlite-extensions \
 	  --with-dbmliborder=bdb:gdbm \
 	  --with-ssl-default-suites=openssl \
-	  --without-ensurepip \
 	  MKDIR_P="/bin/mkdir -p"
 
 execute_after_dh_auto_configure:
@@ -193,26 +217,23 @@ override_dh_auto_build:
 
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 
-test_LD_LIBRARY_PATH = $(build_dir)$(if $(LD_LIBRARY_PATH),:$(LD_LIBRARY_PATH))
-test_python_bin = $(build_dir)/python
-
-test_python = LD_LIBRARY_PATH='$(test_LD_LIBRARY_PATH)' \
-	PYTHONDONTWRITEBYTECODE=1 \
-	PYTHONUNBUFFERED=1 \
-	SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
-	REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-	fakeroot $(test_python_bin)
+test_python = $(call x_python, $(build_dir) , , python )
 
 execute_before_dh_auto_test:
 	: # check that things are correctly built
-ifneq (,$(filter $(DEB_HOST_ARCH_OS),linux))
+  ifneq (,$(filter $(DEB_HOST_ARCH_OS),linux))
 	$(test_python) -c 'from _multiprocessing import SemLock'
-endif
+  endif
 	$(test_python) -c 'import _decimal'
 	$(test_python) -c 'import math, cmath'
 
 override_dh_auto_test:
 	dh_auto_test $(DH_ARGS_shared) -- TESTOPTS="$(TEST_OPTS)"
+
+else
+
+# ensure that dh_auto_test isn't called in any case
+override_dh_auto_test:
 
 endif
 
@@ -221,21 +242,15 @@ override_dh_auto_install:
 
 execute_after_dh_auto_install:
 	: # remove manpages
-	rm -vrf debian/tmp/usr/share/man/
+	rm -rf debian/tmp/usr/share/man/
 
-	: # remove python cache
+	: # remove Python cache
 	find debian/tmp/ -name __pycache__ -type d -exec rm -rf '{}' '+'
 	find debian/tmp/ -name '*.py[co]' -ls -delete
 
-	: # remove IDLE at all
-	find debian/tmp/ -path '*/bin/idle*' -exec rm -vf '{}' '+'
-	find debian/tmp/ -path '*/lib/python$(PYTHON_BASE_VERSION)/idlelib' -type d -exec rm -vrf '{}' '+'
-
-	: # remove provided pip and site-packages
-	find debian/tmp/ -path '*/bin/pip*' -exec rm -vf '{}' '+'
-	find debian/tmp/ -path '*/lib/python$(PYTHON_BASE_VERSION)/site-packages' -type d -print0 \
-	| xargs -0 -r -n 1 -I '$$d' \
-		find '$$d/' -mindepth 1 -maxdepth 1 -exec rm -vrf '{}' '+'
+	: # move /usr/local/* -> /usr/*
+	tar -C debian/tmp/usr/local -cf - . | tar -C debian/tmp/usr/ -xf -
+	rm -rf debian/tmp/usr/local
 
 	: # remove builtin testsuite
 	find debian/tmp/ -path '*/lib/python$(PYTHON_BASE_VERSION)/*/test' -type d -exec rm -rf '{}' '+'
@@ -248,7 +263,7 @@ execute_after_dh_auto_install:
 		find "$$d" -regextype egrep \
 		  -regex '.+/test/(libregrtest|support|(__.+|ann_module.*|regrtest|test_support)\.py)$$' \
 		  -exec tar -cf debian/test.tar '{}' '+' ; \
-		find "$$d/" -mindepth 1 -maxdepth 1 -exec rm -vrf '{}' '+' ; \
+		rm -rf "$$d" ; \
 		tar -xf debian/test.tar ; \
 		rm -f debian/test.tar ; \
 	done
@@ -258,7 +273,8 @@ execute_after_dh_auto_install:
 	find debian/tmp/ -path '*/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/*' -type l -exec rm -vf '{}' '+'
 
 	: # minor file name mangling
-	cd debian/tmp/usr/bin ; mv python$(PYTHON_BASE_VERSION)-config $(DEB_HOST_MULTIARCH)-python$(PYTHON_BASE_VERSION)-config
+	cd debian/tmp/usr/bin ; \
+	mv python$(PYTHON_BASE_VERSION)-config $(DEB_HOST_MULTIARCH)-python$(PYTHON_BASE_VERSION)-config
 
 PY_INTERPRETER =/usr/bin/python$(PYTHON_BASE_VERSION)
 
@@ -365,20 +381,7 @@ define buildrepro_aio
 
 endef
 
-PIP_CONF = $(word 1,$(wildcard debian/pip.conf.local) debian/pip.conf)
-
-limb_PYTHONHOME = $(CURDIR)/debian/tmp/usr
-limb_LD_LIBRARY_PATH = $(limb_PYTHONHOME)/lib/$(DEB_HOST_MULTIARCH)$(if $(LD_LIBRARY_PATH),:$(LD_LIBRARY_PATH))
-limb_python_bin = $(limb_PYTHONHOME)/bin/python$(PYTHON_BASE_VERSION)
-
-limb_python = LD_LIBRARY_PATH='$(limb_LD_LIBRARY_PATH)' \
-	PYTHONHOME='$(limb_PYTHONHOME)' \
-	PYTHONDONTWRITEBYTECODE=1 \
-	PYTHONUNBUFFERED=1 \
-	SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
-	REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-	PIP_CONFIG_FILE='$(CURDIR)/$(PIP_CONF)' \
-	fakeroot $(limb_python_bin)
+limb_python = $(call x_python, $(CURDIR)/debian/tmp/usr , lib/$(DEB_HOST_MULTIARCH) , bin/python$(PYTHON_BASE_VERSION) )
 
 execute_before_dh_install:
 	chmod +x debian/thin-ci.sh
@@ -410,91 +413,46 @@ execute_before_dh_install:
 	debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py
 	$(call buildrepro_compare, debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py )
 
-define dh_dedup
-
-	: # remove duplicate files from shared directory
-	find debian/$(strip $(1)) -type f | sort -V > debian/$(strip $(1)).dedup
-	while read -r s ; do \
-		[ -n "$$s" ] || continue ; \
-		d=$$(printf '%s' "$$s" | sed -zE 's,^debian/$(strip $(1)),debian/tmp,') ; \
-		if cmp -s "$$s" "$$d" ; then \
-			rm -f "$$d" ; \
-		else \
-			echo "# CHANGED: $$s" >> debian/$(strip $(1)).dedup.changed ; \
-		fi ; \
-	done < debian/$(strip $(1)).dedup
-	rm -f debian/$(strip $(1)).dedup
-	if [ -s debian/$(strip $(1)).dedup.changed ] ; then \
-		echo ; \
-		cat debian/$(strip $(1)).dedup.changed ; \
-		echo ; \
-		exit 1 ; \
-	fi >&2
-	rm -f debian/$(strip $(1)).dedup.changed
-
-	: # remove symlinks from shared directory
-	find debian/$(strip $(1)) -type l -print0 \
-	| sed -zE 's,^debian/$(strip $(1)),debian/tmp,' \
-	| xargs -0 -r rm -fv
-
-	: # remove empty directories (without files/symlinks)
-	find debian/$(strip $(1)) -mindepth 1 -type d -print0 \
-	| sed -zE 's,^debian/$(strip $(1)),debian/tmp,' \
-	| sort -zV | xargs -0 -r -n 1 \
-	| while read -r d ; do \
-		[ -d "$$d" ] || continue ; \
-		find "$$d" ! -type d -printf . -quit | grep -Fq . || rm -rf "$$d" ; \
-	done
-
-endef
-
-define dh_install_move
-
-	: # install package files as usual
-	dh_install -p$(strip $(1))
-	$(call dh_dedup,$(strip $(1)))
-
-endef
+include debian/rules.install
 
 override_dh_install:
 	$(call dh_install_move, container-python-misc-$(PYTHON_BASE_VERSION) )
 
-	: # remove wheels
-	find debian/tmp/ -iname '*.whl' -ls -delete
-
-	: # remove non-native platform files
-	find debian/tmp/ -iname '*.exe' -ls -delete
-
 	$(call dh_install_move, container-python-dev-$(PYTHON_BASE_VERSION) )
-
-	: # precompile Python (subject to change)
-	: # DISABLED $(limb_python) -m compileall debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)
 
 	: # we're have "clean" Python at this point, but we need to get pip working,
 	: # so using standard "dh_install" instead of our "dh_install_move"
 	dh_install -pcontainer-python-$(PYTHON_BASE_VERSION)
+	: # these directories go to container-python-full-$(PYTHON_BASE_VERSION)
+	cd debian/container-python-$(PYTHON_BASE_VERSION)/usr/lib/python$(PYTHON_BASE_VERSION) ; \
+	rm -rf ensurepip lib2to3 dist-packages
 
-	: # install pip and setuptools via preseeded debian/get-pip.py
-	$(limb_python) debian/get-pip.py \
+	: # UNUSED: install pip and setuptools via preseeded debian/get-pip.py
+	: $(limb_python) debian/get-pip.py \
 	  --disable-pip-version-check --no-cache-dir --no-warn-script-location --no-compile \
 	  'pip==$(PYTHON_PIP_VERSION)' \
 	  'setuptools==$(PYTHON_SETUPTOOLS_VERSION)' \
 	;
 
 	: # list installed packages
-	$(limb_python) $(limb_PYTHONHOME)/bin/pip \
+	$(limb_python) -m pip \
 	  --disable-pip-version-check --no-cache-dir \
 	  list --format json \
 	> debian/tmp/pip.json
 
 	: # upgrade installed packages
-	$(limb_python) $(limb_PYTHONHOME)/bin/pip \
+	$(limb_python) -m pip \
 	  --disable-pip-version-check --no-cache-dir \
 	  install --upgrade \
 	  $$(jq -r '.[].name' < debian/tmp/pip.json)
 
+	: # install wheel
+	$(limb_python) -m pip \
+	  --disable-pip-version-check --no-cache-dir \
+	  install wheel
+
 	: # list installed packages (refreshing version info)
-	$(limb_python) $(limb_PYTHONHOME)/bin/pip \
+	$(limb_python) -m pip \
 	  --disable-pip-version-check --no-cache-dir \
 	  list --format json \
 	> debian/tmp/pip.json
@@ -512,15 +470,15 @@ override_dh_install:
 
 	rm -f debian/tmp/pip.json
 
-	: # remove python cache (again)
+	: # move non-native platform files to container-python-misc-$(PYTHON_BASE_VERSION)
+	find debian/tmp/ -iname '*.exe' -printf '%P\0' \
+	| tar -C debian/tmp --null -T - -cf - \
+	| tar -C debian/container-python-misc-$(PYTHON_BASE_VERSION) -xf -
+	find debian/tmp/ -iname '*.exe' -delete
+
+	: # remove Python cache
 	find debian/tmp/ -name __pycache__ -type d -exec rm -rf '{}' '+'
 	find debian/tmp/ -name '*.py[co]' -ls -delete
-
-	: # remove wheels
-	find debian/tmp/ -name '*.whl' -ls -delete
-
-	: # remove non-native platform files
-	find debian/tmp/ -iname '*.exe' -ls -delete
 
 	: # remove already installed files from container-python-$(PYTHON_BASE_VERSION)
 	$(call dh_dedup, container-python-$(PYTHON_BASE_VERSION) )
@@ -531,13 +489,25 @@ override_dh_install:
 	rm -f pip pip3
 
 	: # install remaining packages
+	dh_install -pthin-ci-container-python-$(PYTHON_BASE_VERSION)
 	$(call dh_install_move, container-python-full-$(PYTHON_BASE_VERSION) )
+
+	: # fix hashbangs in scripts and change permissions on them
+	$(foreach p, $(shell dh_listpackages), $(call fix_hashbangs_r, debian/$(p)) )
 
 # if there're files left - dh_missing will do the job (raise error)
 
-# fix hashbangs in scripts and change permissions on them
-execute_after_dh_install:
-	$(foreach p, $(shell dh_listpackages), $(call fix_hashbangs_r, debian/$(p)) )
+override_dh_strip_nondeterminism:
+	dh_strip_nondeterminism $(addprefix --exclude=, .exe .png .whl )
+
+override_dh_dwz:
+	dh_dwz $(addprefix --exclude=, .exe libpython$(PYTHON_MAJOR_VERSION).so libpython$(PYTHON_BASE_VERSION).a )
+
+override_dh_strip:
+	dh_strip $(addprefix --exclude=, .exe libpython$(PYTHON_MAJOR_VERSION).so libpython$(PYTHON_BASE_VERSION).a )
+
+override_dh_gencontrol:
+	dh_gencontrol -- -Tdebian/pip.substvars -Tdebian/substvars
 
 # sync with execute_before_dh_install
 execute_before_dh_builddeb:
@@ -563,8 +533,5 @@ execute_before_dh_builddeb:
 		echo ; \
 	fi >&2 ; \
 	rm -f debian/build.reproducible
-
-override_dh_gencontrol:
-	dh_gencontrol -- -Tdebian/pip.substvars -Tdebian/substvars
 
 include debian/rules.selftemplate

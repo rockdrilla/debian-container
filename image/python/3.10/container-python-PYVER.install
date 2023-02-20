@@ -1,3 +1,4 @@
-usr/bin
+usr/bin/pydoc@{PYTHON_BASE_VERSION}
+usr/bin/python@{PYTHON_BASE_VERSION}
 usr/lib/${DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.so.*
 usr/lib/python@{PYTHON_BASE_VERSION}

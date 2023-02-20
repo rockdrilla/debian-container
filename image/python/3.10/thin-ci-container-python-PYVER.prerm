@@ -5,8 +5,6 @@ set -ef
 wrapper=/usr/lib/python@{PYTHON_BASE_VERSION}/thin-ci.sh
 
 if [ "$1" != "upgrade" ]; then
-	bin=/usr/bin
-
 	for suffix in '' @{PYTHON_MAJOR_VERSION} ; do
 
 		# container-python-@{PYTHON_BASE_VERSION}
@@ -28,12 +26,12 @@ if [ "$1" != "upgrade" ]; then
 		stem=python${suffix}
 
 		update-alternatives --remove \
-		  @{DEB_HOST_MULTIARCH}-${stem}-config \
+		  ${stem}-config \
 		  ${wrapper}
 
 	done
 
-	# container-python-dev-@{PYTHON_BASE_VERSION}
+	# container-python-full-@{PYTHON_BASE_VERSION}
 
 	update-alternatives --remove \
 	  2to3 \

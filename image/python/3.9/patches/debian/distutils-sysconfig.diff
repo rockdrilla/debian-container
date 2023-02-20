@@ -7,7 +7,7 @@ Forwarded: no
 
 --- a/Lib/distutils/sysconfig.py
 +++ b/Lib/distutils/sysconfig.py
-@@ -193,9 +193,11 @@ def customize_compiler(compiler):
+@@ -202,9 +202,11 @@ def customize_compiler(compiler):
                  _osx_support.customize_compiler(_config_vars)
                  _config_vars['CUSTOMIZED_OSX_COMPILER'] = 'True'
  
@@ -21,7 +21,7 @@ Forwarded: no
  
          if 'CC' in os.environ:
              newcc = os.environ['CC']
-@@ -216,13 +218,22 @@ def customize_compiler(compiler):
+@@ -225,13 +227,22 @@ def customize_compiler(compiler):
              cpp = cc + " -E"           # not always
          if 'LDFLAGS' in os.environ:
              ldshared = ldshared + ' ' + os.environ['LDFLAGS']
@@ -44,7 +44,7 @@ Forwarded: no
          if 'AR' in os.environ:
              ar = os.environ['AR']
          if 'ARFLAGS' in os.environ:
-@@ -236,7 +247,7 @@ def customize_compiler(compiler):
+@@ -245,7 +256,7 @@ def customize_compiler(compiler):
              compiler=cc_cmd,
              compiler_so=cc_cmd + ' ' + ccshared,
              compiler_cxx=cxx,

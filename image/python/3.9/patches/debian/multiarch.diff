@@ -1,3 +1,10 @@
+Description: Debian: Configure multiarch tuple.
+ 1. Expose multiarchsubdir in sysconfig.
+ 2. Return the multiarch include dir in distutils.
+ 3. Install the .pc file into the multiarch path.
+
+Forwarded: no
+
 --- a/Lib/sysconfig.py
 +++ b/Lib/sysconfig.py
 @@ -571,6 +571,12 @@ def get_config_vars(*args):

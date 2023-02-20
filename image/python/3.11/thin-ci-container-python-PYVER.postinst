@@ -21,7 +21,7 @@ configure)
 		--slave \
 		  ${bin}/pydoc${suffix} \
 		  pydoc${suffix} \
-		  ${wrapper} \
+		  ${wrapper}
 
 		# container-python-full-@{PYTHON_BASE_VERSION}
 
@@ -30,8 +30,7 @@ configure)
 			  ${bin}/${exe}${suffix} \
 			  ${exe}${suffix} \
 			  ${wrapper} \
-			${prio} \
-
+			${prio}
 		done
 
 		# container-python-dev-@{PYTHON_BASE_VERSION}
@@ -39,19 +38,14 @@ configure)
 		stem=python${suffix}
 
 		update-alternatives --install \
-		  ${bin}/@{DEB_HOST_MULTIARCH}-${stem}-config \
-		  @{DEB_HOST_MULTIARCH}-${stem}-config \
-		  ${wrapper} \
-		${prio} \
-		\
-		--slave \
 		  ${bin}/${stem}-config \
 		  ${stem}-config \
 		  ${wrapper} \
+		${prio}
 
 	done
 
-	# container-python-dev-@{PYTHON_BASE_VERSION}
+	# container-python-full-@{PYTHON_BASE_VERSION}
 
 	update-alternatives --install \
 	  ${bin}/2to3  2to3  ${wrapper} \

@@ -1,6 +1,5 @@
 Description: Keep the lib-dynload dir in the same place when configuring with
  --libdir=/usr/bin/$(DEB_HOST_MULTIARCH)
- FIXME: Expand?
 
 Forwarded: no
 

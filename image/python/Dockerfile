@@ -12,23 +12,20 @@ FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE} as build
 SHELL [ "/bin/sh", "-ec" ]
 
 # these directories should be mounted as RW volumes
-ENV DEB_SRC_BUILD_DIR=/srv
-ENV _SRC_DIR=/media
-ENV _PKG_DIR=/mnt
+ARG DEB_SRC_BUILD_DIR
+ARG _SRC_DIR
+# ARG _PKG_DIR=/usr/local/lib
+ARG _PKG_DIR
 
+ARG DISTRO
 ARG SUITE
 ARG PYTHON_VERSION
 ARG PYTHON_BASE_VERSION
 
-# allows to preseed upstream tarballs
-COPY --from=tarballs /*       /tmp
+# allows to preseed get-pip.py and upstream tarballs
+# NB: get-pip.py isn't used and even present (for now)
+COPY --from=preseed /*        /tmp
 COPY /${PYTHON_BASE_VERSION}/ /tmp/debian/
-
-# preseed get-pip.py (this looks "ugly" but other methods are likely the same)
-ARG GET_PIP_URL=https://github.com/pypa/get-pip/raw/22.3.1/public/get-pip.py
-ARG GET_PIP_SHA256=1e501cf004eac1b7eb1f97266d28f995ae835d30250bec7f8850562703067dc6
-ADD ${GET_PIP_URL} /tmp/debian/
-RUN echo "${GET_PIP_SHA256} */tmp/debian/get-pip.py" | sha256sum -c -
 
 ARG DEB_SRC_BUILD_PURGE
 ARG DEB_BUILD_OPTIONS
@@ -36,6 +33,7 @@ ARG DEB_BUILD_OPTIONS
 RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
         build_start=$(date -R) ; \
         mkdir -p ${_SRC_DIR} ; \
+        : mv /tmp/get-pip.py /tmp/debian/ ; \
         deb-src-export ${_SRC_DIR} /tmp/debian ; \
         mkdir -p ${_PKG_DIR} ; \
         set +e ; \
@@ -57,13 +55,14 @@ RUN if ! find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo"
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
-# this directory should be mounted as volume
-# ARG _PKG_DIR=/mnt
-
-ARG PYTHON_BASE_VERSION
-
 # linkage with build layer
 COPY --from=build  /tmp/*.buildinfo  /tmp/
+
+# this directory should be mounted as volume
+# ARG _PKG_DIR=/usr/local/lib
+
+ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -74,11 +73,12 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN arch=$(dpkg --print-architecture) ; \
-    find /mnt -regextype egrep -regex ".+/container-python-${PYTHON_BASE_VERSION}_.+_(all|${arch})\\.deb\$" -type f \
+    pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
+    find /usr/local/lib/ -regextype egrep -regex ".+/container-python-${pybasever}_.+_(all|${arch})\\.deb\$" -type f \
       -exec dpkg -i '{}' '+' \
     || apt-install --fix-broken ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
-#   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
+#   find /usr/lib/python${pybasever}/ -name cacert.pem -type f \
 #   | while read -r f ; do \
 #       dpkg-divert --divert "$f.local" --rename "$f" ; \
 #       rm -f "$f" ; \
@@ -97,12 +97,10 @@ FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
 # this directory should be mounted as volume
-# ARG _PKG_DIR=/mnt
+# ARG _PKG_DIR=/usr/local/lib
 
-ARG PYTHON_BASE_VERSION
-
-# linkage with build layer
-COPY --from=build  /tmp/*.buildinfo  /tmp/
+ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -113,11 +111,12 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 RUN arch=$(dpkg --print-architecture) ; \
-    find /mnt -regextype egrep -regex ".+/container-python(|-dev|-full)-${PYTHON_BASE_VERSION}_.+_(all|${arch})\\.deb\$" -type f \
+    pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
+    find /usr/local/lib/ -regextype egrep -regex ".+/container-python(|-dev|-full)-${pybasever}_.+_(all|${arch})\\.deb\$" -type f \
       -exec dpkg -i '{}' '+' \
     || apt-install --fix-broken ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
-#   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
+#   find /usr/lib/python${pybasever}/ -name cacert.pem -type f \
 #   | while read -r f ; do \
 #       dpkg-divert --divert "$f.local" --rename "$f" ; \
 #       rm -f "$f" ; \
@@ -136,7 +135,8 @@ CMD [ "python3" ]
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal-apt
 SHELL [ "/bin/sh", "-ec" ]
 
-ARG PYTHON_BASE_VERSION
+ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -146,9 +146,10 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # "requests" requires this
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-RUN apt-install container-python-${PYTHON_BASE_VERSION} ; \
+RUN pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
+    apt-install container-python-${pybasever} ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
-#   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
+#   find /usr/lib/python${pybasever}/ -name cacert.pem -type f \
 #   | while read -r f ; do \
 #       dpkg-divert --divert "$f.local" --rename "$f" ; \
 #       rm -f "$f" ; \
@@ -166,7 +167,8 @@ CMD [ "python3" ]
 FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular-apt
 SHELL [ "/bin/sh", "-ec" ]
 
-ARG PYTHON_BASE_VERSION
+ARG PYTHON_VERSION
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -176,9 +178,10 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # "requests" requires this
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-RUN apt-install container-python-full-${PYTHON_BASE_VERSION} ; \
+RUN pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
+    apt-install container-python-full-${pybasever} ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
-#   find /usr/lib/python${PYTHON_BASE_VERSION} -name cacert.pem -type f \
+#   find /usr/lib/python${pybasever}/ -name cacert.pem -type f \
 #   | while read -r f ; do \
 #       dpkg-divert --divert "$f.local" --rename "$f" ; \
 #       rm -f "$f" ; \

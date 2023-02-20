@@ -21,10 +21,10 @@ pip | pip@{PYTHON_MAJOR_VERSION})
 wheel | wheel@{PYTHON_MAJOR_VERSION} )
 	pkg="${pkg_full}"
 ;;
-python@{PYTHON_MAJOR_VERSION}-config | @{DEB_HOST_MULTIARCH}-python@{PYTHON_MAJOR_VERSION}-config )
-	pkg="${pkg_dev}"
+2to3 )
+	pkg="${pkg_full}"
 ;;
-python-config | @{DEB_HOST_MULTIARCH}-python-config )
+python-config | python@{PYTHON_MAJOR_VERSION}-config )
 	pkg="${pkg_dev}"
 ;;
 *)
@@ -33,5 +33,6 @@ python-config | @{DEB_HOST_MULTIARCH}-python-config )
 ;;
 esac
 
-apt-install ${pkg}
+apt-install ${pkg} ; cleanup apt
+sleep 1
 exec "$0" "$@"

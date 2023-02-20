@@ -3,4 +3,4 @@ version=4
 opts=\
 dversionmangle=s/.*\+//,\
 uversionmangle=s/([abcr]+[1-9])$/~$1/ \
-  http://www.python.org/ftp/python/@{PYTHON_MAJOR_VERSION}\.@{PYTHON_MINOR_VERSION}(\.\d+)?/Python-(@{PYTHON_MAJOR_VERSION}\.@{PYTHON_MINOR_VERSION}[.\dabcr]*)\.tar.xz
+  https://www.python.org/ftp/python/@{PYTHON_MAJOR_VERSION}\.@{PYTHON_MINOR_VERSION}(\.\d+)?/Python-(@{PYTHON_MAJOR_VERSION}\.@{PYTHON_MINOR_VERSION}[.\dabcr]*)\.tar.xz

@@ -1,0 +1,49 @@
+#!/usr/bin/make -f
+
+define dh_dedup
+
+	: # remove duplicate files from shared directory
+	find debian/$(strip $(1))/ -type f | sort -V > debian/$(strip $(1)).dedup
+	while read -r s ; do \
+		[ -n "$$s" ] || continue ; \
+		d=$$(printf '%s' "$$s" | sed -zE 's,^debian/$(strip $(1)),debian/tmp,') ; \
+		if cmp -s "$$s" "$$d" ; then \
+			rm -f "$$d" ; \
+		else \
+			s=$$(printf '%s' "$$s" | sed -zE 's,^debian/$(strip $(1))/,,') ; \
+			echo "# CHANGED: $$s" >> debian/$(strip $(1)).dedup.changed ; \
+		fi ; \
+	done < debian/$(strip $(1)).dedup
+	rm -f debian/$(strip $(1)).dedup
+	if [ -s debian/$(strip $(1)).dedup.changed ] ; then \
+		echo ; \
+		echo "# $(strip $(1))" ; \
+		cat debian/$(strip $(1)).dedup.changed ; \
+		echo ; \
+		exit 1 ; \
+	fi >&2
+	rm -f debian/$(strip $(1)).dedup.changed
+
+	: # remove symlinks from shared directory
+	find debian/$(strip $(1)) -type l -print0 \
+	| sed -zE 's,^debian/$(strip $(1)),debian/tmp,' \
+	| xargs -0 -r rm -fv
+
+	: # remove empty directories (without files/symlinks)
+	find debian/$(strip $(1)) -mindepth 1 -type d -print0 \
+	| sed -zE 's,^debian/$(strip $(1)),debian/tmp,' \
+	| sort -zV | tr '\0' '\n' \
+	| while read -r d ; do \
+		[ -d "$$d" ] || continue ; \
+		find "$$d" ! -type d -printf . -quit | grep -Fq . || rm -rf "$$d" ; \
+	done
+
+endef
+
+define dh_install_move
+
+	: # install package files as usual
+	dh_install -p$(strip $(1))
+	$(call dh_dedup,$(strip $(1)))
+
+endef
