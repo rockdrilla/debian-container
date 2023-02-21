@@ -20,7 +20,7 @@ with_bootstrap := $(if $(filter nobootstrap,$(DEB_BUILD_OPTIONS)),no,yes)
 
 export GOROOT_FINAL := /usr/lib/go-$(GOLANG_BASE_VERSION)
 
-export CGO_ENABLED := 1
+export CGO_ENABLED := 0
 
 include debian/rules.pkg-info
 
@@ -69,12 +69,15 @@ DH_ARGS =
 %:
 	dh $@ $(DH_ARGS)
 
+# keep in sync with patches/proxyenv.patch
+GOPROXY ?= https://proxy.golang.org,direct
+GOSUMDB ?= sum.golang.org
 execute_before_dh_auto_configure:
-	: # verify that we' having "right" go version
-	$(GO) version 2>&1 | head -n 1 >&2
-
-	: # verify DEB_BUILD_OPTIONS
-	@echo "# DEB_BUILD_OPTIONS = $${DEB_BUILD_OPTIONS}" >&2
+	sed -i \
+	  -e 's$(xsedx)@{GOPROXY}$(xsedx)$(GOPROXY)$(xsedx)g' \
+	  -e 's$(xsedx)@{GOSUMDB}$(xsedx)$(GOSUMDB)$(xsedx)g' \
+	  -e 's$(xsedx)@{GOPRIVATE}$(xsedx)$(GOPRIVATE)$(xsedx)g' \
+	src/cmd/go/internal/cfg/cfg.go
 
 override_dh_auto_configure:
 	: # early grab arch-independent files to container-golang-$(GOLANG_BASE_VERSION)-src
@@ -84,6 +87,13 @@ override_dh_auto_configure:
 define deb_cgo_flags
 eval "$$(dpkg-buildflags --export=sh | sed -En '/^(export )?([^=]+)=(.+)$$/{s//export \2=\3\nexport CGO_\2=\3/;p;}')"
 endef
+
+execute_before_dh_auto_build:
+	: # verify that we' having "right" go version
+	$(GO) version 2>&1 | head -n 1 >&2
+
+	: # verify DEB_BUILD_OPTIONS
+	@echo "# DEB_BUILD_OPTIONS = $${DEB_BUILD_OPTIONS}" >&2
 
 override_dh_auto_build:
 	: # ensure caches are empty
@@ -131,6 +141,8 @@ endif
 
 	: # build race detection lib (if applicable)
 	export PATH="$(GOROOT)/bin:$$PATH" ; \
+	export CGO_ENABLED=1 ; \
+	$(call deb_cgo_flags) ; \
 	go install -race std || :
 
 override_dh_auto_test:

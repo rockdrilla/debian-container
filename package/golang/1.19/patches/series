@@ -1,4 +1,8 @@
+# these patches are borrowed from Debian
+# I'd like to say many thanks to the maintainers for their work :)
 debian/0001-Disable-test-for-UserHomeDir.patch
 debian/0002-Fix-Lintian-warnings-about-wrong-interpreter-path.patch
 debian/0003-cmd-dist-increase-default-timeout-scale-for-arm.patch
 debian/0004-skip-userns-test-in-schroot-as-well.patch
+
+proxyenv.patch

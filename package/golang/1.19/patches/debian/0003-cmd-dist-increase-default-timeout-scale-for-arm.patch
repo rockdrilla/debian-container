@@ -16,7 +16,7 @@ scale on arm to avoid tests timing out.
 
 --- a/src/cmd/dist/test.go
 +++ b/src/cmd/dist/test.go
-@@ -165,7 +165,7 @@
+@@ -173,7 +173,7 @@ func (t *tester) run() {
  	t.timeoutScale = 1
  	switch goarch {
  	case "arm":

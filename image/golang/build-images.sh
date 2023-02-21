@@ -33,14 +33,20 @@ export BUILD_IMAGE_ARGS="
 	DEB_SRC_BUILD_DIR
 	_SRC_DIR
 	_PKG_DIR
+	GOPROXY
+	GOSUMDB
+	GOPRIVATE
 "
+
+# for use with proxy
+# export GOPROXY='http://127.0.0.1:8081/repository/proxy_go,direct'
+# export GOSUMDB='sum.golang.org http://127.0.0.1:8081/repository/proxy_raw_go_sum'
 
 export DEB_SRC_BUILD_DIR=/usr/local/src
 export _SRC_DIR=/usr/local/include
 export _PKG_DIR=/usr/local/lib
 
 export BUILD_IMAGE_ENV="GOLANG_VERSION"
-export BUILD_IMAGE_ENV_FILE=image/golang/golang.env
 
 export BUILD_IMAGE_CONTEXT=package/golang
 

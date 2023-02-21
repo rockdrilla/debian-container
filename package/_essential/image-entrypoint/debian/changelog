@@ -1,3 +1,9 @@
+container-image-entrypoint (20230221) stable; urgency=medium
+
+  * Remove unneeded fragments.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Tue, 21 Feb 2023 11:28:00 +0300
+
 container-image-entrypoint (20230220) stable; urgency=medium
 
   * New fragments in /ciep.d.
