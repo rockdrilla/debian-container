@@ -22,8 +22,6 @@ configure)
 	done
 
 	# precompile Python bytecode (no matter what packages were installed with it)
-	PYTHONDONTWRITEBYTECODE=1 \
-	PYTHONUNBUFFERED=1 \
 	${bin}/python@{PYTHON_BASE_VERSION} -m compileall -q ${lib}
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)

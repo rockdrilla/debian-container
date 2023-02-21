@@ -129,8 +129,6 @@ export REQUESTS_CA_BUNDLE = /etc/ssl/certs/ca-certificates.crt
 PIP_CONF = $(word 1,$(wildcard debian/pip.conf.local) debian/pip.conf)
 export PIP_CONFIG_FILE = $(CURDIR)/$(PIP_CONF)
 
-export PYTHONDONTWRITEBYTECODE = 1
-
 # $1 = PYTHONHOME
 # $2 = library subdirectory (may be empty)
 x_python_LD_LIBRARY_PATH = $(1)$(if $(2),/$(2))$(if $(LD_LIBRARY_PATH),:$(LD_LIBRARY_PATH))
@@ -142,7 +140,6 @@ x_python_LD_LIBRARY_PATH = $(1)$(if $(2),/$(2))$(if $(LD_LIBRARY_PATH),:$(LD_LIB
 x_python = env \
 	LD_LIBRARY_PATH='$(call x_python_LD_LIBRARY_PATH,$(strip $(1)),$(strip $(2)))' \
 	PYTHONHOME='$(strip $(1))' \
-	PYTHONUNBUFFERED=1 \
 	$(strip $(4)) $(strip $(1))/$(strip $(3))
 
 # TEST_OPTS and TEST_EXCLUDES are defined here
