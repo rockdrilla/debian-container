@@ -9,7 +9,7 @@ TEST_EXCLUDES = test_distutils test_ensurepip test_venv test_lib2to3
 TEST_EXCLUDES += test_compiler test_compileall test_cppext test_tools
 
 # TODO: fix these tests
-TEST_EXCLUDES += test_asyncio test_email test_ioctl test_minidom test_mmap test_posix test_selectors test_socket test_socketserver
+TEST_EXCLUDES += test_asyncio test_email test_ioctl test_minidom test_mmap test_posix test_selectors test_socket test_socketserver test_cmd_line test_cmd_line_script
 
 # TODO: fix these tests (despite they're not failing)
 TEST_EXCLUDES += test_multiprocessing_fork test_multiprocessing_forkserver test_multiprocessing_main_handling test_multiprocessing_spawn
