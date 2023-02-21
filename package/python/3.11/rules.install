@@ -1,43 +1,48 @@
 #!/usr/bin/make -f
 
-define dh_dedup
+define dh_dedup_ex
 
 	: # remove duplicate files from shared directory
-	find debian/$(strip $(1))/ -type f | sort -V > debian/$(strip $(1)).dedup
-	while read -r s ; do \
-		[ -n "$$s" ] || continue ; \
-		d=$$(printf '%s' "$$s" | sed -zE 's,^debian/$(strip $(1)),debian/tmp,') ; \
+	find $(strip $(1))/ -type f -printf '%P\n' | sort -V > $(strip $(1)).dedup
+	: > $(strip $(1)).dedup.changed
+	while read -r n ; do \
+		[ -n "$$n" ] || continue ; \
+		s='$(strip $(1))/'"$$n" ; \
+		d='$(strip $(2))/'"$$n" ; \
 		if cmp -s "$$s" "$$d" ; then \
 			rm -f "$$d" ; \
 		else \
-			s=$$(printf '%s' "$$s" | sed -zE 's,^debian/$(strip $(1))/,,') ; \
-			echo "# CHANGED: $$s" >> debian/$(strip $(1)).dedup.changed ; \
+			echo "# CHANGED: $$n" >> $(strip $(1)).dedup.changed ; \
 		fi ; \
-	done < debian/$(strip $(1)).dedup
-	rm -f debian/$(strip $(1)).dedup
-	if [ -s debian/$(strip $(1)).dedup.changed ] ; then \
+	done < $(strip $(1)).dedup
+	rm -f $(strip $(1)).dedup
+	if [ -s $(strip $(1)).dedup.changed ] ; then \
 		echo ; \
 		echo "# $(strip $(1))" ; \
-		cat debian/$(strip $(1)).dedup.changed ; \
+		cat $(strip $(1)).dedup.changed ; \
 		echo ; \
 		exit 1 ; \
 	fi >&2
-	rm -f debian/$(strip $(1)).dedup.changed
+	rm -f $(strip $(1)).dedup.changed
 
 	: # remove symlinks from shared directory
-	find debian/$(strip $(1)) -type l -print0 \
-	| sed -zE 's,^debian/$(strip $(1)),debian/tmp,' \
+	find $(strip $(1)) -type l -print0 \
+	| sed -zE 's,^$(strip $(1)),$(strip $(2)),' \
 	| xargs -0 -r rm -fv
 
 	: # remove empty directories (without files/symlinks)
-	find debian/$(strip $(1)) -mindepth 1 -type d -print0 \
-	| sed -zE 's,^debian/$(strip $(1)),debian/tmp,' \
+	find $(strip $(1)) -mindepth 1 -type d -print0 \
+	| sed -zE 's,^$(strip $(1)),$(strip $(2)),' \
 	| sort -zV | tr '\0' '\n' \
 	| while read -r d ; do \
 		[ -d "$$d" ] || continue ; \
 		find "$$d" ! -type d -printf . -quit | grep -Fq . || rm -rf "$$d" ; \
 	done
 
+endef
+
+define dh_dedup
+	$(call dh_dedup_ex, debian/$(strip $(1)) , debian/tmp )
 endef
 
 define dh_install_move
