@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" != "upgrade" ]; then
+	bin_lib=/usr/lib/go-@{GOLANG_BASE_VERSION}/bin
+
+	for suffix in '' '-@{GOLANG_BASE_VERSION}' ; do
+		for exe in go gofmt ; do
+			update-alternatives --remove \
+			  ${exe}${suffix} \
+			  ${bin_lib}/${exe}
+		done
+	done
+fi
+
+#DEBHELPER#
+
+exit 0

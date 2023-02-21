@@ -1,0 +1,35 @@
+#!/bin/sh
+
+set -ef
+
+wrapper=/usr/lib/go-@{GOLANG_BASE_VERSION}/thin-ci.sh
+
+case "$1" in
+configure)
+	prio=@{DEB_GOLANG_PRIO}
+	bin=/usr/bin
+
+	for suffix in '' '-@{GOLANG_BASE_VERSION}' ; do
+
+		# container-golang-@{GOLANG_BASE_VERSION}
+
+		for exe in go gofmt ; do
+			update-alternatives --install \
+			  ${bin}/${exe}${suffix} \
+			  ${exe}${suffix} \
+			  ${wrapper} \
+			${prio}
+		done
+	done
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

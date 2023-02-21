@@ -47,3 +47,18 @@ Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/python-min/tags)
 |
 [standard](https://hub.docker.com/r/rockdrilla/python/tags)
+
+### golang - minimal/standard
+
+Golang image/packages - `image/golang/` ([dockerfile](image/golang/Dockerfile))
+
+Versions:
+
+- 1.18.10
+- 1.19.6
+- 1.20.1
+
+Images on Docker.io:
+[minimal](https://hub.docker.com/r/rockdrilla/golang-min/tags)
+|
+[standard](https://hub.docker.com/r/rockdrilla/golang/tags)

@@ -1,0 +1,204 @@
+#!/usr/bin/make -f
+
+SHELL       :=/bin/sh
+.SHELLFLAGS :=-ec
+
+GOLANG_VERSION ?= 1.20.1
+
+empty :=
+space :=$(empty) $(empty)
+comma :=,
+xsedx :=$(shell printf '\027')
+
+GOLANG_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(GOLANG_VERSION)))
+GOLANG_MINOR_VERSION = $(word 2,$(subst .,$(space),$(GOLANG_VERSION)))
+GOLANG_BASE_VERSION = $(GOLANG_MAJOR_VERSION).$(GOLANG_MINOR_VERSION)
+
+DEB_GOLANG_PRIO = $(shell printf '%d%03d0' $(GOLANG_MAJOR_VERSION) $(GOLANG_MINOR_VERSION))
+
+with_bootstrap := $(if $(filter nobootstrap,$(DEB_BUILD_OPTIONS)),no,yes)
+
+export GOROOT_FINAL := /usr/lib/go-$(GOLANG_BASE_VERSION)
+
+export CGO_ENABLED := 1
+
+include debian/rules.pkg-info
+
+MAKEFLAGS += --no-print-directory
+
+export DH_VERBOSE := 1
+
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all optimize=-lto
+
+include /usr/share/dpkg/default.mk
+
+# Ubuntu mangles png files by default, which can break some files.
+export NO_PNG_PKG_MANGLE := 1
+
+export SOURCE_DATE_EPOCH
+
+ifneq ($(DEB_HOST_ARCH_OS),linux)
+  $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
+endif
+
+# try to build with fresh golang available
+golang_debian_latest =$(strip $(shell apt-cache search 'golang-' | mawk '/^golang-[0-9.]+ /{print $$1}' | sort -rV | head -n 1 | cut -d - -f 2))
+
+golang_extra_latest =$(strip $(shell apt-cache search 'golang-' | mawk '/^container-golang-[0-9.]+-full /{print $$1}' | sort -rV | head -n 1 | sed -En 's/^(.+)$$/\1 | /p'))
+
+GO = $(shell find /usr/lib/ -path '*/go-*/bin/go' -type f | sort -rV | head -n 1)
+
+cleansrc_tar = debian/cleansrc.tar.gz
+bootstrap_dir = debian.bootstrap
+
+export GOROOT  := $(CURDIR)
+export GOPATH  := $(CURDIR)/debian.gopath
+export GOCACHE := $(CURDIR)/debian.gocache
+
+# make tests happy
+export SCHROOT_SESSION_ID ?= 1
+
+ifneq (,$(wildcard debian/rules.local))
+include debian/rules.local
+endif
+
+.NOTPARALLEL:
+
+DH_ARGS =
+
+%:
+	dh $@ $(DH_ARGS)
+
+execute_before_dh_auto_configure:
+	: # verify that we' having "right" go version
+	$(GO) version 2>&1 | head -n 1 >&2
+
+	: # verify DEB_BUILD_OPTIONS
+	@echo "# DEB_BUILD_OPTIONS = $${DEB_BUILD_OPTIONS}" >&2
+
+override_dh_auto_configure:
+	: # early grab arch-independent files to container-golang-$(GOLANG_BASE_VERSION)-src
+	rm -f $(cleansrc_tar) ; \
+	tar -cf - api misc src test | gzip -f > $(cleansrc_tar)
+
+define deb_cgo_flags
+eval "$$(dpkg-buildflags --export=sh | sed -En '/^(export )?([^=]+)=(.+)$$/{s//export \2=\3\nexport CGO_\2=\3/;p;}')"
+endef
+
+override_dh_auto_build:
+	: # ensure caches are empty
+	rm -rf $(GOPATH) $(GOCACHE) ; \
+	mkdir -p $(GOPATH) $(GOCACHE)
+
+ifeq ($(with_bootstrap),yes)
+
+	: # prepare bootstrap directory
+	rm -rf $(bootstrap_dir) ; mkdir -p $(bootstrap_dir) ; \
+	tar -cf - VERSION lib src | tar -C $(bootstrap_dir) -xf -
+
+	: # build bootstrap version
+	unset GOROOT_FINAL ; \
+	export GOROOT=$(CURDIR)/$(bootstrap_dir) ; \
+	export DEB_BUILD_MAINT_OPTIONS='hardening=-all optimize=-lto' ; \
+	export GOROOT_BOOTSTRAP=$$(env -u GOROOT $(GO) env GOROOT) ; \
+	cd $(bootstrap_dir) ; \
+	$(call deb_cgo_flags) ; \
+	cd src ; \
+	bash ./make.bash --no-banner
+
+	: # ensure caches are empty
+	rm -rf $(GOPATH) $(GOCACHE) ; \
+	mkdir -p $(GOPATH) $(GOCACHE)
+
+	: # build final version
+	export GOROOT_BOOTSTRAP=$(CURDIR)/$(bootstrap_dir) ; \
+	$(call deb_cgo_flags) ; \
+	cd src ; \
+	bash ./make.bash --no-banner
+
+	: # remove bootstrap directory
+	rm -rf $(bootstrap_dir)
+
+else
+
+	: # build final version
+	export GOROOT_BOOTSTRAP=$$(env -u GOROOT $(GO) env GOROOT) ; \
+	$(call deb_cgo_flags) ; \
+	cd src ; \
+	bash ./make.bash --no-banner
+
+endif
+
+	: # build race detection lib (if applicable)
+	export PATH="$(GOROOT)/bin:$$PATH" ; \
+	go install -race std || :
+
+override_dh_auto_test:
+	NPROC=$$(nproc) ; \
+	NPROC=$$(( NPROC / 2 )) ; \
+	NPROC=$$(( NPROC + 1 )) ; \
+	export NPROC ; \
+	export GOMAXPROCS=$${NPROC} ; \
+	export GO_TEST_TIMEOUT_SCALE=10 ; \
+	cd src ; \
+	export PATH="$(GOROOT)/bin:$$PATH" ; \
+	eval "$$(go tool dist env)" ; \
+	bash ./run.bash -k -no-rebuild || :
+	# -k | keep going even when error occurred
+
+override_dh_auto_install:
+
+execute_before_dh_install:
+	rm -rf pkg/obj
+
+	chmod +x debian/thin-ci.sh
+
+	: # ensure caches are empty
+	rm -rf $(GOPATH) $(GOCACHE)
+
+include debian/rules.install
+
+gosrc_path = debian/container-golang-$(GOLANG_BASE_VERSION)-src$(GOROOT_FINAL)
+gomisc_path = debian/container-golang-$(GOLANG_BASE_VERSION)-misc$(GOROOT_FINAL)
+gobin_path = debian/container-golang-$(GOLANG_BASE_VERSION)$(GOROOT_FINAL)
+
+override_dh_install:
+	dh_install -pthin-ci-container-golang-$(GOLANG_BASE_VERSION)
+
+	: # process container-golang-$(GOLANG_BASE_VERSION)-src
+	mkdir -p $(gosrc_path)
+	tar -C $(gosrc_path) -xf $(cleansrc_tar)
+	rm -f $(cleansrc_tar)
+	$(call dh_dedup_ex, $(gosrc_path) , . )
+
+	: # process container-golang-$(GOLANG_BASE_VERSION)-misc
+	mkdir -p $(gomisc_path)
+	tar -cf - lib $(wildcard pkg/*_race) | tar -C $(gomisc_path) -xf -
+	$(call dh_dedup_ex, $(gomisc_path) , . )
+
+	: # process container-golang-$(GOLANG_BASE_VERSION)
+	mkdir -p $(gobin_path)
+	tar -cf - VERSION bin pkg/include pkg/tool src $(wildcard pkg/*_*) | tar -C $(gobin_path) -xf -
+	$(call dh_dedup_ex, $(gobin_path) , . )
+
+# if there're files left - dh_missing will do the job (raise error)
+
+execute_after_dh_install:
+	find $(gosrc_path)/ -name '*.rc' -type f -delete
+	find $(gosrc_path)/ -regextype egrep -regex '.+\.(sh|bash)$$' -type f -exec chmod a+x '{}' '+'
+
+override_dh_strip:
+	dh_strip_nondeterminism $(addprefix --exclude=, .exe testdata )
+
+override_dh_dwz:
+
+override_dh_strip_nondeterminism:
+	dh_strip_nondeterminism $(addprefix --exclude=, .exe .png testdata )
+
+override_dh_shlibdeps:
+	dh_shlibdeps $(addprefix --exclude=,  testdata test )
+
+override_dh_makeshlibs:
+	dh_makeshlibs $(addprefix --exclude=,  testdata test )
+
+include debian/rules.selftemplate

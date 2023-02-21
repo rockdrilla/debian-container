@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -ef
+
+wrapper=/usr/lib/go-@{GOLANG_BASE_VERSION}/thin-ci.sh
+
+if [ "$1" != "upgrade" ]; then
+	for suffix in '' '-@{GOLANG_BASE_VERSION}' ; do
+
+		# container-golang-@{GOLANG_BASE_VERSION}-full
+
+		for exe in go gofmt ; do
+			update-alternatives --remove \
+			  ${exe}${suffix} \
+			  ${wrapper}
+		done
+	done
+fi
+
+#DEBHELPER#
+
+exit 0
