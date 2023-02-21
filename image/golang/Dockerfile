@@ -5,6 +5,7 @@ ARG SUITE=stable
 
 ARG BUILD_IMAGE=${DISTRO}-buildd:${SUITE}
 ARG BASE_IMAGE=${DISTRO}-min:${SUITE}
+ARG GOLANG_MIN_IMAGE
 
 # ---
 
@@ -77,7 +78,7 @@ CMD [ "go" ]
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${GOLANG_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
 # this directory should be mounted as volume
@@ -85,15 +86,13 @@ SHELL [ "/bin/sh", "-ec" ]
 
 RUN arch=$(dpkg --print-architecture) ; \
     gobasever=$(echo "${GOLANG_VERSION}" | cut -d. -f1-2) ; \
-    find /usr/local/lib/ -regextype egrep -regex ".+/container-golang-${gobasever}(|-src|-full|-misc)_.+_(all|${arch})\\.deb\$" -type f \
+    find /usr/local/lib/ -regextype egrep -regex ".+/container-golang-${gobasever}(-full|-misc)_.+_(all|${arch})\\.deb\$" -type f \
       -exec dpkg -i '{}' '+' \
     || apt-install --fix-broken ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
     go version
-
-CMD [ "go" ]
 
 # ---
 
@@ -111,7 +110,7 @@ CMD [ "go" ]
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular-apt
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${GOLANG_MIN_IMAGE} as regular-apt
 SHELL [ "/bin/sh", "-ec" ]
 
 RUN gobasever=$(echo "${GOLANG_VERSION}" | cut -d. -f1-2) ; \
@@ -120,5 +119,3 @@ RUN gobasever=$(echo "${GOLANG_VERSION}" | cut -d. -f1-2) ; \
     # smoke/qa
     set -xv ; \
     go version
-
-CMD [ "go" ]

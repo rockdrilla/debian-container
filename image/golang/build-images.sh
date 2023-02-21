@@ -26,6 +26,7 @@ export DISTRO=debian SUITE=bullseye
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}
+	GOLANG_MIN_IMAGE
 	GOLANG_VERSION
 	GOLANG_BASE_VERSION
 	DEB_BUILD_OPTIONS
@@ -63,11 +64,13 @@ build_single() {
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
+	export GOLANG_MIN_IMAGE="golang-min:${GOLANG_VERSION}-${SUITE}"
+
 	set -e
 
 	BUILD_IMAGE_TARGET=minimal \
 	scripts/build-image.sh image/golang/ \
-	"${IMAGE_PATH}/golang-min:${GOLANG_VERSION}-${SUITE}" ":${GOLANG_BASE_VERSION}-${SUITE}"
+	"${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ":${GOLANG_BASE_VERSION}-${SUITE}"
 
 	BUILD_IMAGE_TARGET=regular \
 	scripts/build-image.sh image/golang/ \
