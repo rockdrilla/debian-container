@@ -26,7 +26,7 @@ Rules-Requires-Root: no
 Standards-Version: 4.6.2
 Homepage: https://www.python.org/
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
-Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/image/python/@{PYTHON_BASE_VERSION}
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/python/@{PYTHON_BASE_VERSION}
 
 Package: container-python-@{PYTHON_BASE_VERSION}-full
 Architecture: all
