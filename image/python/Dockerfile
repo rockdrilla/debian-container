@@ -5,6 +5,7 @@ ARG SUITE=stable
 
 ARG BUILD_IMAGE=${DISTRO}-buildd:${SUITE}
 ARG BASE_IMAGE=${DISTRO}-min:${SUITE}
+ARG PYTHON_MIN_IMAGE
 
 # ---
 
@@ -80,7 +81,7 @@ CMD [ "python3" ]
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${PYTHON_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
 # this directory should be mounted as volume
@@ -88,7 +89,7 @@ SHELL [ "/bin/sh", "-ec" ]
 
 RUN arch=$(dpkg --print-architecture) ; \
     pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
-    find /usr/local/lib/ -regextype egrep -regex ".+/container-python-${pybasever}(|-dev|-full)_.+_(all|${arch})\\.deb\$" -type f \
+    find /usr/local/lib/ -regextype egrep -regex ".+/container-python-${pybasever}(-dev|-full)_.+_(all|${arch})\\.deb\$" -type f \
       -exec dpkg -i '{}' '+' \
     || apt-install --fix-broken ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
@@ -103,8 +104,6 @@ RUN arch=$(dpkg --print-architecture) ; \
     set -xv ; \
     python3 --version ; \
     pip3 --version
-
-CMD [ "python3" ]
 
 # ---
 
@@ -129,7 +128,7 @@ CMD [ "python3" ]
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as regular-apt
+FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${PYTHON_MIN_IMAGE} as regular-apt
 SHELL [ "/bin/sh", "-ec" ]
 
 RUN pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
@@ -146,5 +145,3 @@ RUN pybasever=$(echo "${PYTHON_VERSION}" | cut -d. -f1-2) ; \
     set -xv ; \
     python3 --version ; \
     pip3 --version
-
-CMD [ "python3" ]

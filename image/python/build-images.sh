@@ -29,6 +29,7 @@ export DISTRO=debian SUITE=bullseye
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}
+	PYTHON_MIN_IMAGE
 	PYTHON_VERSION
 	PYTHON_BASE_VERSION
 	DEB_BUILD_OPTIONS
@@ -59,11 +60,13 @@ build_single() {
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
+	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}"
+
 	set -e
 
 	BUILD_IMAGE_TARGET=minimal \
 	scripts/build-image.sh image/python/ \
-	"${IMAGE_PATH}/python-min:${PYTHON_VERSION}-${SUITE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
+	"${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
 
 	BUILD_IMAGE_TARGET=regular \
 	scripts/build-image.sh image/python/ \
