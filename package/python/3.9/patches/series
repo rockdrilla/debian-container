@@ -22,4 +22,4 @@ debian/test-no-random-order.diff
 sort-build-objects.patch
 reenable-tests.patch
 install-no-pycache.patch
-container-default.patch
+container-python-compat-switch.patch
