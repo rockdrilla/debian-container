@@ -21,14 +21,27 @@ python_versions='
 	3.11.2
 '
 
+: "${DEB_BUILD_OPTIONS:=pgo_full lto_part=none}"
+export DEB_BUILD_OPTIONS
+
 # build only Debian variant (for now)
 export DISTRO=debian SUITE=bullseye
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}
-	PYTHON_MIN_IMAGE
+	PYTHON_VERSION
 	PYTHON_BASE_VERSION
+	DEB_BUILD_OPTIONS
+	DEB_SRC_BUILD_DIR
+	_SRC_DIR
+	_PKG_DIR
 "
+
+export DEB_SRC_BUILD_DIR=/usr/local/src
+export _SRC_DIR=/usr/local/include
+export _PKG_DIR=/usr/local/lib
+
+export BUILD_IMAGE_CONTEXT=package/python
 
 build_single() {
 	[ -n "$1" ] || return 0
@@ -36,29 +49,21 @@ build_single() {
 	export PYTHON_VERSION="$1"
 	export PYTHON_BASE_VERSION=$(printf '%s' "${PYTHON_VERSION}" | cut -d. -f1-2)
 
-	export BUILD_IMAGE_ENV="PYTHON_VERSION"
-
 	stem="python-${PYTHON_BASE_VERSION}"
 
-	packages="$(build_artifacts_path "${stem}")/pkg"
-	export BUILD_IMAGE_CONTEXTS="
-		packages=${packages}
+	export BUILD_IMAGE_VOLUMES="
+		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
-	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}"
+	PYTHON_BUILD_IMAGE="${IMAGE_PATH}/python-build:${PYTHON_VERSION}-${SUITE}"
 
 	set -e
 
-	BUILD_IMAGE_TARGET=minimal \
-	scripts/build-image.sh image/python/ \
-	"${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
+	BUILD_IMAGE_TARGET=build \
+	BUILD_IMAGE_PUSH=0 \
+	scripts/build-image.sh image/python/ "${PYTHON_BUILD_IMAGE}"
 
-	# "python" derives env from "python-min"
-	unset BUILD_IMAGE_ENV
-
-	BUILD_IMAGE_TARGET=regular \
-	scripts/build-image.sh image/python/ \
-	"${IMAGE_PATH}/python:${PYTHON_VERSION}-${SUITE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
+	podman image rm -f "${PYTHON_BUILD_IMAGE}"
 
 	set +e
 

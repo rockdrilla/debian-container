@@ -21,6 +21,8 @@ image/standard/build-images.sh
 
 image/buildd/build-images.sh
 
+image/golang/build-packages.sh
 image/golang/build-images.sh
 
+image/python/build-packages.sh
 image/python/build-images.sh
