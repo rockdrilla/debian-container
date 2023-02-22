@@ -38,7 +38,7 @@ build_single() {
 	export PYTHON_VERSION="$1"
 	export PYTHON_BASE_VERSION=$(printf '%s' "${PYTHON_VERSION}" | cut -d. -f1-2)
 
-	export BUILD_IMAGE_ENV="PYTHON_VERSION"
+	export BUILD_IMAGE_ENV="PYTHON_VERSION PYTHON_BASE_VERSION"
 
 	stem="python-${PYTHON_BASE_VERSION}"
 
@@ -48,7 +48,7 @@ build_single() {
 	"
 
 	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
-	full_image="python:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	full_image="${IMAGE_PATH}/python:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 
 	extra_tags=":${PYTHON_BASE_VERSION}-${SUITE}"
 	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=

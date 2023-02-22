@@ -75,6 +75,8 @@ CMD [ "go" ]
 FROM ${IMAGE_PATH}/${GOLANG_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
+ARG GOLANG_BASE_VERSION
+
 COPY --from=packages [ \
   "container-golang-${GOLANG_BASE_VERSION}-full_*.deb", \
   "container-golang-${GOLANG_BASE_VERSION}-misc_*.deb", \

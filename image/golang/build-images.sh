@@ -38,7 +38,7 @@ build_single() {
 	export GOLANG_VERSION="$1"
 	export GOLANG_BASE_VERSION=$(printf '%s' "${GOLANG_VERSION}" | cut -d. -f1-2)
 
-	export BUILD_IMAGE_ENV="GOLANG_VERSION"
+	export BUILD_IMAGE_ENV="GOLANG_VERSION GOLANG_BASE_VERSION"
 
 	stem="golang-${GOLANG_BASE_VERSION}"
 
@@ -48,7 +48,7 @@ build_single() {
 	"
 
 	export GOLANG_MIN_IMAGE="golang-min:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
-	full_image="golang:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	full_image="${IMAGE_PATH}/golang:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 
 	extra_tags=":${GOLANG_BASE_VERSION}-${SUITE}"
 	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=

@@ -70,6 +70,8 @@ CMD [ "python3" ]
 FROM ${IMAGE_PATH}/${PYTHON_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
+ARG PYTHON_BASE_VERSION
+
 COPY --from=packages [ \
   "container-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
   "container-python-${PYTHON_BASE_VERSION}-full_*.deb", \
