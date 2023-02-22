@@ -70,8 +70,9 @@ DH_ARGS =
 	dh $@ $(DH_ARGS)
 
 # keep in sync with patches/proxyenv.patch
-GOPROXY ?= https://proxy.golang.org,direct
-GOSUMDB ?= sum.golang.org
+GOPROXY :=$(if $(GOPROXY),$(GOPROXY),https://proxy.golang.org$(comma)direct)
+GOSUMDB :=$(if $(GOSUMDB),$(GOSUMDB),sum.golang.org)
+
 execute_before_dh_auto_configure:
 	sed -i \
 	  -e 's$(xsedx)@{GOPROXY}$(xsedx)$(GOPROXY)$(xsedx)g' \
