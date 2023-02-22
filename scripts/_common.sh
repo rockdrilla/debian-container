@@ -37,10 +37,35 @@ build_artifacts_volumes() {
 
 }
 
-dst_list='
+default_D_S_T='
 	debian:bullseye:11:stable:latest
 	debian:bookworm:12:testing
 	debian:sid:unstable
 	ubuntu:focal:20.04:lts
 	ubuntu:jammy:22.04:stable:latest
 '
+
+if [ -z "${DISTRO_SUITE_TAGS}" ] ; then
+DISTRO_SUITE_TAGS="${default_D_S_T}"
+fi
+
+set_default_distro_suite() {
+	[ -n "${DISTRO}" ] || export DISTRO=debian
+
+	[ -z "${SUITE}" ] || return 0
+
+	for _d_s_t in ${default_D_S_T} ; do
+		case "${_d_s_t}" in
+		${DISTRO}:*:stable*) ;;
+		*) continue ;;
+		esac
+
+		IFS=: read -r _distro SUITE _tags <<-EOF
+		${_d_s_t}
+		EOF
+
+		export SUITE
+		break
+	done
+	unset _d_s_t _distro _tags
+}

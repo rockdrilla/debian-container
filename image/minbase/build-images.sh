@@ -16,16 +16,16 @@ export PATH="${rootdir}/scripts:${PATH}"
 . "${rootdir}/scripts/_common.sh"
 
 # stage 0: build with Debian testing (!)
-for distro_suite_tags in ${dst_list} ; do
+for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
-	case "${distro_suite_tags}" in
+	case "${d_s_t}" in
 	debian:*:testing*) ;;
 	*) continue ;;
 	esac
 
-	extra_tags=
-	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
-	${distro_suite_tags}
+	tags=
+	IFS=: read -r DISTRO SUITE tags <<-EOF
+	${d_s_t}
 	EOF
 
 	# for latter usage
@@ -75,10 +75,10 @@ podman image rm -f "${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
 export DEB_BUILD_OPTIONS='noautodbgsym'
 
 # stages 2 and 3: build semi-final images and then build against it 'arch:any' packages
-for distro_suite_tags in ${dst_list} ; do
-	extra_tags=
-	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
-	${distro_suite_tags}
+for d_s_t in ${DISTRO_SUITE_TAGS} ; do
+	tags=
+	IFS=: read -r DISTRO SUITE tags <<-EOF
+	${d_s_t}
 	EOF
 
 	export DISTRO SUITE
@@ -122,13 +122,13 @@ done
 bootstrap_suite_packages="${rootdir}/build-artifacts/container-packages/arch"
 
 # build final images
-for distro_suite_tags in ${dst_list} ; do
-	extra_tags=
-	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
-	${distro_suite_tags}
+for d_s_t in ${DISTRO_SUITE_TAGS} ; do
+	tags=
+	IFS=: read -r DISTRO SUITE tags <<-EOF
+	${d_s_t}
 	EOF
-	[ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
-	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
+	[ -z "${IMAGE_TAG_SUFFIX}" ] || tags=
+	[ -z "${tags}" ] || tags=$(echo ":${tags}" | sed -e 's/:/ :/g')
 
 	rm -rf "${bootstrap_suite_packages}"
 	mkdir -p "${bootstrap_suite_packages}"
@@ -137,7 +137,7 @@ for distro_suite_tags in ${dst_list} ; do
 
 	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}${IMAGE_TAG_SUFFIX}"
 	image/minbase/image.sh ${DISTRO} ${SUITE} "${image}"
-	stub_build "${image}" ${extra_tags}
+	stub_build "${image}" ${tags}
 
 	rm -rf "${bootstrap_suite_packages}"
 done

@@ -21,10 +21,7 @@ golang_versions='
 	1.20.1
 '
 
-if [ -z "${DISTRO}" ] || [ -z "${SUITE}" ] ; then
-	# build only Debian variant (for now)
-	export DISTRO=debian SUITE=bullseye
-fi
+set_default_distro_suite
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}

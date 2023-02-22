@@ -15,17 +15,17 @@ export PATH="${rootdir}/scripts:${PATH}"
 
 . "${rootdir}/scripts/_common.sh"
 
-for distro_suite_tags in ${dst_list} ; do
-	extra_tags=
-	IFS=: read -r DISTRO SUITE extra_tags <<-EOF
-	${distro_suite_tags}
+for d_s_t in ${DISTRO_SUITE_TAGS} ; do
+	tags=
+	IFS=: read -r DISTRO SUITE tags <<-EOF
+	${d_s_t}
 	EOF
-	[ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
-	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
+	[ -z "${IMAGE_TAG_SUFFIX}" ] || tags=
+	[ -z "${tags}" ] || tags=$(echo ":${tags}" | sed -e 's/:/ :/g')
 
 	export DISTRO SUITE
 
 	scripts/build-image.sh image/standard/ \
 	  "${IMAGE_PATH}/${DISTRO}:${SUITE}${IMAGE_TAG_SUFFIX}" \
-	  ${extra_tags}
+	  ${tags}
 done

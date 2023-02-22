@@ -4,10 +4,6 @@
 
 set -f
 
-# the one may want to set this:
-# : "${BUILDAH_FORMAT:=docker}"
-# export BUILDAH_FORMAT
-
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
@@ -24,10 +20,7 @@ python_versions='
 : "${DEB_BUILD_OPTIONS:=pgo_full lto_part=none}"
 export DEB_BUILD_OPTIONS
 
-if [ -z "${DISTRO}" ] || [ -z "${SUITE}" ] ; then
-	# build only Debian variant (for now)
-	export DISTRO=debian SUITE=bullseye
-fi
+set_default_distro_suite
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}
