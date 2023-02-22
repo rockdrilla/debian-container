@@ -40,8 +40,8 @@ Python image/packages - `image/python/` ([dockerfile](image/python/Dockerfile))
 Versions:
 
 - 3.9.16
-- 3.10.9
-- 3.11.1
+- 3.10.10
+- 3.11.2
 
 Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/python-min/tags)
