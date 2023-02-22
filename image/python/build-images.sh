@@ -21,8 +21,10 @@ python_versions='
 	3.11.2
 '
 
-# build only Debian variant (for now)
-export DISTRO=debian SUITE=bullseye
+if [ -z "${DISTRO}" ] || [ -z "${SUITE}" ] ; then
+	# build only Debian variant (for now)
+	export DISTRO=debian SUITE=bullseye
+fi
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}
@@ -45,20 +47,22 @@ build_single() {
 		packages=${packages}
 	"
 
-	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}"
+	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	full_image="python:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+
+	extra_tags=":${PYTHON_BASE_VERSION}-${SUITE}"
+	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
 
 	set -e
 
 	BUILD_IMAGE_TARGET=minimal \
-	scripts/build-image.sh image/python/ \
-	"${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
+	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ${extra_tags}
 
 	# "python" derives env from "python-min"
 	unset BUILD_IMAGE_ENV
 
 	BUILD_IMAGE_TARGET=regular \
-	scripts/build-image.sh image/python/ \
-	"${IMAGE_PATH}/python:${PYTHON_VERSION}-${SUITE}" ":${PYTHON_BASE_VERSION}-${SUITE}"
+	scripts/build-image.sh image/python/ "${full_image}" ${extra_tags}
 
 	set +e
 

@@ -21,10 +21,11 @@ for distro_suite_tags in ${dst_list} ; do
 	${distro_suite_tags}
 	EOF
 	[ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
+	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
 
 	export DISTRO SUITE
 
 	scripts/build-image.sh image/buildd/ \
-	  "${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}" \
+	  "${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}${IMAGE_TAG_SUFFIX}" \
 	  ${extra_tags}
 done

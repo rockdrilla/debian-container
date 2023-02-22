@@ -21,8 +21,10 @@ golang_versions='
 	1.20.1
 '
 
-# build only Debian variant (for now)
-export DISTRO=debian SUITE=bullseye
+if [ -z "${DISTRO}" ] || [ -z "${SUITE}" ] ; then
+	# build only Debian variant (for now)
+	export DISTRO=debian SUITE=bullseye
+fi
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}
@@ -45,20 +47,22 @@ build_single() {
 		packages=${packages}
 	"
 
-	export GOLANG_MIN_IMAGE="golang-min:${GOLANG_VERSION}-${SUITE}"
+	export GOLANG_MIN_IMAGE="golang-min:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	full_image="golang:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+
+	extra_tags=":${GOLANG_BASE_VERSION}-${SUITE}"
+	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
 
 	set -e
 
 	BUILD_IMAGE_TARGET=minimal \
-	scripts/build-image.sh image/golang/ \
-	"${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ":${GOLANG_BASE_VERSION}-${SUITE}"
+	scripts/build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ${extra_tags}
 
 	# "golang" derives env from "golang-min"
 	unset BUILD_IMAGE_ENV
 
 	BUILD_IMAGE_TARGET=regular \
-	scripts/build-image.sh image/golang/ \
-	"${IMAGE_PATH}/golang:${GOLANG_VERSION}-${SUITE}" ":${GOLANG_BASE_VERSION}-${SUITE}"
+	scripts/build-image.sh image/golang/ "${full_image}" ${extra_tags}
 
 	set +e
 

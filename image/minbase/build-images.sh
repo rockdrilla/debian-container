@@ -128,13 +128,14 @@ for distro_suite_tags in ${dst_list} ; do
 	${distro_suite_tags}
 	EOF
 	[ -z "${extra_tags}" ] || extra_tags=$(echo ":${extra_tags}" | sed -e 's/:/ :/g')
+	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
 
 	rm -rf "${bootstrap_suite_packages}"
 	mkdir -p "${bootstrap_suite_packages}"
 
 	find "$(build_artifacts_path container-packages-arch)/pkg/" -type f -name '*.deb' -execdir cp -vt "${bootstrap_suite_packages}" '{}' '+'
 
-	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}"
+	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}${IMAGE_TAG_SUFFIX}"
 	image/minbase/image.sh ${DISTRO} ${SUITE} "${image}"
 	stub_build "${image}" ${extra_tags}
 

@@ -24,8 +24,10 @@ python_versions='
 : "${DEB_BUILD_OPTIONS:=pgo_full lto_part=none}"
 export DEB_BUILD_OPTIONS
 
-# build only Debian variant (for now)
-export DISTRO=debian SUITE=bullseye
+if [ -z "${DISTRO}" ] || [ -z "${SUITE}" ] ; then
+	# build only Debian variant (for now)
+	export DISTRO=debian SUITE=bullseye
+fi
 
 export BUILD_IMAGE_ARGS="
 	${BUILD_IMAGE_ARGS}
@@ -46,6 +48,10 @@ export BUILD_IMAGE_CONTEXT=package/python
 build_single() {
 	[ -n "$1" ] || return 0
 
+	# if ${IMAGE_TAG_SUFFIX} is non-empty - build packages but don't upload to hosted APT registry
+	# (our CI uploads freshly built packages via ${BUILD_IMAGE_SCRIPT_POST})
+	[ -z "${IMAGE_TAG_SUFFIX}" ] || export BUILD_IMAGE_SCRIPT_POST=/bin/true
+
 	export PYTHON_VERSION="$1"
 	export PYTHON_BASE_VERSION=$(printf '%s' "${PYTHON_VERSION}" | cut -d. -f1-2)
 
@@ -55,15 +61,15 @@ build_single() {
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
-	PYTHON_BUILD_IMAGE="${IMAGE_PATH}/python-build:${PYTHON_VERSION}-${SUITE}"
+	build_image="${IMAGE_PATH}/python-build:${PYTHON_VERSION}-${SUITE}"
 
 	set -e
 
 	BUILD_IMAGE_TARGET=build \
 	BUILD_IMAGE_PUSH=0 \
-	scripts/build-image.sh image/python/ "${PYTHON_BUILD_IMAGE}"
+	scripts/build-image.sh image/python/ "${build_image}"
 
-	podman image rm -f "${PYTHON_BUILD_IMAGE}"
+	podman image rm -f "${build_image}"
 
 	set +e
 
