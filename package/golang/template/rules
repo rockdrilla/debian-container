@@ -3,7 +3,20 @@
 SHELL       :=/bin/sh
 .SHELLFLAGS :=-ec
 
-GOLANG_VERSION ?= 1.20.1
+MAKEFLAGS += --no-print-directory
+
+export DH_VERBOSE := 1
+
+include /usr/share/dpkg/default.mk
+
+# Ubuntu mangles png files by default, which can break some files.
+export NO_PNG_PKG_MANGLE := 1
+
+export SOURCE_DATE_EPOCH
+
+include debian/rules.pkg-info
+
+GOLANG_VERSION ?= $(DEB_VERSION_UPSTREAM)
 
 empty :=
 space :=$(empty) $(empty)
@@ -16,30 +29,17 @@ GOLANG_BASE_VERSION = $(GOLANG_MAJOR_VERSION).$(GOLANG_MINOR_VERSION)
 
 DEB_GOLANG_PRIO = $(shell printf '%d%03d0' $(GOLANG_MAJOR_VERSION) $(GOLANG_MINOR_VERSION))
 
+ifneq ($(DEB_HOST_ARCH_OS),linux)
+  $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
+endif
+
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all optimize=-lto
+
 with_bootstrap := $(if $(filter nobootstrap,$(DEB_BUILD_OPTIONS)),no,yes)
 
 export GOROOT_FINAL := /usr/lib/go-$(GOLANG_BASE_VERSION)
 
 export CGO_ENABLED := 0
-
-include debian/rules.pkg-info
-
-MAKEFLAGS += --no-print-directory
-
-export DH_VERBOSE := 1
-
-export DEB_BUILD_MAINT_OPTIONS := hardening=+all optimize=-lto
-
-include /usr/share/dpkg/default.mk
-
-# Ubuntu mangles png files by default, which can break some files.
-export NO_PNG_PKG_MANGLE := 1
-
-export SOURCE_DATE_EPOCH
-
-ifneq ($(DEB_HOST_ARCH_OS),linux)
-  $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
-endif
 
 # try to build with fresh golang available
 golang_debian_latest =$(strip $(shell apt-cache search 'golang-' | mawk '/^golang-[0-9.]+ /{print $$1}' | sort -rV | head -n 1 | cut -d - -f 2))

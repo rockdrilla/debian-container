@@ -19,7 +19,11 @@ ARG _PKG_DIR
 
 ARG DISTRO
 ARG SUITE
+
+ARG GOLANG_VERSION
 ARG GOLANG_BASE_VERSION
+
+ARG DEB_BUILD_OPTIONS
 
 ARG GOPROXY
 ARG GOSUMDB
@@ -27,8 +31,6 @@ ARG GOPRIVATE
 
 # build context should be set to /package/golang/
 COPY /${GOLANG_BASE_VERSION}/ /tmp/debian/
-
-ARG DEB_BUILD_OPTIONS
 
 RUN if find ${_PKG_DIR}/ -maxdepth 1 -name "*_${GOLANG_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
       exit 0 ; \

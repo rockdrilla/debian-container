@@ -26,7 +26,6 @@ xsedx :=$(shell printf '\027')
 
 PYTHON_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(PYTHON_VERSION)))
 PYTHON_MINOR_VERSION = $(word 2,$(subst .,$(space),$(PYTHON_VERSION)))
-
 PYTHON_BASE_VERSION = $(PYTHON_MAJOR_VERSION).$(PYTHON_MINOR_VERSION)
 
 DEB_PYTHON_PRIO = $(shell printf '%d%03d0' $(PYTHON_MAJOR_VERSION) $(PYTHON_MINOR_VERSION))
