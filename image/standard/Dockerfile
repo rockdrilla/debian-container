@@ -1,11 +1,10 @@
-ARG IMAGE_REGISTRY=docker.io
-ARG IMAGE_DIRECTORY=rockdrilla
+ARG IMAGE_PATH=docker.io/rockdrilla
 ARG DISTRO=debian
 ARG SUITE=stable
 
 ARG BASE_IMAGE=${DISTRO}-min:${SUITE}
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE}
+FROM ${IMAGE_PATH}/${BASE_IMAGE}
 SHELL [ "/bin/sh", "-ec" ]
 
 RUN apt-install apt-utils less lsof netbase ncurses-base procps psmisc tzdata vim-tiny ; \

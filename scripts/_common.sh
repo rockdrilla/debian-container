@@ -5,14 +5,9 @@
 set -f
 
 : "${SOURCE_DATE_EPOCH:=$(date -u '+%s')}"
-: "${BUILD_IMAGE_ARGS:=IMAGE_REGISTRY IMAGE_DIRECTORY DISTRO SUITE}"
+: "${BUILD_IMAGE_ARGS:=IMAGE_PATH DISTRO SUITE}"
 : "${BUILD_IMAGE_PUSH:=0}"
 export SOURCE_DATE_EPOCH BUILD_IMAGE_ARGS BUILD_IMAGE_PUSH
-
-# set by env, e.g.:
-#   export IMAGE_REGISTRY='docker.io'
-#   export IMAGE_DIRECTORY='rockdrilla'
-IMAGE_PATH="${IMAGE_REGISTRY:?}/${IMAGE_DIRECTORY:?}"
 
 # NB: assume that we're already logged in registry
 

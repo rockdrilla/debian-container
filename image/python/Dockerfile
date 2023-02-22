@@ -1,5 +1,4 @@
-ARG IMAGE_REGISTRY=docker.io
-ARG IMAGE_DIRECTORY=rockdrilla
+ARG IMAGE_PATH=docker.io/rockdrilla
 ARG DISTRO=debian
 ARG SUITE=stable
 
@@ -9,7 +8,7 @@ ARG PYTHON_MIN_IMAGE
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BUILD_IMAGE} as build
+FROM ${IMAGE_PATH}/${BUILD_IMAGE} as build
 SHELL [ "/bin/sh", "-ec" ]
 
 # these directories should be mounted as RW volumes
@@ -51,7 +50,7 @@ RUN if find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo" -
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal
+FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
@@ -68,7 +67,7 @@ CMD [ "python3" ]
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${PYTHON_MIN_IMAGE} as regular
+FROM ${IMAGE_PATH}/${PYTHON_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
@@ -92,7 +91,7 @@ RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${BASE_IMAGE} as minimal-apt
+FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal-apt
 SHELL [ "/bin/sh", "-ec" ]
 
 RUN apt-install container-python-${PYTHON_BASE_VERSION} ; \
@@ -105,7 +104,7 @@ CMD [ "python3" ]
 
 # ---
 
-FROM ${IMAGE_REGISTRY}/${IMAGE_DIRECTORY}/${PYTHON_MIN_IMAGE} as regular-apt
+FROM ${IMAGE_PATH}/${PYTHON_MIN_IMAGE} as regular-apt
 SHELL [ "/bin/sh", "-ec" ]
 
 RUN apt-install container-python-${PYTHON_BASE_VERSION}-full ; \
