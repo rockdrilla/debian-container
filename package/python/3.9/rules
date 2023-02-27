@@ -485,8 +485,9 @@ override_dh_install:
 
 	: # minor file name mangling and cleanup
 	cd debian/tmp/usr/bin ; \
-	mv wheel wheel$(PYTHON_BASE_VERSION) ; \
-	rm -f pip pip3
+	mv -n wheel wheel$(PYTHON_BASE_VERSION) || : ; \
+	mv -n pip pip$(PYTHON_BASE_VERSION) || : ; \
+	find ./ -mindepth 1 ! -name '*$(PYTHON_BASE_VERSION)' -ls -delete
 
 	: # install remaining packages
 	dh_install -pthin-ci-container-python-$(PYTHON_BASE_VERSION)
