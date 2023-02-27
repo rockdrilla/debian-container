@@ -64,9 +64,15 @@ COPY --from=packages [ \
 
 RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \
     cleanup ; \
+    install -d -m 0777 /go /go/bin /go/src ; \
     # smoke/qa
     set -xv ; \
     go version
+
+WORKDIR /go
+
+ENV PATH="/go/bin:${PATH}" \
+    GOPATH=/go
 
 CMD [ "go" ]
 
@@ -95,9 +101,15 @@ SHELL [ "/bin/sh", "-ec" ]
 
 RUN apt-install container-golang-${GOLANG_BASE_VERSION} ; \
     cleanup ; \
+    install -d -m 0777 /go /go/bin /go/src ; \
     # smoke/qa
     set -xv ; \
     go version
+
+WORKDIR /go
+
+ENV PATH="/go/bin:${PATH}" \
+    GOPATH=/go
 
 CMD [ "go" ]
 
