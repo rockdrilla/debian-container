@@ -59,6 +59,8 @@ done
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
+	# (our CI uploads freshly built packages via ${BUILD_IMAGE_SCRIPT_POST})
+	BUILD_IMAGE_SCRIPT_POST=/bin/true \
 	scripts/build-image.sh image/minbase/Dockerfile.stage1 "${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
 
 	pkg_path="${rootdir}/build-artifacts/${stem}"
