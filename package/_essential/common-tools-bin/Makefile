@@ -3,7 +3,7 @@ SHELL       :=/bin/sh
 .SHELLFLAGS :=-ec
 MAKEFLAGS   +=--no-print-directory
 
-BIN = is-elf ufind xvp nproc.container nprocfix.shallow
+BIN = is-elf ufind xvp nproc.container
 SHLIB = libnprocfix.so
 
 CPPFLAGS += -Wextra

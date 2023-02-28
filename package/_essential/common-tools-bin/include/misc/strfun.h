@@ -65,12 +65,9 @@ char * find_token(const char * string, int delimiter, const char * token)
 	if (!n) return NULL;
 
 	const char * t = string;
-	const char * p = t;
-	size_t x;
 
-	while (t) {
-		t = p;
-
+	size_t x = 0;
+	for (const char * p = t; t; t = p) {
 		if (!(*t)) break;
 
 		p = strchr(t, delimiter);
