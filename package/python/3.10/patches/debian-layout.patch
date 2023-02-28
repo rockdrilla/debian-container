@@ -534,27 +534,29 @@
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -284,16 +284,16 @@ class HelperFunctionsTests(unittest.Test
+@@ -284,17 +284,17 @@ class HelperFunctionsTests(unittest.Test
          if os.sep == '/':
              # OS X, Linux, FreeBSD, etc
              if sys.platlibdir != "lib":
 -                self.assertEqual(len(dirs), 2)
 -                wanted = os.path.join('xoxo', sys.platlibdir,
-+                self.assertEqual(len(dirs), 3)
++                self.assertEqual(len(dirs), 4)
 +                wanted = os.path.join('xoxo', 'local', 'lib',
                                        'python%d.%d' % sys.version_info[:2],
                                        'site-packages')
                  self.assertEqual(dirs[0], wanted)
              else:
 -                self.assertEqual(len(dirs), 1)
-+                self.assertEqual(len(dirs), 3)
++                self.assertEqual(len(dirs), 4)
              wanted = os.path.join('xoxo', 'lib',
                                    'python%d.%d' % sys.version_info[:2],
 -                                  'site-packages')
+-            self.assertEqual(dirs[-1], wanted)
 +                                  'dist-packages')
-             self.assertEqual(dirs[-1], wanted)
++            self.assertEqual(dirs[-2], wanted)
          else:
              # other platforms
+             self.assertEqual(len(dirs), 2)
 --- a/Lib/test/test_sysconfig.py
 +++ b/Lib/test/test_sysconfig.py
 @@ -263,7 +263,7 @@ class TestSysConfig(unittest.TestCase):

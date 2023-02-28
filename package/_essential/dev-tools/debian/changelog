@@ -1,3 +1,9 @@
+container-dev-tools (20230228) stable; urgency=medium
+
+  * deb-src-export: refactor behavior around git/gnupg.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Tue, 28 Feb 2023 04:36:00 +0300
+
 container-dev-tools (20230220) stable; urgency=medium
 
   * deb-go-env: introduce.

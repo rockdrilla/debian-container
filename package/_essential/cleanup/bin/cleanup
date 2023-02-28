@@ -36,9 +36,9 @@ for t in ${*:-${tags}} ; do
 done
 
 # list stalled configs (if any)
-list-stalled-configs
+[ -z "${VERBOSE}" ] || list-stalled-configs
 
 # list broken symlinks (if any)
-list-broken-symlinks
+[ -z "${VERBOSE}" ] || list-broken-symlinks
 
 du -xsh /

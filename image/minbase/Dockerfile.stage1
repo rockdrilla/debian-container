@@ -17,7 +17,9 @@ ENV _PKG_DIR=/mnt
 ARG DEB_SRC_BUILD_PURGE
 ARG DEB_BUILD_OPTIONS
 
-ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot git gnupg'
+ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot' \
+    DEB_SRC_EXPORT_GIT=0 \
+    DEB_SRC_EXPORT_GNUPG=0
 
 # install almost all build dependencies to speed up batch package build
 RUN quiet apt-install ${BUILD_DEPS}

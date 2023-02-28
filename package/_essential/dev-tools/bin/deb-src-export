@@ -16,8 +16,14 @@ export LANG=C.UTF8
 
 have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 
+ro_git() { GIT_OPTIONAL_LOCKS=0 command git "$@" ; }
+
+find_fast() {
+	find "$@" -printf . -quit | grep -Fq .
+}
+
 need_pkg=
-for i in 'dh:debhelper' 'gcc' 'git' 'gpg:gnupg' 'dpkg-parsechangelog:dpkg-dev' ; do
+for i in 'dh:debhelper' 'gcc' 'dpkg-parsechangelog:dpkg-dev' ; do
 	unset bin pkg
 	IFS=: read -r bin pkg <<-EOF
 	$i
@@ -30,32 +36,29 @@ if [ -n "${need_pkg}" ] ; then
 	exec apt-wrap "${need_pkg}" "$0" "$@"
 fi
 
-ro_git() { GIT_OPTIONAL_LOCKS=0 command git "$@" ; }
-
-find_fast() {
-	find "$@" -printf . -quit | grep -Fq .
-}
-
 have_git=
+while [ "${DEB_SRC_EXPORT_GIT:-1}" = 1 ] ; do
+	have_cmd git || break
+	ro_git rev-parse --is-inside-work-tree >/dev/null 2>&1 || break
 
-inside_git=$(ro_git rev-parse --is-inside-work-tree || echo false)
-[ "${inside_git}" = 'false' ] || have_git=1
-
-# respect env
-[ "${DEB_SRC_EXPORT_GIT:-1}" = 1 ] || have_git=
+	have_git=1
+	break
+done
 
 want_gpg=
-if [ -n "${DEB_SIGN_KEYID}" ] ; then
-	want_gpg=1
-fi
-if [ -n "${have_git}" ] ; then
-	if ro_git config --get commit.gpgsign | grep -Fxq false ; then
-		want_gpg=
-	fi
-fi
+while [ "${DEB_SRC_EXPORT_GNUPG:-1}" = 1 ] ; do
+	have_cmd gpg || break
 
-# respect env
-[ "${DEB_SRC_EXPORT_GNUPG:-1}" = 1 ] || want_gpg=
+	[ -z "${DEB_SIGN_KEYID}" ] || want_gpg=1
+
+	if [ -n "${have_git}" ] ; then
+		if ro_git config --get commit.gpgsign | grep -Fxq true ; then
+			want_gpg=1
+		fi
+	fi
+
+	break
+done
 
 SIGN_OPT=
 if [ -n "${want_gpg}" ] ; then

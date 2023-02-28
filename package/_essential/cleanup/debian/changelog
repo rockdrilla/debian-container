@@ -1,3 +1,10 @@
+container-cleanup (20230228) stable; urgency=medium
+
+  * cleanup: list stalled configs and broken symlinks
+    only if env VERBOSE is set and non-empty.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Tue, 28 Feb 2023 04:36:00 +0300
+
 container-cleanup (20230213) stable; urgency=medium
 
   * debconf-trim-i18n: fix call against multiple files.
