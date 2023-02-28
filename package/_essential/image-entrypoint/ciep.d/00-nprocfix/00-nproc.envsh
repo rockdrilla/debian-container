@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2022-2023, Konstantin Demin
 
-NPROC=$(nproc.container || :)
+NPROC=$(nproc || :)
 if [ -n "${NPROC}" ] ; then
     export NPROC
     export LD_PRELOAD="libnprocfix.so${LD_PRELOAD:+:$LD_PRELOAD}"

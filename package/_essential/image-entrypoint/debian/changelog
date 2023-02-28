@@ -1,3 +1,10 @@
+container-image-entrypoint (20230301) stable; urgency=medium
+
+  * Extend SSL environment with SSL_CERT_DIR.
+  * Minor fix (literally "s/nproc.container/nproc/").
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Wed, 01 Mar 2023 02:38:00 +0300
+
 container-image-entrypoint (20230221) stable; urgency=medium
 
   * Remove unneeded fragments.

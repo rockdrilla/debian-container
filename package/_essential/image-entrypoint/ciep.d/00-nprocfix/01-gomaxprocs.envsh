@@ -12,8 +12,8 @@ while : ; do
     fi
 
     if [ -n "${GOMAXPROCS}" ] ; then
-        # use GOMAXPROCS as NPROC soft limit for nproc.container
-        __GOMAXPROCS=$(NPROC="-${GOMAXPROCS}" nproc.container || :)
+        # use GOMAXPROCS as NPROC soft limit for nproc
+        __GOMAXPROCS=$(NPROC="-${GOMAXPROCS}" nproc || :)
         if [ -n "${__GOMAXPROCS}" ] ; then
             [ "${GOMAXPROCS}" != "${__GOMAXPROCS}" ] || break
             log "adjusting GOMAXPROCS to ${__GOMAXPROCS}"
