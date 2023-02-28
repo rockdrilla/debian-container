@@ -17,12 +17,12 @@ configure)
 		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
 		${prio} \
 
+
 		update-alternatives --install \
 		  ${bin}/${stem}-config \
 		  ${stem}-config \
 		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
 		${prio} \
-		\
 		--slave \
 		  ${pkgcfg}/${stem}.pc \
 		  ${stem}.pc-@{DEB_HOST_MULTIARCH} \
@@ -31,6 +31,7 @@ configure)
 		  ${pkgcfg}/${stem}-embed.pc \
 		  ${stem}-embed.pc-@{DEB_HOST_MULTIARCH} \
 		  ${pkgcfg}/python-@{PYTHON_BASE_VERSION}-embed.pc \
+
 
 	done
 ;;

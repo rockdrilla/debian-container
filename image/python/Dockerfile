@@ -109,7 +109,7 @@ CMD [ "python3" ]
 FROM ${IMAGE_PATH}/${PYTHON_MIN_IMAGE} as regular-apt
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-python-${PYTHON_BASE_VERSION}-full ; \
+RUN apt-install container-python-${PYTHON_BASE_VERSION}-dev ; \
     # HACK: enforce system CA bundle usage in "requests"/"certifi"
 #   find /usr/lib/python${PYTHON_BASE_VERSION}/ -name cacert.pem -type f \
 #   | while read -r f ; do \

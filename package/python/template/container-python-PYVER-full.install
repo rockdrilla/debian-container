@@ -1,7 +1,5 @@
-usr/bin/2to3-@{PYTHON_BASE_VERSION}
 usr/bin/pip@{PYTHON_BASE_VERSION}
 usr/bin/wheel@{PYTHON_BASE_VERSION}
 usr/lib/python@{PYTHON_BASE_VERSION}/dist-packages
 usr/lib/python@{PYTHON_BASE_VERSION}/ensurepip
-usr/lib/python@{PYTHON_BASE_VERSION}/lib2to3
 usr/share/python@{PYTHON_BASE_VERSION}/pip.conf

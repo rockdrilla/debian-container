@@ -45,10 +45,12 @@ configure)
 
 	done
 
-	# container-python-@{PYTHON_BASE_VERSION}-full
+	# container-python-@{PYTHON_BASE_VERSION}
 
 	update-alternatives --install \
-	  ${bin}/2to3  2to3  ${wrapper} \
+	  ${bin}/2to3 \
+	  2to3 \
+	  ${wrapper} \
 	${prio}
 
 ;;

@@ -31,7 +31,7 @@ if [ "$1" != "upgrade" ]; then
 
 	done
 
-	# container-python-@{PYTHON_BASE_VERSION}-full
+	# container-python-@{PYTHON_BASE_VERSION}
 
 	update-alternatives --remove \
 	  2to3 \

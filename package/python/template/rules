@@ -37,8 +37,6 @@ endif
 distribution = $(if $(filter Ubuntu,$(DEB_VENDOR) $(DEB_PARENT_VENDOR)),Ubuntu,Debian)
 distrelease  = $(shell sed -En '/^VERSION_CODENAME=(.+)$$/s//\1/p' /etc/os-release)
 
-with_dtrace := no
-
 # applies only to Python 3.9+
 with_pgo_full := $(if $(filter pgo_full,$(DEB_BUILD_OPTIONS)),yes,no)
 
@@ -73,12 +71,16 @@ dpkg_buildflags = env \
   DEB_BUILD_MAINT_OPTIONS='hardening=+all,-stackprotectorstrong $(DEB_BUILD_MAINT_OPTIMIZE)' \
   dpkg-buildflags
 
-# default is -O3
-CFLAGS   = $(filter-out -O%,$(shell $(dpkg_buildflags) --get CFLAGS))
-# default is -O3
-CXXFLAGS = $(filter-out -O%,$(shell $(dpkg_buildflags) --get CXXFLAGS))
+CFLAGS   = $(shell $(dpkg_buildflags) --get CFLAGS)
+CXXFLAGS = $(shell $(dpkg_buildflags) --get CXXFLAGS)
 CPPFLAGS = $(shell $(dpkg_buildflags) --get CPPFLAGS)
 LDFLAGS  = $(shell $(dpkg_buildflags) --get LDFLAGS)
+
+# enforce minimal optimization even with "noopt"
+ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
+  CFLAGS   := -O1 $(filter-out -O%,$(CFLAGS))
+  CXXFLAGS := -O1 $(filter-out -O%,$(CXXFLAGS))
+endif
 
 ifeq ($(with_lto),yes)
   LTO_FLAGS = -O3 -g -fwrapv -flto=auto -ffat-lto-objects -fuse-linker-plugin
@@ -87,9 +89,9 @@ ifeq ($(with_lto),yes)
     LTO_FLAGS += -flto-partition=$(strip $(lastword $(patsubst lto_part=%,%,$(filter lto_part=%,$(DEB_BUILD_OPTIONS)))))
   endif
 
-  CFLAGS   += $(LTO_FLAGS)
-  CXXFLAGS += $(LTO_FLAGS)
-  LDFLAGS  += $(LTO_FLAGS)
+  CFLAGS   := $(LTO_FLAGS) $(filter-out -O%,$(CFLAGS))
+  CXXFLAGS := $(LTO_FLAGS) $(filter-out -O%,$(CXXFLAGS))
+  LDFLAGS  := $(LTO_FLAGS) $(LDFLAGS)
 endif
 
 export CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
@@ -99,12 +101,6 @@ config_site = \
 	ac_cv_file__dev_ptc=yes \
 	ac_cv_posix_semaphores_enabled=yes \
 
-
-dtrace_build_dep =
-ifeq ($(with_dtrace),yes)
-dtrace_build_dep = systemtap-sdt-dev$(comma)
-dtrace_conf = --with-dtrace
-endif
 
 # NB: "XX" in the beginning of list is MANDATORY
 builtin_ext = XX \
@@ -180,7 +176,7 @@ override_dh_auto_configure:
 	  --enable-ipv6 \
 	  --with-computed-gotos $(if $(filter yes,$(with_pgo)),--enable-optimizations) \
 	  --with-system-expat \
-	  --with-system-ffi $(dtrace_conf) \
+	  --with-system-ffi \
 	  --enable-loadable-sqlite-extensions \
 	  --with-dbmliborder=bdb:gdbm \
 	  --with-ssl-default-suites=openssl \
@@ -374,6 +370,8 @@ define buildrepro_aio
 
 endef
 
+sysconfig_file = debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py
+
 limb_python = $(call x_python, $(CURDIR)/debian/tmp/usr , lib/$(DEB_HOST_MULTIARCH) , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
 
 execute_before_dh_install:
@@ -388,25 +386,38 @@ execute_before_dh_install:
 	$(call buildrepro_aio, debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/config-$(PYTHON_BASE_VERSION)-$(DEB_HOST_MULTIARCH)/config.c )
 	$(call buildrepro_aio, debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/config-$(PYTHON_BASE_VERSION)-$(DEB_HOST_MULTIARCH)/Makefile )
 
-	$(call buildrepro_backup, debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py )
+	$(call buildrepro_backup, $(sysconfig_file) )
 
 	: # adjust sysconfigdata
 	cat \
-		debian/regen-sysconfigdata.py.pre \
-		debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py \
-		debian/regen-sysconfigdata.py.post \
+	  debian/regen-sysconfigdata.py.pre \
+	  $(sysconfig_file) \
+	  debian/regen-sysconfigdata.py.post \
 	> debian/tmp/regen-sysconfigdata.py
 	$(limb_python) debian/tmp/regen-sysconfigdata.py \
-	  debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py
+	  $(sysconfig_file)
 	rm -f debian/tmp/regen-sysconfigdata.py
 
-	$(call buildrepro_fix, debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py )
+	$(call buildrepro_fix, $(sysconfig_file) )
 	sed -i -E \
-		-e 's/  +/ /g' \
-	debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py
-	$(call buildrepro_compare, debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py )
+	  -e 's/  +/ /g' \
+	$(sysconfig_file)
+	$(call buildrepro_compare, $(sysconfig_file) )
 
 include debian/rules.install
+
+define adjust_packages_directory
+
+	: # $(strip $(1)): adjust packages
+	libdir='$(strip $(1))/usr/lib/python$(PYTHON_BASE_VERSION)' ; \
+	mkdir -p "$${libdir}/dist-packages" ; \
+	if [ -d "$${libdir}/site-packages" ] ; then \
+	    cd "$${libdir}" ; \
+	    tar -C site-packages -cf - . | tar -C dist-packages -xf - ; \
+	    rm -rf site-packages ; \
+	fi
+
+endef
 
 define move_usr_local_to_usr
 
@@ -421,28 +432,30 @@ define move_usr_local_to_usr
 endef
 
 override_dh_install:
+	$(call adjust_packages_directory, debian/tmp )
+
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-misc )
 
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-dev )
 
-	: # we're have "clean" Python at this point, but we need to get pip working,
+	: # we're have moderately "clean" Python at this point, but we need to get pip working,
 	: # so using standard "dh_install" instead of our "dh_install_move"
 	dh_install -pcontainer-python-$(PYTHON_BASE_VERSION)
 	: # these directories go to container-python-$(PYTHON_BASE_VERSION)-full
 	cd debian/container-python-$(PYTHON_BASE_VERSION)/usr/lib/python$(PYTHON_BASE_VERSION) ; \
-	rm -rf ensurepip lib2to3 dist-packages
+	rm -rf dist-packages ensurepip
 
 	: # list installed packages
 	$(limb_python) -m pip \
 	  --disable-pip-version-check --no-cache-dir \
 	  list --format json \
-	> debian/tmp/pip.json
+	> debian/pip.list.json
 
 	: # upgrade installed packages
 	$(limb_python) -m pip \
 	  --disable-pip-version-check --no-cache-dir \
 	  install --upgrade \
-	  $$(jq -r '.[].name' < debian/tmp/pip.json)
+	  $$(jq -r '.[].name' < debian/pip.list.json)
 
 	: # install wheel
 	$(limb_python) -m pip \
@@ -450,36 +463,31 @@ override_dh_install:
 	  install wheel
 
 	$(call remove_pycache, debian/tmp )
+
 	$(call move_usr_local_to_usr, debian/tmp )
+
+	$(call adjust_packages_directory, debian/tmp )
 
 	: # list installed packages (refreshing version info)
 	$(limb_python) -m pip \
 	  --disable-pip-version-check --no-cache-dir \
 	  list --format json \
-	> debian/tmp/pip.json
+	> debian/pip.list.json
 
 	: # produce list of individual installed packages
-	jq -r '.[] | "pip:version:" + .name + "=" + .version' \
-	< debian/tmp/pip.json \
-	>> debian/pip.substvars
+	jq -r '.[] | "pipver:" + .name + "=" + .version' \
+	< debian/pip.list.json \
+	> debian/pip.substvars
 
-	: # produce "auto" list of installed packages
-	jq -r '.[] | "python$(PYTHON_MAJOR_VERSION)-" + .name + " (=" + .version + ")"' \
-	< debian/tmp/pip.json \
-	| paste -sd',' | sed -E 's/^/pip:autolist=/' \
-	>> debian/pip.substvars
+	$(call remove_pycache, debian/tmp )
 
-	rm -f debian/tmp/pip.json
-
-	: # move non-native platform files to container-python-$(PYTHON_BASE_VERSION)-misc
-	find debian/tmp/ -iname '*.exe' -printf '%P\0' \
-	| tar -C debian/tmp --null -T - -cf - \
-	| tar -C debian/container-python-$(PYTHON_BASE_VERSION)-misc -xf -
-	find debian/tmp/ -iname '*.exe' -delete
-
-	: # remove Python cache
-	find debian/tmp/ -name __pycache__ -type d -exec rm -rf '{}' '+'
-	find debian/tmp/ -name '*.py[co]' -ls -delete
+	: # move non-native platform files (if any) to container-python-$(PYTHON_BASE_VERSION)-misc
+	if find debian/tmp/ -iname '*.exe' -printf . -quit | grep -Fq . ; then \
+	    find debian/tmp/ -iname '*.exe' -printf '%P\0' \
+	    | tar -C debian/tmp --null -T - -cf - \
+	    | tar -C debian/container-python-$(PYTHON_BASE_VERSION)-misc -xf - ; \
+	    find debian/tmp/ -iname '*.exe' -delete ; \
+	fi
 
 	: # remove already installed files from container-python-$(PYTHON_BASE_VERSION)
 	$(call dh_dedup, container-python-$(PYTHON_BASE_VERSION) )

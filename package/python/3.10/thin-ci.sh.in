@@ -3,25 +3,25 @@
 # (c) 2023, Konstantin Demin
 set -ef
 
-pkg_min='container-python-@{PYTHON_BASE_VERSION}'
+pkg_regular='container-python-@{PYTHON_BASE_VERSION}'
 pkg_dev='container-python-@{PYTHON_BASE_VERSION}-dev'
 pkg_full='container-python-@{PYTHON_BASE_VERSION}-full'
 
 pkg=
 case "${0##*/}" in
 python | python@{PYTHON_MAJOR_VERSION})
-	pkg="${pkg_min}"
+	pkg="${pkg_regular}"
 ;;
 pydoc | pydoc@{PYTHON_MAJOR_VERSION} )
-	pkg="${pkg_min}"
+	pkg="${pkg_regular}"
+;;
+2to3 | 2to3-@{PYTHON_MAJOR_VERSION} )
+	pkg="${pkg_regular}"
 ;;
 pip | pip@{PYTHON_MAJOR_VERSION})
 	pkg="${pkg_full}"
 ;;
 wheel | wheel@{PYTHON_MAJOR_VERSION} )
-	pkg="${pkg_full}"
-;;
-2to3 )
 	pkg="${pkg_full}"
 ;;
 python-config | python@{PYTHON_MAJOR_VERSION}-config )

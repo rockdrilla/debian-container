@@ -1,4 +1,6 @@
 */pip.conf.local
 */rules.local
 */source/local-options
+*/pip.list.json
+*/pip.substvars
 *.tar.*
