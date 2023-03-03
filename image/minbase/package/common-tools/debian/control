@@ -1,4 +1,4 @@
-Source: container-bootstrap-ca-bundle
+Source: container-common-tools
 Section: misc
 Priority: optional
 Maintainer: Konstantin Demin <rockdrilla@gmail.com>
@@ -7,11 +7,14 @@ Rules-Requires-Root: no
 Standards-Version: 4.6.2
 Homepage: https://github.com/rockdrilla/debian-container
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
-Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/_essential/bootstrap-ca-bundle
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/image/minbase/package/common-tools
 
-Package: container-bootstrap-ca-bundle
+Package: container-common-tools
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-Description: container - bootstrap CA bundle(s)
- This package contains CA bundle(s) and only useful for bootstrapping.
+         apt,
+Suggests: curl,
+          gnupg,
+Description: container - common tools
+ This package contains common scripts and tools for containers.

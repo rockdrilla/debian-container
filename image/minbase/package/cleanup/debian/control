@@ -1,4 +1,4 @@
-Source: container-common-tools
+Source: container-cleanup
 Section: misc
 Priority: optional
 Maintainer: Konstantin Demin <rockdrilla@gmail.com>
@@ -7,14 +7,13 @@ Rules-Requires-Root: no
 Standards-Version: 4.6.2
 Homepage: https://github.com/rockdrilla/debian-container
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
-Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/_essential/common-tools
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/image/minbase/package/cleanup
 
-Package: container-common-tools
+Package: container-cleanup
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         apt,
-Suggests: curl,
-          gnupg,
-Description: container - common tools
- This package contains common scripts and tools for containers.
+         container-common-tools,
+         container-dpkg-filter,
+Description: container - cleanup scripts
+ This package contains cleanup facility for containers.

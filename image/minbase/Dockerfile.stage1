@@ -24,7 +24,7 @@ ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot' \
 # install almost all build dependencies to speed up batch package build
 RUN quiet apt-install ${BUILD_DEPS}
 
-COPY /package/_essential/ /tmp/package/
+COPY /image/minbase/package/ /tmp/package/
 
 RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ; do \
         stem="${dir##*/}" ; \
