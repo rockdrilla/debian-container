@@ -82,12 +82,5 @@ if [ -z "${DPKG_MAINTSCRIPT_NAME}" ] ; then
 fi
 
 case "$1" in
-configure)
-	setup
-	exit 0
-;;
+configure) setup ;;
 esac
-
-#DEBHELPER#
-
-exit 0

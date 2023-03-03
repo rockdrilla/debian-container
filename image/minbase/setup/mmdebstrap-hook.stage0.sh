@@ -118,6 +118,10 @@ mkdir -p /etc/container/dpkg-filter/
 # generate CA bundles
 update-ca-certificates --fresh
 
+# cleanup
+apt-remove ca-certificates-java
+apt-autoremove
+
 # set timezone
 # NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
 # ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733

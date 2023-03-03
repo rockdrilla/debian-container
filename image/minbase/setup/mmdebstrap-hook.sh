@@ -82,70 +82,6 @@ done
 renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
 renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
 
-preseed='/usr/local/preseed'
-if [ -d "${preseed}" ] ; then
-	# CA certificates
-	s="${preseed}/crt"
-	if find_fast "$s/" -type f ; then
-		d='/usr/local/share/ca-certificates'
-		mkdir -p "$d"
-
-		# rename *.pem -> *.crt (if any)
-		find "$s/" -iname '*.pem' -type f \
-		  -execdir mv -vn '{}' '{}.crt' ';'
-
-		# copy *.crt (with directory structure, if any)
-		find "$s/" -name '*.crt' -type f -printf '%P\0' \
-		| tar -C "$s" --null -T - -cf - \
-		| tar -C "$d" -xf -
-
-		rm -vrf "$s"
-	fi
-	rm -rf "$s"
-
-	set +e
-
-	# unroll templates (if any)
-	find "${preseed}/" -type f -exec grep -FIZl '@{' '{}' '+' \
-	| xargs -0 -r sed -i -e "s/@{distro}/$2/g" -e "s/@{suite}/$3/g"
-
-	# apt configuration
-	s="${preseed}/apt"
-	if find_fast "$s/" -type f ; then
-		# sources
-		find "$s/" -name '*.list' -type f \
-		  -execdir mv -vt /etc/apt/sources.list.d '{}' ';'
-		# keyrings
-		find "$s/" -regextype egrep -regex '.+\.(asc|gpg)$' -type f \
-		  -execdir mv -vt /etc/apt/trusted.gpg.d '{}' ';'
-		# generic configuration
-		find "$s/" -name '*.conf' -type f \
-		  -execdir mv -vt /etc/apt/apt.conf.d '{}' ';'
-		# apt pinning
-		find "$s/" -name '*.pin' -type f \
-		  -execdir mv -vt /etc/apt/preferences.d '{}' ';'
-
-		rm -vrf "$s"
-	fi
-	rm -rf "$s"
-
-	# other files - extracted in root (!)
-	s="${preseed}/files"
-	if find_fast "$s/" -mindepth 1 ; then
-		tar -C "$s" -cf - . | tar -C / -xvf -
-		rm -vrf "$s"
-	fi
-	rm -rf "$s"
-
-	set -e
-fi
-
-# remove "keep" files (if any)
-find /usr/local/ -xdev -name .keep -type f -delete
-
-# remove docs (if any)
-find /usr/local/ -xdev -name '*.md' -type f -delete
-
 # approach to minimize manually installed packages list
 w=$(mktemp -d) ; : "${w:?}"
 
@@ -194,7 +130,7 @@ rm -rf "${bootstrap}"
 update-container-persistent-ca-bundle
 update-container-persistent-ca-bundle-java
 
-# remove bootstrap packages
+# remove bootstrap package(s)
 apt-list-installed | grep -E '^container-bootstrap' \
 | xargs -r dpkg -P || :
 

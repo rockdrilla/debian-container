@@ -1,7 +1,9 @@
 #!/bin/sh
 
 set -e
+. /lib/container/bootstrap/preseed.sh
 
+set -e
 . /lib/container/bootstrap/settings.sh
 
 set -e

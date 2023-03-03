@@ -59,6 +59,12 @@ done
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
+	if [ -d "${rootdir}/preseed" ] ; then
+		export BUILD_IMAGE_VOLUMES="${BUILD_IMAGE_VOLUMES}
+			${rootdir}/preseed:/usr/local/preseed:ro
+		"
+	fi
+
 	# (our CI uploads freshly built packages via ${BUILD_IMAGE_SCRIPT_POST})
 	BUILD_IMAGE_SCRIPT_POST=/bin/true \
 	scripts/build-image.sh image/minbase/Dockerfile.stage1 "${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
