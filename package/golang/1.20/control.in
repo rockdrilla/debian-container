@@ -27,6 +27,7 @@ Package: container-golang-@{GOLANG_BASE_VERSION}
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-shim-golang-@{GOLANG_BASE_VERSION},
          container-golang-@{GOLANG_BASE_VERSION}-src,
          binutils,
          dpkg-dev,
@@ -39,15 +40,6 @@ Recommends: ca-certificates,
 Suggests: bzr | brz,
           mercurial,
           subversion,
-Provides: golang (= @{DEB_VERSION_UPSTREAM}),
-          golang-@{GOLANG_BASE_VERSION} (= @{DEB_VERSION_UPSTREAM}),
-          golang-@{GOLANG_BASE_VERSION}-go (= @{DEB_VERSION_UPSTREAM}),
-Conflicts: golang,
-           golang-@{GOLANG_BASE_VERSION},
-           golang-@{GOLANG_BASE_VERSION}-go,
-Breaks: golang,
-        golang-@{GOLANG_BASE_VERSION},
-        golang-@{GOLANG_BASE_VERSION}-go,
 Description: Go v@{GOLANG_BASE_VERSION}
  This package provides an assembler, compiler, linker, and compiled libraries
  for the Go programming language.
@@ -55,9 +47,7 @@ Description: Go v@{GOLANG_BASE_VERSION}
 Package: container-golang-@{GOLANG_BASE_VERSION}-src
 Architecture: all
 Depends: ${misc:Depends},
-Provides: golang-@{GOLANG_BASE_VERSION}-src (= @{DEB_VERSION_UPSTREAM}),
-Conflicts: golang-@{GOLANG_BASE_VERSION}-src,
-Breaks: golang-@{GOLANG_BASE_VERSION}-src,
+         container-shim-golang-@{GOLANG_BASE_VERSION}-src,
 Description: Go v@{GOLANG_BASE_VERSION} - source files
  This package provides the Go programming language source files needed for
  compilation.
