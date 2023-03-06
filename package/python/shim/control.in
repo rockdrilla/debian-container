@@ -1,7 +1,7 @@
 Source: container-shim-python-@{PYTHON_BASE_VERSION}
 Section: metapackages
 Priority: optional
-Maintainer: @{DEB_MAINTAINER}
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
 Build-Depends: debhelper-compat (= 13),
 Rules-Requires-Root: no
 Standards-Version: 4.6.2
