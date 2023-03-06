@@ -1,0 +1,150 @@
+Source: container-shim-python-@{PYTHON_BASE_VERSION}
+Section: metapackages
+Priority: optional
+Maintainer: @{DEB_MAINTAINER}
+Build-Depends: debhelper-compat (= 13),
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/rockdrilla/debian-container
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/python/shim
+
+Package: container-shim-python-@{PYTHON_BASE_VERSION}
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-shim-unqual-python-@{PYTHON_BASE_VERSION},
+Provides: python@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
+          libpython@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
+          libpython@{PYTHON_BASE_VERSION}-minimal (= @{PYTHON_VERSION}),
+          libpython@{PYTHON_BASE_VERSION}-stdlib (= @{PYTHON_VERSION}),
+          python@{PYTHON_BASE_VERSION}-distutils (= @{PYTHON_VERSION}),
+          python@{PYTHON_BASE_VERSION}-gdbm (= @{PYTHON_VERSION}),
+          python@{PYTHON_BASE_VERSION}-lib2to3 (= @{PYTHON_VERSION}),
+          python@{PYTHON_BASE_VERSION}-minimal (= @{PYTHON_VERSION}),
+          2to3 (= @{PYTHON_VERSION}),
+          libpython3-stdlib (= @{PYTHON_VERSION}),
+          python3 (= @{PYTHON_VERSION}),
+          python3-all (= @{PYTHON_VERSION}),
+          python3-distutils (= @{PYTHON_VERSION}),
+          python3-gdbm (= @{PYTHON_VERSION}),
+          python3-lib2to3 (= @{PYTHON_VERSION}),
+          python3-minimal (= @{PYTHON_VERSION}),
+          python-is-python3 (= @{PYTHON_VERSION}),
+Conflicts: python@{PYTHON_BASE_VERSION} (<< @{PYTHON_VERSION}),
+           libpython@{PYTHON_BASE_VERSION} (<< @{PYTHON_VERSION}),
+           libpython@{PYTHON_BASE_VERSION}-minimal (<< @{PYTHON_VERSION}),
+           libpython@{PYTHON_BASE_VERSION}-stdlib (<< @{PYTHON_VERSION}),
+           python@{PYTHON_BASE_VERSION}-distutils (<< @{PYTHON_VERSION}),
+           python@{PYTHON_BASE_VERSION}-gdbm (<< @{PYTHON_VERSION}),
+           python@{PYTHON_BASE_VERSION}-lib2to3 (<< @{PYTHON_VERSION}),
+           python@{PYTHON_BASE_VERSION}-minimal (<< @{PYTHON_VERSION}),
+           python-is-python2,
+Breaks: python@{PYTHON_BASE_VERSION} (<< @{PYTHON_VERSION}),
+        libpython@{PYTHON_BASE_VERSION} (<< @{PYTHON_VERSION}),
+        libpython@{PYTHON_BASE_VERSION}-minimal (<< @{PYTHON_VERSION}),
+        libpython@{PYTHON_BASE_VERSION}-stdlib (<< @{PYTHON_VERSION}),
+        python@{PYTHON_BASE_VERSION}-distutils (<< @{PYTHON_VERSION}),
+        python@{PYTHON_BASE_VERSION}-gdbm (<< @{PYTHON_VERSION}),
+        python@{PYTHON_BASE_VERSION}-lib2to3 (<< @{PYTHON_VERSION}),
+        python@{PYTHON_BASE_VERSION}-minimal (<< @{PYTHON_VERSION}),
+        python-is-python2,
+Description: container shim: Python v@{PYTHON_BASE_VERSION}
+ This package provides Debian/Ubuntu qualified compatibility shim for
+ container-python-@{PYTHON_BASE_VERSION}.
+
+Package: container-shim-unqual-python-@{PYTHON_BASE_VERSION}
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+Provides: python@{PYTHON_BASE_VERSION}:any (= @{PYTHON_VERSION}),
+          python3:any (= @{PYTHON_VERSION}),
+          python3-minimal:any (= @{PYTHON_VERSION}),
+Description: container shim (unqualified): Python v@{PYTHON_BASE_VERSION}
+ This package provides Debian/Ubuntu unqualified compatibility shim for
+ container-python-@{PYTHON_BASE_VERSION}.
+ .
+ Consider installing container-shim-python-@{PYTHON_BASE_VERSION}
+ as it provides fuller compatibility shim.
+
+Package: container-shim-python-@{PYTHON_BASE_VERSION}-full
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-shim-python-@{PYTHON_BASE_VERSION},
+         container-shim-unqual-python-@{PYTHON_BASE_VERSION}-full,
+Provides: python@{PYTHON_BASE_VERSION}-venv (= @{PYTHON_VERSION}),
+          python3-venv (= @{PYTHON_VERSION}),
+Conflicts: python@{PYTHON_BASE_VERSION}-venv (<< @{PYTHON_VERSION}),
+Breaks: python@{PYTHON_BASE_VERSION}-venv (<< @{PYTHON_VERSION}),
+Description: container shim: Python v@{PYTHON_BASE_VERSION} - full package
+ This package provides Debian/Ubuntu qualified compatibility shim for
+ container-python-@{PYTHON_BASE_VERSION}-full.
+
+Package: container-shim-unqual-python-@{PYTHON_BASE_VERSION}-full
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+Provides: python@{PYTHON_BASE_VERSION}-venv:any (= @{PYTHON_VERSION}),
+          python3-venv:any (= @{PYTHON_VERSION}),
+Description: container shim (unqualified): Python v@{PYTHON_BASE_VERSION} - full package
+ This package provides Debian/Ubuntu unqualified compatibility shim for
+ container-python-@{PYTHON_BASE_VERSION}-full.
+ .
+ Consider installing container-shim-python-@{PYTHON_BASE_VERSION}-full
+ as it provides fuller compatibility shim.
+
+Package: container-shim-python-@{PYTHON_BASE_VERSION}-dev
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-shim-python-@{PYTHON_BASE_VERSION}-full,
+         container-shim-unqual-python-@{PYTHON_BASE_VERSION}-dev,
+Provides: python@{PYTHON_BASE_VERSION}-dev (= @{PYTHON_VERSION}),
+          libpython@{PYTHON_BASE_VERSION}-dev (= @{PYTHON_VERSION}),
+          libpython3-all-dev (= @{PYTHON_VERSION}),
+          libpython3-dev (= @{PYTHON_VERSION}),
+          python3-all-dev (= @{PYTHON_VERSION}),
+          python3-dev (= @{PYTHON_VERSION}),
+          python-dev-is-python3 (= @{PYTHON_VERSION}),
+Conflicts: python@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
+           libpython@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
+           python-dev-is-python2,
+Breaks: python@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
+        libpython@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
+        python-dev-is-python2,
+Description: container shim: Python v@{PYTHON_BASE_VERSION} - development files
+ This package provides Debian/Ubuntu qualified compatibility shim for
+ container-python-@{PYTHON_BASE_VERSION}-dev.
+
+Package: container-shim-unqual-python-@{PYTHON_BASE_VERSION}-dev
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+Provides: python@{PYTHON_BASE_VERSION}-dev:any (= @{PYTHON_VERSION}),
+          python3-dev:any (= @{PYTHON_VERSION}),
+Description: container shim (unqualified): Python v@{PYTHON_BASE_VERSION} - development files
+ This package provides Debian/Ubuntu unqualified compatibility shim for
+ container-python-@{PYTHON_BASE_VERSION}-dev.
+ .
+ Consider installing container-shim-python-@{PYTHON_BASE_VERSION}-dev
+ as it provides fuller compatibility shim.
+
+Package: container-shim-python-@{PYTHON_BASE_VERSION}-misc
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+Provides: python@{PYTHON_BASE_VERSION}-tk (= @{PYTHON_VERSION}),
+          idle-python@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
+          python@{PYTHON_BASE_VERSION}-examples (= @{PYTHON_VERSION}),
+          python3-examples (= @{PYTHON_VERSION}),
+          python3-tk (= @{PYTHON_VERSION}),
+Conflicts: python@{PYTHON_BASE_VERSION}-tk,
+           idle-python@{PYTHON_BASE_VERSION},
+           python@{PYTHON_BASE_VERSION}-examples,
+Breaks: python@{PYTHON_BASE_VERSION}-tk,
+        idle-python@{PYTHON_BASE_VERSION},
+        python@{PYTHON_BASE_VERSION}-examples,
+Description: container shim: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
+ This package provides Debian/Ubuntu qualified compatibility shim for
+ container-python-@{PYTHON_BASE_VERSION}-dev.

@@ -25,9 +25,26 @@ ARG PYTHON_BASE_VERSION
 ARG DEB_BUILD_OPTIONS
 
 # build context should be set to /package/python/
+COPY /shim/ /tmp/debian/
+
+RUN mkdir -p ${_SRC_DIR} ; \
+    deb-src-export ${_SRC_DIR} /tmp/debian ; \
+    mkdir -p ${_PKG_DIR} ; \
+    set +e ; \
+    # "/ciep.sh env" ensures that container limits are taken in account
+    /ciep.sh env \
+      deb-src-build ${_SRC_DIR}/container-shim-python-*.dsc ${_PKG_DIR} ; \
+    result=$? ; \
+    set -e ; \
+    cleanup ; \
+    echo "# build return code: ${result}" ; \
+    [ "${result}" = 0 ] || exit ${result}
+
+# build context should be set to /package/python/
 COPY /${PYTHON_BASE_VERSION}/ /tmp/debian/
 
-RUN if find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
+RUN if find ${_PKG_DIR}/ -maxdepth 1 -name "container-python-*_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
+      cleanup ; \
       exit 0 ; \
     fi ; \
     build_start=$(date -R) ; \
@@ -38,7 +55,7 @@ RUN if find ${_PKG_DIR}/ -maxdepth 1 -name "*_${PYTHON_VERSION}-*_*.buildinfo" -
     set +e ; \
     # "/ciep.sh env" ensures that container limits are taken in account
     /ciep.sh env \
-      deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} ; \
+      deb-src-build ${_SRC_DIR}/container-python-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \
@@ -55,6 +72,8 @@ SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
   "container-python-${PYTHON_BASE_VERSION}_*.deb", \
+  "container-shim-python-${PYTHON_BASE_VERSION}_*.deb", \
+  "container-shim-unqual-python-${PYTHON_BASE_VERSION}_*.deb", \
   "/tmp/" ]
 
 RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \
@@ -75,6 +94,10 @@ ARG PYTHON_BASE_VERSION
 COPY --from=packages [ \
   "container-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
   "container-python-${PYTHON_BASE_VERSION}-full_*.deb", \
+  "container-shim-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
+  "container-shim-unqual-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
+  "container-shim-python-${PYTHON_BASE_VERSION}-full_*.deb", \
+  "container-shim-unqual-python-${PYTHON_BASE_VERSION}-full_*.deb", \
   "/tmp/" ]
 
 RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \

@@ -31,97 +31,46 @@ Homepage: https://www.python.org/
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/python/@{PYTHON_BASE_VERSION}
 
+Package: container-python-@{PYTHON_BASE_VERSION}
+Architecture: any
+Pre-Depends: ${shlibs:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-shim-python-@{PYTHON_BASE_VERSION},
+         media-types | mime-support,
+Suggests: binutils,
+          container-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
+Description: Python v@{PYTHON_BASE_VERSION}
+ This package contains almost full Python installation (executable,
+ shared library, runtime) except package manager and development files.
+
 Package: container-python-@{PYTHON_BASE_VERSION}-full
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
+         container-shim-python-@{PYTHON_BASE_VERSION}-full,
          container-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
 Recommends: container-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
 Suggests: ca-certificates,
-Provides: python@{PYTHON_BASE_VERSION}-venv,
-          python3-venv,
-          python3-pip (= ${pipver:pip}),
+Provides: python3-pip (= ${pipver:pip}),
           python3-pip-whl (= ${pipver:pip}),
           python3-pkg-resources (= ${pipver:setuptools}),
           python3-setuptools (= ${pipver:setuptools}),
           python3-setuptools-whl (= ${pipver:setuptools}),
           python3-wheel (= ${pipver:wheel}),
           python3-wheel-whl (= ${pipver:wheel}),
-Conflicts: python@{PYTHON_BASE_VERSION}-venv,
-Breaks: python@{PYTHON_BASE_VERSION}-venv,
 Description: Python v@{PYTHON_BASE_VERSION} - full package
  This package contains Python package manager "pip" (besides packages
  "setuptools" and "wheel") and "ensurepip" package.
  It also installs /etc/pip.conf with sane defaults.
 
-Package: container-python-@{PYTHON_BASE_VERSION}
-Architecture: any
-Pre-Depends: ${shlibs:Pre-Depends}
-Depends: ${shlibs:Depends}, ${misc:Depends},
-         media-types | mime-support,
-Suggests: binutils,
-          container-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
-Provides: libpython@{PYTHON_BASE_VERSION},
-          libpython@{PYTHON_BASE_VERSION}-minimal,
-          libpython@{PYTHON_BASE_VERSION}-stdlib,
-          python@{PYTHON_BASE_VERSION}-distutils,
-          python@{PYTHON_BASE_VERSION}-gdbm,
-          python@{PYTHON_BASE_VERSION}-lib2to3,
-          python@{PYTHON_BASE_VERSION}-minimal,
-          python@{PYTHON_BASE_VERSION},
-          2to3,
-          libpython3-stdlib,
-          python3-all,
-          python3-distutils,
-          python3-gdbm,
-          python3-lib2to3,
-          python3-minimal,
-          python3,
-          python-is-python3,
-          python3:any,
-          python@{PYTHON_BASE_VERSION}:any,
-Conflicts: libpython@{PYTHON_BASE_VERSION},
-           libpython@{PYTHON_BASE_VERSION}-minimal,
-           libpython@{PYTHON_BASE_VERSION}-stdlib,
-           python@{PYTHON_BASE_VERSION},
-           python@{PYTHON_BASE_VERSION}-distutils,
-           python@{PYTHON_BASE_VERSION}-gdbm,
-           python@{PYTHON_BASE_VERSION}-lib2to3,
-           python@{PYTHON_BASE_VERSION}-minimal,
-           python-is-python2,
-Breaks: libpython@{PYTHON_BASE_VERSION},
-        libpython@{PYTHON_BASE_VERSION}-minimal,
-        libpython@{PYTHON_BASE_VERSION}-stdlib,
-        python@{PYTHON_BASE_VERSION},
-        python@{PYTHON_BASE_VERSION}-distutils,
-        python@{PYTHON_BASE_VERSION}-gdbm,
-        python@{PYTHON_BASE_VERSION}-lib2to3,
-        python@{PYTHON_BASE_VERSION}-minimal,
-        python-is-python2,
-Description: Python v@{PYTHON_BASE_VERSION}
- This package contains almost full Python installation (executable,
- shared library, runtime) except package manager and development files.
-
 Package: container-python-@{PYTHON_BASE_VERSION}-dev
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-shim-python-@{PYTHON_BASE_VERSION}-dev,
          container-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
          libexpat1-dev,
          zlib1g-dev,
 Recommends: libc6-dev | libc-dev,
-Provides: libpython@{PYTHON_BASE_VERSION}-dev,
-          python@{PYTHON_BASE_VERSION}-dev,
-          libpython3-all-dev,
-          libpython3-dev,
-          python3-all-dev,
-          python3-dev,
-          python-dev-is-python3,
-Conflicts: libpython@{PYTHON_BASE_VERSION}-dev,
-           python@{PYTHON_BASE_VERSION}-dev,
-           python-dev-is-python2,
-Breaks: libpython@{PYTHON_BASE_VERSION}-dev,
-        python@{PYTHON_BASE_VERSION}-dev,
-        python-dev-is-python2,
 Description: Python v@{PYTHON_BASE_VERSION} - development files
  This package contains header files and development tools for building
  Python v@{PYTHON_BASE_VERSION} modules, extending the Python interpreter
@@ -130,18 +79,8 @@ Description: Python v@{PYTHON_BASE_VERSION} - development files
 Package: container-python-@{PYTHON_BASE_VERSION}-misc
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-shim-python-@{PYTHON_BASE_VERSION}-misc,
          container-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
-Provides: idle-python@{PYTHON_BASE_VERSION},
-          python@{PYTHON_BASE_VERSION}-examples,
-          python@{PYTHON_BASE_VERSION}-tk,
-          python3-examples,
-          python3-tk,
-Conflicts: idle-python@{PYTHON_BASE_VERSION},
-           python@{PYTHON_BASE_VERSION}-examples,
-           python@{PYTHON_BASE_VERSION}-tk,
-Breaks: idle-python@{PYTHON_BASE_VERSION},
-        python@{PYTHON_BASE_VERSION}-examples,
-        python@{PYTHON_BASE_VERSION}-tk,
 Description: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
  This package contains static library, less common libraries (IDLE,
  tkinter, and so on) and auxiliary files for Python v@{PYTHON_BASE_VERSION}.

@@ -1,0 +1,43 @@
+#!/usr/bin/make -f
+
+SHELL       :=/bin/sh
+.SHELLFLAGS :=-ec
+
+MAKEFLAGS += --no-print-directory
+
+export DH_VERBOSE := 1
+
+include /usr/share/dpkg/default.mk
+
+export SOURCE_DATE_EPOCH
+
+include debian/rules.pkg-info
+
+PYTHON_VERSION ?= $(DEB_VERSION_UPSTREAM)
+
+empty :=
+space :=$(empty) $(empty)
+comma :=,
+xsedx :=$(shell printf '\027')
+
+PYTHON_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(PYTHON_VERSION)))
+PYTHON_MINOR_VERSION = $(word 2,$(subst .,$(space),$(PYTHON_VERSION)))
+PYTHON_BASE_VERSION = $(PYTHON_MAJOR_VERSION).$(PYTHON_MINOR_VERSION)
+
+.NOTPARALLEL:
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+
+override_dh_auto_build:
+
+override_dh_auto_install:
+
+override_dh_auto_test:
+
+.PHONY: build
+build:
+
+include debian/rules.selftemplate
