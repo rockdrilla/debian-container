@@ -1,0 +1,143 @@
+--- a/Lib/distutils/command/install.py
++++ b/Lib/distutils/command/install.py
+@@ -36,9 +36,9 @@ INSTALL_SCHEMES = {
+         'data'   : '$base',
+         },
+     'unix_local': {
+-        'purelib': '$base/local/lib/python$py_version_short/dist-packages',
+-        'platlib': '$platbase/local/lib/python$py_version_short/dist-packages',
+-        'headers': '$base/local/include/python$py_version_short/$dist_name',
++        'purelib': '$base/local/lib/python$py_version_short/site-packages',
++        'platlib': '$platbase/local/lib/python$py_version_short/site-packages',
++        'headers': '$base/include/python$py_version_short/$dist_name',
+         'scripts': '$base/local/bin',
+         'data'   : '$base/local',
+         },
+--- a/Lib/distutils/sysconfig.py
++++ b/Lib/distutils/sysconfig.py
+@@ -127,6 +127,11 @@ def get_python_inc(plat_specific=0, pref
+             "on platform '%s'" % os.name)
+ 
+ 
++def is_debian_environment():
++    deb_build = os.environ.get('DEB_PYTHON_INSTALL_LAYOUT', 'posix_local')
++    return deb_build in ('deb', 'deb_system')
++
++
+ def get_python_lib(plat_specific=0, standard_lib=0, prefix=None):
+     """Return the directory containing the Python library (standard or
+     site additions).
+@@ -160,12 +165,8 @@ def get_python_lib(plat_specific=0, stan
+                                  "python" + get_python_version())
+         if standard_lib:
+             return libpython
+-        elif (is_default_prefix and
+-              'PYTHONUSERBASE' not in os.environ and
+-              'VIRTUAL_ENV' not in os.environ and
+-              'real_prefix' not in sys.__dict__ and
+-              sys.prefix == sys.base_prefix):
+-            return os.path.join(prefix, "lib", "python3", "dist-packages")
++        elif is_debian_environment():
++            return os.path.join(prefix, 'lib/python3/dist-packages')
+         else:
+             return os.path.join(libpython, "site-packages")
+     elif os.name == "nt":
+--- a/Lib/site.py
++++ b/Lib/site.py
+@@ -15,9 +15,9 @@ also inspected for path configuration fi
+ 
+ For Debian and derivatives, this sys.path is augmented with directories
+ for packages distributed within the distribution. Local addons go
+-into /usr/local/lib/python<version>/dist-packages, Debian addons
++into /usr/local/lib/python<version>/site-packages, Debian addons
+ install into /usr/lib/python3/dist-packages.
+-/usr/lib/python<version>/site-packages is not used.
++/usr/lib/python<version>/site-packages is used internally.
+ 
+ If a file named "pyvenv.cfg" exists one directory above sys.executable,
+ sys.prefix and sys.exec_prefix are set to that directory and
+@@ -346,21 +346,17 @@ def getsitepackages(prefixes=None):
+ 
+         if os.sep == '/':
+             if 'VIRTUAL_ENV' in os.environ or sys.base_prefix != sys.prefix:
+-                sitepackages.append(os.path.join(prefix, "lib",
+-                                                 "python" + sys.version[:3],
+-                                                 "site-packages"))
+-            sitepackages.append(os.path.join(prefix, "local/lib",
+-                                             "python" + sys.version[:3],
+-                                             "dist-packages"))
+-            sitepackages.append(os.path.join(prefix, "lib",
+-                                             "python3",
+-                                             "dist-packages"))
+-            # this one is deprecated for Debian
++                sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/site-packages' % sys.version_info[:2]))
++
++            sitepackages.append(os.path.join(prefix, 'local/lib/python%d.%d/site-packages' % sys.version_info[:2]))
++            # paths owned by container-python-{pyver}
+             for libdir in libdirs:
+-                path = os.path.join(prefix, libdir,
+-                                    "python" + sys.version[:3],
+-                                    "dist-packages")
++                path = os.path.join(prefix, libdir, 'python%d.%d/site-packages' % sys.version_info[:2])
+                 sitepackages.append(path)
++            # compatibility with Debian and derivatives
++            sitepackages.append(os.path.join(prefix, 'local/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
++            sitepackages.append(os.path.join(prefix, 'lib/python3/dist-packages'))
++            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/dist-packages' % sys.version_info[:2]))
+         else:
+             sitepackages.append(prefix)
+ 
+--- a/Lib/sysconfig.py
++++ b/Lib/sysconfig.py
+@@ -51,14 +51,14 @@ _INSTALL_SCHEMES = {
+     'posix_local': {
+         'stdlib': '{installed_base}/lib/python{py_version_short}',
+         'platstdlib': '{platbase}/lib/python{py_version_short}',
+-        'purelib': '{base}/local/lib/python{py_version_short}/dist-packages',
+-        'platlib': '{platbase}/local/lib/python{py_version_short}/dist-packages',
++        'purelib': '{base}/local/lib/python{py_version_short}/site-packages',
++        'platlib': '{platbase}/local/lib/python{py_version_short}/site-packages',
+         'include':
+-            '{installed_base}/local/include/python{py_version_short}{abiflags}',
++            '{installed_base}/include/python{py_version_short}{abiflags}',
+         'platinclude':
+-            '{installed_platbase}/local/include/python{py_version_short}{abiflags}',
++            '{installed_platbase}/include/python{py_version_short}{abiflags}',
+         'scripts': '{base}/local/bin',
+-        'data': '{base}',
++        'data': '{base}/local',
+         },
+     'posix_home': {
+         'stdlib': '{installed_base}/lib/python',
+--- a/Lib/test/test_site.py
++++ b/Lib/test/test_site.py
+@@ -270,19 +270,19 @@ class HelperFunctionsTests(unittest.Test
+         site.PREFIXES = ['xoxo']
+         dirs = site.getsitepackages()
+         if os.sep == '/':
++            self.assertEqual(len(dirs), 5)
+             # OS X, Linux, FreeBSD, etc
+             if sys.platlibdir != "lib":
+-                self.assertEqual(len(dirs), 3)
+-                wanted = os.path.join('xoxo', 'local', 'lib',
+-                                      'python%d.%d' % sys.version_info[:2],
+-                                      'dist-packages')
++                wanted = os.path.join('xoxo/local/lib/python%d.%d/site-packages' % sys.version_info[:2])
+                 self.assertEqual(dirs[0], wanted)
+-            else:
+-                self.assertEqual(len(dirs), 3)
+-            wanted = os.path.join('xoxo', 'lib',
+-                                  'python%d.%d' % sys.version_info[:2],
+-                                  'dist-packages')
+-            self.assertEqual(dirs[-1], wanted)
++            wanted = os.path.join('xoxo/lib/python%d.%d/site-packages' % sys.version_info[:2])
++            self.assertEqual(dirs[1], wanted)
++            wanted = os.path.join('xoxo/local/lib/python%d.%d/dist-packages' % sys.version_info[:2])
++            self.assertEqual(dirs[2], wanted)
++            wanted = os.path.join('xoxo/lib/python3/dist-packages')
++            self.assertEqual(dirs[3], wanted)
++            wanted = os.path.join('xoxo/lib/python%d.%d/dist-packages' % sys.version_info[:2])
++            self.assertEqual(dirs[4], wanted)
+         else:
+             # other platforms
+             self.assertEqual(len(dirs), 2)

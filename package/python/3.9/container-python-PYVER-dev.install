@@ -1,5 +1,0 @@
-usr/bin/${DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config
-usr/include
-usr/lib/${DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.so
-usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig
-usr/lib/python@{PYTHON_BASE_VERSION}/config-*/

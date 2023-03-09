@@ -1,5 +1,0 @@
-
-with open(sys.argv[1], 'w', encoding='utf8') as f:
-    f.write('# system configuration generated and used by the sysconfig module\n')
-    f.write('build_time_vars = ')
-    pprint.pprint(build_time_vars, stream=f, width=20000)

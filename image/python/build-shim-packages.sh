@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# (c) 2021-2023, Konstantin Demin
+# (c) 2023, Konstantin Demin
 
 set -f
 
@@ -12,24 +12,10 @@ export PATH="${rootdir}/scripts:${PATH}"
 . "${rootdir}/scripts/_common.sh"
 . "${rootdir}/image/python/common.envsh"
 
-if [ $# = 0 ] ; then
-	for pyver in ${python_versions} ; do
-		image/python/build-shim-packages.sh "${pyver}"
-	done
-else
-	for pyver ; do
-		image/python/build-shim-packages.sh "${pyver}"
-	done
-fi
-
-: "${DEB_BUILD_OPTIONS:=pgo_full lto_part=none}"
-export DEB_BUILD_OPTIONS
-
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	CI
 	PYTHON_VERSION
 	PYTHON_BASE_VERSION
-	DEB_BUILD_OPTIONS
 	DEB_SRC_BUILD_DIR
 	_SRC_DIR
 	_PKG_DIR
@@ -57,11 +43,14 @@ build_single() {
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
+	stem_path=$(build_artifacts_path "${stem}")
+	find "${stem_path}/src/" "${stem_path}/pkg/" -name "container-shim-python-${PYTHON_BASE_VERSION}*" -delete
+
 	build_image="${IMAGE_PATH}/python-build:${PYTHON_VERSION}-${SUITE}"
 
 	set -e
 
-	BUILD_IMAGE_TARGET=build \
+	BUILD_IMAGE_TARGET=build-shim \
 	BUILD_IMAGE_PUSH=0 \
 	scripts/build-image.sh image/python/ "${build_image}"
 

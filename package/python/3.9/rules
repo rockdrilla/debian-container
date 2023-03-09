@@ -50,6 +50,11 @@ with_lto := $(if $(findstring $(DEB_HOST_ARCH),$(arch_lto)),yes)
 with_lto := $(if $(filter nolto,$(DEB_BUILD_OPTIONS)),no,$(with_lto))
 with_lto := $(if $(filter noopt,$(DEB_BUILD_OPTIONS)),no,$(with_lto))
 
+NPROC_MAKE := $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+NPROC_MAKE := $(if $(NPROC_MAKE),$(NPROC_MAKE),$(shell nproc))
+NPROC_PGO  := $(shell echo "$$(( ( $(NPROC_MAKE) + 2 ) / 3 ))")
+NPROC_TEST := $(shell echo "$$(( ( $(NPROC_MAKE) + 1 ) / 2 ))")
+
 ifeq ($(distribution),Ubuntu)
   # test_ssl assumes that openssl is compiled with security level set to 1
   # make it so, during the build
@@ -203,6 +208,7 @@ override_dh_auto_build:
 		-e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
 	$(build_dir)/Makefile
 
+	: # TODO: research "-j $(NPROC_PGO)"
 	sed -i -E \
 		$(if $(filter yes,$(with_pgo_full)),-e '/^PROFILE_TASK[[:space:]]*=/s/--pgo/--pgo-extended/') \
 		-e '/^PROFILE_TASK[[:space:]]*=/s$(xsedx)$$$(xsedx) $(PROFILE_OPTS)$(xsedx)' \
@@ -220,10 +226,15 @@ execute_after_dh_auto_build:
   endif
 	$(test_python) -c 'import _decimal'
 	$(test_python) -c 'import math, cmath'
+	: # verify site packages paths
+	$(test_python) -c 'import site; print(site.getusersitepackages())'
+	$(test_python) -c 'import site; print(site.getsitepackages())'
+	$(test_python) -m site
 
 override_dh_auto_test:
 	CONTAINER_PYTHON_COMPAT=1 \
-	dh_auto_test $(DH_ARGS_shared) -- TESTOPTS="$(TEST_OPTS)"
+	NPROC=$(NPROC_TEST) \
+	dh_auto_test $(DH_ARGS_shared) -- TESTOPTS="-j $(NPROC_TEST) $(TEST_OPTS)"
 
 override_dh_auto_install:
 	dh_auto_install $(DH_ARGS_shared)
@@ -299,7 +310,7 @@ remove_string  = -e "s/ $(1) / $(2)/g;s/ $(1)/ $(2)/g;s/$(1) /$(2) /g;s/$(1)/$(2
 replace_prefixed = $(call replace_string,$(1)[^[:space:]\"']*,$(2))
 remove_prefixed  = $(call replace_prefixed,$(1)[^[:space:]\"']*,)
 
-fake_srcdir =/usr/local/src/python/$(DEB_VERSION_UPSTREAM)
+fake_srcdir =/usr/local/src/python-$(DEB_VERSION_UPSTREAM)
 
 define buildrepro_backup
 
@@ -405,19 +416,6 @@ execute_before_dh_install:
 
 include debian/rules.install
 
-define adjust_packages_directory
-
-	: # $(strip $(1)): adjust packages
-	libdir='$(strip $(1))/usr/lib/python$(PYTHON_BASE_VERSION)' ; \
-	mkdir -p "$${libdir}/dist-packages" ; \
-	if [ -d "$${libdir}/site-packages" ] ; then \
-	    cd "$${libdir}" ; \
-	    tar -C site-packages -cf - . | tar -C dist-packages -xf - ; \
-	    rm -rf site-packages ; \
-	fi
-
-endef
-
 define move_usr_local_to_usr
 
 	: # $(strip $(1)): move /usr/local/* -> /usr/*
@@ -431,8 +429,6 @@ define move_usr_local_to_usr
 endef
 
 override_dh_install:
-	$(call adjust_packages_directory, debian/tmp )
-
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-misc )
 
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-dev )
@@ -442,41 +438,47 @@ override_dh_install:
 	dh_install -pcontainer-python-$(PYTHON_BASE_VERSION)
 	: # these directories go to container-python-$(PYTHON_BASE_VERSION)-full
 	cd debian/container-python-$(PYTHON_BASE_VERSION)/usr/lib/python$(PYTHON_BASE_VERSION) ; \
-	rm -rf dist-packages ensurepip
+	rm -rf site-packages ensurepip
 
 	: # list installed packages
-	$(limb_python) -m pip \
-	  --disable-pip-version-check --no-cache-dir \
-	  list --format json \
+	$(limb_python) -m pip list --format json \
 	> debian/pip.list.json
 
 	: # upgrade installed packages
-	$(limb_python) -m pip \
-	  --disable-pip-version-check --no-cache-dir \
-	  install --upgrade \
+	$(limb_python) -m pip install --upgrade \
 	  $$(jq -r '.[].name' < debian/pip.list.json)
 
 	: # install wheel
-	$(limb_python) -m pip \
-	  --disable-pip-version-check --no-cache-dir \
-	  install wheel
+	$(limb_python) -m pip install wheel
 
 	$(call remove_pycache, debian/tmp )
 
 	$(call move_usr_local_to_usr, debian/tmp )
 
-	$(call adjust_packages_directory, debian/tmp )
-
 	: # list installed packages (refreshing version info)
-	$(limb_python) -m pip \
-	  --disable-pip-version-check --no-cache-dir \
-	  list --format json \
+	$(limb_python) -m pip list --format json \
 	> debian/pip.list.json
 
 	: # produce list of individual installed packages
 	jq -r '.[] | "pipver:" + .name + "=" + .version' \
 	< debian/pip.list.json \
 	> debian/pip.substvars
+
+	: # adjust ensurepip: pip
+	ver_pip=$$(jq -r '.[] | select(.name=="pip") | .version' < debian/pip.list.json) ; \
+	cd debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/ensurepip ; \
+	sed -i -E 's/^_PIP_VERSION\s*=\s*.+/_PIP_VERSION = "'"$${ver_pip}"'"/' __init__.py ; \
+	cd _bundled ; \
+	find ./ -name 'pip-*.whl' -ls -delete ; \
+	$(limb_python) -m pip download "pip==$${ver_pip}"
+
+	: # adjust ensurepip: setuptools
+	ver_setuptools=$$(jq -r '.[] | select(.name=="setuptools") | .version' < debian/pip.list.json) ; \
+	cd debian/tmp/usr/lib/python$(PYTHON_BASE_VERSION)/ensurepip ; \
+	sed -i -E 's/^_SETUPTOOLS_VERSION\s*=\s*.+/_SETUPTOOLS_VERSION = "'"$${ver_setuptools}"'"/' __init__.py ; \
+	cd _bundled ; \
+	find ./ -name 'setuptools-*.whl' -ls -delete ; \
+	$(limb_python) -m pip download "setuptools==$${ver_setuptools}"
 
 	$(call remove_pycache, debian/tmp )
 

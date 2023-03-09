@@ -7,7 +7,7 @@ Forwarded: no
 
 --- a/Lib/sysconfig.py
 +++ b/Lib/sysconfig.py
-@@ -457,7 +457,7 @@ def _get_sysconfigdata_name():
+@@ -493,7 +493,7 @@ def _get_sysconfigdata_name():
      multiarch = getattr(sys.implementation, '_multiarch', '')
      return os.environ.get(
          '_PYTHON_SYSCONFIGDATA_NAME',

@@ -1,4 +1,14 @@
-container-shim-python-@{PYTHON_BASE_VERSION} (@{DEB_EPOCH}20230306+@{PYTHON_BASE_VERSION}) @{SUITE}; urgency=medium
+container-shim-python-@{PYTHON_BASE_VERSION} (20230309) @{SUITE}; urgency=medium
+
+  * container-shim-unqual-python-*:
+    - move their Provides to container-python-* packages;
+    - remove packages.
+  * container-shim-python-*-misc: adjust Conflicts/Breaks.
+  * Simplify versioning.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Thu, 09 Mar 2023 13:43:00 +0300
+
+container-shim-python-@{PYTHON_BASE_VERSION} (20230306) @{SUITE}; urgency=medium
 
   * Initial release.
 

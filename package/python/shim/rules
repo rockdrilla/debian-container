@@ -11,8 +11,6 @@ include /usr/share/dpkg/default.mk
 
 export SOURCE_DATE_EPOCH
 
-include debian/rules.pkg-info
-
 PYTHON_VERSION ?= $(DEB_VERSION_UPSTREAM)
 
 empty :=

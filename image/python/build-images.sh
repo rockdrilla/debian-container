@@ -14,19 +14,11 @@ cd "${rootdir:?}" || exit
 export PATH="${rootdir}/scripts:${PATH}"
 
 . "${rootdir}/scripts/_common.sh"
+. "${rootdir}/image/python/common.envsh"
 
-python_versions='
-	3.9.16
-	3.10.10
-	3.11.2
-'
-
-set_default_distro_suite
-
-export BUILD_IMAGE_ARGS="
-	${BUILD_IMAGE_ARGS}
-	PYTHON_MIN_IMAGE
+export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	PYTHON_BASE_VERSION
+	PYTHON_MIN_IMAGE
 "
 
 build_single() {
@@ -39,7 +31,7 @@ build_single() {
 
 	stem="python-${PYTHON_BASE_VERSION}"
 
-	packages="$(build_artifacts_path "${stem}")/pkg"
+	packages="$(build_artifacts_path "${stem}/pkg")"
 	export BUILD_IMAGE_CONTEXTS="
 		packages=${packages}
 	"
@@ -52,13 +44,13 @@ build_single() {
 
 	set -e
 
-	BUILD_IMAGE_TARGET=minimal \
+	BUILD_IMAGE_TARGET="minimal${APT_REPO_PREFIX:+-apt}" \
 	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ${extra_tags}
 
 	# "python" derives env from "python-min"
 	unset BUILD_IMAGE_ENV
 
-	BUILD_IMAGE_TARGET=regular \
+	BUILD_IMAGE_TARGET="regular${APT_REPO_PREFIX:+-apt}" \
 	scripts/build-image.sh image/python/ "${full_image}" ${extra_tags}
 
 	set +e
