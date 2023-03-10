@@ -11,7 +11,9 @@ include /usr/share/dpkg/default.mk
 
 export SOURCE_DATE_EPOCH
 
-PYTHON_VERSION ?= $(DEB_VERSION_UPSTREAM)
+ifeq (,$(PYTHON_VERSION))
+$(error PYTHON_VERSION is not set)
+endif
 
 empty :=
 space :=$(empty) $(empty)

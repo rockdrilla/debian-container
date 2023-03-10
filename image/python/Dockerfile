@@ -31,7 +31,7 @@ COPY /template/ /tmp/debian/
 COPY /${PYTHON_BASE_VERSION}/ /tmp/debian/
 
 RUN if [ -z "${CI}" ] ; then \
-      if find ${_PKG_DIR}/ -maxdepth 1 -name "container-python-*_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
+      if find ${_PKG_DIR}/ -maxdepth 1 -name "container-python-${PYTHON_BASE_VERSION}_${PYTHON_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
         cleanup ; \
         exit 0 ; \
       fi ; \
@@ -42,7 +42,7 @@ RUN if [ -z "${CI}" ] ; then \
     set +e ; \
     # "/ciep.sh env" ensures that container limits are taken in account
     /ciep.sh env \
-      deb-src-build ${_SRC_DIR}/container-python-*.dsc ${_PKG_DIR} ; \
+      deb-src-build ${_SRC_DIR}/container-python-${PYTHON_BASE_VERSION}_${PYTHON_VERSION}-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \
@@ -90,7 +90,7 @@ FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
-  "container-python-${PYTHON_BASE_VERSION}_*.deb", \
+  "container-python-${PYTHON_BASE_VERSION}_${PYTHON_VERSION}-*.deb", \
   "container-shim-python-${PYTHON_BASE_VERSION}_*.deb", \
   "/tmp/" ]
 
@@ -110,8 +110,8 @@ SHELL [ "/bin/sh", "-ec" ]
 ARG PYTHON_BASE_VERSION
 
 COPY --from=packages [ \
-  "container-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
-  "container-python-${PYTHON_BASE_VERSION}-full_*.deb", \
+  "container-python-${PYTHON_BASE_VERSION}-dev_${PYTHON_VERSION}-*.deb", \
+  "container-python-${PYTHON_BASE_VERSION}-full_${PYTHON_VERSION}-*.deb", \
   "container-shim-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
   "container-shim-python-${PYTHON_BASE_VERSION}-full_*.deb", \
   "/tmp/" ]
