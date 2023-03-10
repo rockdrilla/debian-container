@@ -19,21 +19,21 @@ stub_build() {
 	"${rootdir:?}/scripts/build-image.sh" /bin/true "$@"
 }
 
-build_artifacts_path() {
+_build_artifacts_path() {
 	printf '%s' "${rootdir:?}/build-artifacts/${DISTRO:?}-${SUITE:?}-${1:?}"
+}
+
+build_artifacts_path() {
+	mkdir -p "$(_build_artifacts_path "$@")" >&2 || exit 1
+	_build_artifacts_path "$@"
 }
 
 # NB: "/build" isn't actually a final artefact directory
 build_artifacts_volumes() {
-	mkdir -p \
-		"$(build_artifacts_path "$1")/build" \
-		"$(build_artifacts_path "$1")/src" \
-		"$(build_artifacts_path "$1")/pkg" \
-	>&2 || exit 1
 	printf ' %s ' \
-		"$(build_artifacts_path "$1")/build:$2" \
-		"$(build_artifacts_path "$1")/src:$3" \
-		"$(build_artifacts_path "$1")/pkg:$4" \
+		"$(build_artifacts_path "$1/build"):$2" \
+		"$(build_artifacts_path "$1/src"):$3" \
+		"$(build_artifacts_path "$1/pkg"):$4" \
 
 }
 

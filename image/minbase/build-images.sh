@@ -72,7 +72,7 @@ done
 	pkg_path="${rootdir}/build-artifacts/${stem}"
 	rm -rf "${pkg_path}"
 	mkdir -p "${pkg_path}"
-	find "$(build_artifacts_path "${stem}")/pkg/" -type f -name '*.deb' -execdir mv -vt "${pkg_path}" '{}' '+'
+	find "$(build_artifacts_path "${stem}/pkg")/" -type f -name '*.deb' -execdir mv -vt "${pkg_path}" '{}' '+'
 ) || exit 1
 
 # remove intermediate images
@@ -141,7 +141,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	rm -rf "${bootstrap_suite_packages}"
 	mkdir -p "${bootstrap_suite_packages}"
 
-	find "$(build_artifacts_path container-packages-arch)/pkg/" -type f -name '*.deb' -execdir cp -vt "${bootstrap_suite_packages}" '{}' '+'
+	find "$(build_artifacts_path container-packages-arch/pkg)/" -type f -name '*.deb' -execdir cp -vt "${bootstrap_suite_packages}" '{}' '+'
 
 	image="${IMAGE_PATH}/${DISTRO}-min:${SUITE}${IMAGE_TAG_SUFFIX}"
 	image/minbase/image.sh ${DISTRO} ${SUITE} "${image}"
