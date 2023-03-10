@@ -55,8 +55,8 @@ Golang image/packages - `image/golang/` ([dockerfile](image/golang/Dockerfile))
 Versions:
 
 - 1.18.10
-- 1.19.6
-- 1.20.1
+- 1.19.7
+- 1.20.2
 
 Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/golang-min/tags)
