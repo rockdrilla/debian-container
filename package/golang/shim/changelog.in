@@ -1,4 +1,11 @@
-container-shim-golang-@{GOLANG_BASE_VERSION} (@{DEB_EPOCH}20230306+@{GOLANG_BASE_VERSION}) @{SUITE}; urgency=medium
+container-shim-golang-@{GOLANG_BASE_VERSION} (20230310) @{SUITE}; urgency=medium
+
+  * Adjust Provides/Conflicts/Breaks.
+  * Simplify versioning.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Fri, 10 Mar 2023 02:43:00 +0300
+
+container-shim-golang-@{GOLANG_BASE_VERSION} (20230306) @{SUITE}; urgency=medium
 
   * Initial release.
 

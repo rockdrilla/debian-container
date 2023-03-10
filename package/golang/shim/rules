@@ -11,9 +11,9 @@ include /usr/share/dpkg/default.mk
 
 export SOURCE_DATE_EPOCH
 
-include debian/rules.pkg-info
-
-GOLANG_VERSION ?= $(DEB_VERSION_UPSTREAM)
+ifeq (,$(GOLANG_VERSION))
+$(error GOLANG_VERSION is not set)
+endif
 
 empty :=
 space :=$(empty) $(empty)

@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# (c) 2021-2023, Konstantin Demin
+# (c) 2023, Konstantin Demin
 
 set -f
 
@@ -12,32 +12,14 @@ export PATH="${rootdir}/scripts:${PATH}"
 . "${rootdir}/scripts/_common.sh"
 . "${rootdir}/image/golang/common.envsh"
 
-if [ $# = 0 ] ; then
-	for gover in ${golang_versions} ; do
-		image/golang/build-shim-packages.sh "${gover}"
-	done
-else
-	for gover ; do
-		image/golang/build-shim-packages.sh "${gover}"
-	done
-fi
-
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	CI
 	GOLANG_VERSION
 	GOLANG_BASE_VERSION
-	DEB_BUILD_OPTIONS
 	DEB_SRC_BUILD_DIR
 	_SRC_DIR
 	_PKG_DIR
-	GOPROXY
-	GOSUMDB
-	GOPRIVATE
 "
-
-# for use with proxy
-# export GOPROXY='http://127.0.0.1:8081/repository/proxy_go,direct'
-# export GOSUMDB='sum.golang.org http://127.0.0.1:8081/repository/proxy_raw_go_sum'
 
 export DEB_SRC_BUILD_DIR=/usr/local/src
 export _SRC_DIR=/usr/local/include
@@ -61,11 +43,14 @@ build_single() {
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
+	stem_path=$(build_artifacts_path "${stem}")
+	find "${stem_path}/src/" "${stem_path}/pkg/" -name "container-shim-golang-${GOLANG_BASE_VERSION}*" -delete
+
 	build_image="${IMAGE_PATH}/golang-build:${GOLANG_VERSION}-${SUITE}"
 
 	set -e
 
-	BUILD_IMAGE_TARGET=build \
+	BUILD_IMAGE_TARGET=build-shim \
 	BUILD_IMAGE_PUSH=0 \
 	scripts/build-image.sh image/golang/ "${build_image}"
 

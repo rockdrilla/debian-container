@@ -33,6 +33,10 @@ ifneq ($(DEB_HOST_ARCH_OS),linux)
   $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
 endif
 
+NPROC_MAKE := $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+NPROC_MAKE := $(if $(NPROC_MAKE),$(NPROC_MAKE),$(shell nproc))
+NPROC_TEST := $(shell echo "$$(( ($(NPROC_MAKE) + 1)/2 ))")
+
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all optimize=-lto
 
 with_bootstrap := $(if $(filter nobootstrap,$(DEB_BUILD_OPTIONS)),no,yes)
@@ -147,11 +151,8 @@ endif
 	go install -race std || :
 
 override_dh_auto_test:
-	NPROC=$$(nproc) ; \
-	NPROC=$$(( NPROC / 2 )) ; \
-	NPROC=$$(( NPROC + 1 )) ; \
-	export NPROC ; \
-	export GOMAXPROCS=$${NPROC} ; \
+	export NPROC=$(NPROC_TEST) ; \
+	export GOMAXPROCS=$(NPROC_TEST) ; \
 	export GO_TEST_TIMEOUT_SCALE=10 ; \
 	cd src ; \
 	export PATH="$(GOROOT)/bin:$$PATH" ; \

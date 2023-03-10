@@ -14,19 +14,11 @@ cd "${rootdir:?}" || exit
 export PATH="${rootdir}/scripts:${PATH}"
 
 . "${rootdir}/scripts/_common.sh"
+. "${rootdir}/image/golang/common.envsh"
 
-golang_versions='
-	1.18.10
-	1.19.6
-	1.20.1
-'
-
-set_default_distro_suite
-
-export BUILD_IMAGE_ARGS="
-	${BUILD_IMAGE_ARGS}
-	GOLANG_MIN_IMAGE
+export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	GOLANG_BASE_VERSION
+	GOLANG_MIN_IMAGE
 "
 
 build_single() {
@@ -39,7 +31,7 @@ build_single() {
 
 	stem="golang-${GOLANG_BASE_VERSION}"
 
-	packages="$(build_artifacts_path "${stem}")/pkg"
+	packages="$(build_artifacts_path "${stem}/pkg")"
 	export BUILD_IMAGE_CONTEXTS="
 		packages=${packages}
 	"
@@ -52,13 +44,13 @@ build_single() {
 
 	set -e
 
-	BUILD_IMAGE_TARGET=minimal \
+	BUILD_IMAGE_TARGET="minimal${APT_REPO_PREFIX:+-apt}" \
 	scripts/build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ${extra_tags}
 
 	# "golang" derives env from "golang-min"
 	unset BUILD_IMAGE_ENV
 
-	BUILD_IMAGE_TARGET=regular \
+	BUILD_IMAGE_TARGET="regular${APT_REPO_PREFIX:+-apt}" \
 	scripts/build-image.sh image/golang/ "${full_image}" ${extra_tags}
 
 	set +e

@@ -1,5 +1,0 @@
-container-golang-@{GOLANG_BASE_VERSION} (@{DEB_EPOCH}@{GOLANG_VERSION}-1) @{SUITE}; urgency=medium
-
-  * New upstream version @{GOLANG_VERSION}.
-
- -- @{DEB_MAINTAINER}  @{DEB_CHANGELOG_DATE}

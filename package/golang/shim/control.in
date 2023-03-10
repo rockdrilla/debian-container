@@ -17,21 +17,21 @@ Depends: ${misc:Depends},
 Provides: golang (= @{GOLANG_VERSION}),
           golang-@{GOLANG_BASE_VERSION} (= @{GOLANG_VERSION}),
           golang-@{GOLANG_BASE_VERSION}-go (= @{GOLANG_VERSION}),
-Conflicts: golang-@{GOLANG_BASE_VERSION},
-           golang-@{GOLANG_BASE_VERSION}-go,
-Breaks: golang-@{GOLANG_BASE_VERSION},
-        golang-@{GOLANG_BASE_VERSION}-go,
+Conflicts: golang-@{GOLANG_BASE_VERSION} (<< @{GOLANG_VERSION}),
+           golang-@{GOLANG_BASE_VERSION}-go (<< @{GOLANG_VERSION}),
+Breaks: golang-@{GOLANG_BASE_VERSION} (<< @{GOLANG_VERSION}),
+        golang-@{GOLANG_BASE_VERSION}-go (<< @{GOLANG_VERSION}),
 Description: container shim: Go v@{GOLANG_BASE_VERSION}
- This package provides Debian/Ubuntu qualified compatibility shim for
+ This package provides Debian/Ubuntu compatibility shim for
  container-golang-@{GOLANG_BASE_VERSION}.
 
 Package: container-shim-golang-@{GOLANG_BASE_VERSION}-src
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-Provides: golang-@{GOLANG_BASE_VERSION}-src (= @{DEB_VERSION_UPSTREAM}),
-Conflicts: golang-@{GOLANG_BASE_VERSION}-src,
-Breaks: golang-@{GOLANG_BASE_VERSION}-src,
+Provides: golang-@{GOLANG_BASE_VERSION}-src (= @{GOLANG_VERSION}),
+Conflicts: golang-@{GOLANG_BASE_VERSION}-src (<< @{GOLANG_VERSION}),
+Breaks: golang-@{GOLANG_BASE_VERSION}-src (<< @{GOLANG_VERSION}),
 Description: container shim: Go v@{GOLANG_BASE_VERSION} - source files
- This package provides Debian/Ubuntu qualified compatibility shim for
+ This package provides Debian/Ubuntu compatibility shim for
  container-golang-@{GOLANG_BASE_VERSION}-src.

@@ -1,1 +1,0 @@
-debian/thin-ci.sh usr/lib/go-@{GOLANG_BASE_VERSION}/

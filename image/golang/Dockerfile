@@ -11,6 +11,8 @@ ARG GOLANG_MIN_IMAGE
 FROM ${IMAGE_PATH}/${BUILD_IMAGE} as build
 SHELL [ "/bin/sh", "-ec" ]
 
+ARG CI
+
 # these directories should be mounted as RW volumes
 ARG DEB_SRC_BUILD_DIR
 ARG _SRC_DIR
@@ -29,36 +31,22 @@ ARG GOSUMDB
 ARG GOPRIVATE
 
 # build context should be set to /package/golang/
-COPY /shim/ /tmp/debian/
-
-RUN mkdir -p ${_SRC_DIR} ; \
-    deb-src-export ${_SRC_DIR} /tmp/debian ; \
-    mkdir -p ${_PKG_DIR} ; \
-    set +e ; \
-    # "/ciep.sh env" ensures that container limits are taken in account
-    /ciep.sh env \
-      deb-src-build ${_SRC_DIR}/container-shim-golang-*.dsc ${_PKG_DIR} ; \
-    result=$? ; \
-    set -e ; \
-    cleanup ; \
-    echo "# build return code: ${result}" ; \
-    [ "${result}" = 0 ] || exit ${result}
-
-# build context should be set to /package/golang/
+COPY /template/ /tmp/debian/
 COPY /${GOLANG_BASE_VERSION}/ /tmp/debian/
 
-RUN if find ${_PKG_DIR}/ -maxdepth 1 -name "container-golang-*_${GOLANG_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
-      exit 0 ; \
+RUN if [ -z "${CI}" ] ; then \
+      if find ${_PKG_DIR}/ -maxdepth 1 -name "container-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
+        cleanup ; \
+        exit 0 ; \
+      fi ; \
     fi ; \
     build_start=$(date -R) ; \
     apt-update ; \
-    mkdir -p ${_SRC_DIR} ; \
     deb-src-export ${_SRC_DIR} /tmp/debian ; \
-    mkdir -p ${_PKG_DIR} ; \
     set +e ; \
     # "/ciep.sh env" ensures that container limits are taken in account
     /ciep.sh env \
-      deb-src-build ${_SRC_DIR}/container-golang-*.dsc ${_PKG_DIR} ; \
+      deb-src-build ${_SRC_DIR}/container-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \
@@ -70,12 +58,44 @@ RUN if find ${_PKG_DIR}/ -maxdepth 1 -name "container-golang-*_${GOLANG_VERSION}
 
 # ---
 
+FROM ${IMAGE_PATH}/${BUILD_IMAGE} as build-shim
+SHELL [ "/bin/sh", "-ec" ]
+
+ARG CI
+
+# these directories should be mounted as RW volumes
+ARG DEB_SRC_BUILD_DIR
+ARG _SRC_DIR
+ARG _PKG_DIR
+
+ARG DISTRO
+ARG SUITE
+
+ARG GOLANG_VERSION
+ARG GOLANG_BASE_VERSION
+
+# build context should be set to /package/golang/
+COPY /shim/ /tmp/debian/
+
+RUN deb-src-export ${_SRC_DIR} /tmp/debian ; \
+    set +e ; \
+    # "/ciep.sh env" ensures that container limits are taken in account
+    /ciep.sh env \
+      deb-src-build ${_SRC_DIR}/container-shim-golang-*.dsc ${_PKG_DIR} ; \
+    result=$? ; \
+    set -e ; \
+    cleanup ; \
+    echo "# build return code: ${result}" ; \
+    [ "${result}" = 0 ] || exit ${result}
+
+# ---
+
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
-  "container-golang-${GOLANG_BASE_VERSION}_*.deb", \
-  "container-golang-${GOLANG_BASE_VERSION}-src_*.deb", \
+  "container-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*.deb", \
+  "container-golang-${GOLANG_BASE_VERSION}-src_${GOLANG_VERSION}-*.deb", \
   "container-shim-golang-${GOLANG_BASE_VERSION}_*.deb", \
   "container-shim-golang-${GOLANG_BASE_VERSION}-src_*.deb", \
   "/tmp/" ]
@@ -102,7 +122,7 @@ SHELL [ "/bin/sh", "-ec" ]
 ARG GOLANG_BASE_VERSION
 
 COPY --from=packages [ \
-  "container-golang-${GOLANG_BASE_VERSION}-full_*.deb", \
+  "container-golang-${GOLANG_BASE_VERSION}-full_${GOLANG_VERSION}-*.deb", \
   "/tmp/" ]
 
 RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \

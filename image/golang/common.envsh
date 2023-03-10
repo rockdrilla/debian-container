@@ -1,0 +1,8 @@
+
+golang_versions='
+	1.18.10
+	1.19.6
+	1.20.1
+'
+
+set_default_distro_suite
