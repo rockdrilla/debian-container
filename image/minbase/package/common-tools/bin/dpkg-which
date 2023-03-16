@@ -1,0 +1,69 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -f
+
+dpkg_info_dir="${DPKG_ADMINDIR:-/var/lib/dpkg}/info"
+dpkg_diversions="${DPKG_ADMINDIR:-/var/lib/dpkg}/diversions"
+
+_find() { find "$@" -maxdepth 0 -print 2>/dev/null ; }
+_find0() { find "$@" -maxdepth 0 -samefile "$1" -print0 2>/dev/null ; }
+
+_quirk_merged_usr() {
+	_find "$1"
+
+	n= ; alt=
+	case "$1" in
+	/usr/local/*) return ;;
+
+	/usr/*) alt="${1#/usr}" ;;
+	/*)     alt="/usr$1" ;;
+	esac
+
+	n=$(_find0 "$1" "${alt}" | xargs -0 sh -c 'echo $#' --)
+	[ "$n" = 2 ] || return
+	_find "${alt}"
+}
+
+_dpkg_search() {
+	_quirk_merged_usr "$1" \
+	| grep -FxRl -f - "${dpkg_info_dir}/" \
+	| sed -En '/\.list$/{s,^.+/([^/]+)\.list$,\1,p}'
+}
+
+_dpkg_divert() {
+	n=$(grep -Fxhn -e "$1" "${dpkg_diversions}" | cut -d: -f1)
+	[ -n "$n" ] || return 0
+	case "$((n%3))" in
+	1|2) ;;
+	*) return ;;
+	esac
+	k=$(( n - (n%3) ))
+	divert_pkg=$(sed -n "$((k+3))p" "${dpkg_diversions}")
+	case "$((n%3))" in
+	1)
+		[ "${divert_pkg}" = ':' ] || echo "${divert_pkg}"
+	;;
+	2)
+		divert_from=$(sed -n "$((k+1))p" "${dpkg_diversions}")
+		_dpkg_search "${divert_from}" | grep -Fxv -e "${divert_pkg}"
+		return 0
+	;;
+	esac
+}
+
+for i ; do
+	n=$(_dpkg_divert "$i")
+	if [ -n "$n" ] ; then
+		echo "$n"
+		continue
+	fi
+
+	n=$(_dpkg_search "$i")
+	if [ -n "$n" ] ; then
+		echo "$n"
+		continue
+	fi
+done | sort -uV
+exit 0
