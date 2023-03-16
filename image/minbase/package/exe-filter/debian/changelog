@@ -1,3 +1,10 @@
+container-exe-filter (20230316) stable; urgency=medium
+
+  * Remove mountpoint from blocklist.
+  * Reuse dpkg-which.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Thu, 16 Mar 2023 16:06:00 +0300
+
 container-exe-filter (20230202) stable; urgency=medium
 
   * Initial release.

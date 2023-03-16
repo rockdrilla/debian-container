@@ -4,6 +4,8 @@ set -ef
 
 refine_trigger='refresh-container-exe-filter'
 
+dpkg_info_dir="${DPKG_ADMINDIR:-/var/lib/dpkg}/info"
+
 # close stdin (for good)
 exec </dev/null
 
@@ -17,7 +19,7 @@ inline_cfg() {
       e2label e2mmpstatus e2scrub e2undo e4crypt e4defrag fdformat fincore \
       findfs findmnt fsck fsfreeze fstrim getty hwclock isosize last lastb \
       ldattach lsblk lslogins mcookie mesg mke2fs mkfs mklost+found mkswap \
-      mount mountpoint partx pivot_root raw readprofile resize2fs resizepart \
+      mount partx pivot_root raw readprofile resize2fs resizepart \
       rtcwake su sulogin swaplabel swapoff swapon switch_root tune2fs utmpdump \
       wall wdctl wipefs zramctl \
       \
@@ -32,26 +34,18 @@ do_work() {
     inline_cfg | sort -uV > "$w/cfg"
 
     for d in /bin /sbin /usr/bin /usr/sbin ; do
-        xglob "$d" "$w/cfg" -- printf '%s\n' \
-        | sed -E 's,^/usr,,'
-        # ^ workaround for "merged /usr"
+        xglob "$d" "$w/cfg" -- printf '%s\n'
     done \
-    | sort -uV > "$w/exe.0"
+    | sort -uV > "$w/exe"
 
-    # one more workaround for "merged /usr"
-    sed -E 's,^,/usr,' < "$w/exe.0" > "$w/exe.1"
-    cat "$w/exe.0" "$w/exe.1" > "$w/exe"
-    rm -f "$w/exe.0" "$w/exe.1"
+    xargs -r -a "$w/exe" dpkg-which \
+    | sort -uV > "$w/pkg"
 
-    set +e
-    grep -FxRl -f "$w/exe" "${DPKG_ADMINDIR:-/var/lib/dpkg}/info/" \
-    | grep -E '\.list$' \
-    | sort -uV > "$w/lists"
-    set -e
+    while read -r pkg_name ; do
+        [ -n "${pkg_name}" ] || continue
 
-    while read -r pkg_list ; do
-        pkg_name="${pkg_list##*/}"
-        pkg_name="${pkg_name%.list}"
+        pkg_list="${dpkg_info_dir}/${pkg_name}.list"
+        ls -l "${pkg_list}" >&2 || :
 
         out="/etc/container/dpkg-filter/${pkg_name}.auto"
 
@@ -73,7 +67,7 @@ do_work() {
 
         cat < "$w/out.tmp" > "${out}"
         set -e
-    done < "$w/lists"
+    done < "$w/pkg"
 
     rm -rf "$w"
 }
