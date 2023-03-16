@@ -10,7 +10,7 @@ for i ; do
 	[ -n "$i" ] || continue
 	[ -s "$i" ] || continue
 
-	awk 'BEGIN { m = 0 }
+	mawk 'BEGIN { m = 0 }
 $0 == "" { print }
 /^[^[:space:]]/ {
     if ($1 ~ "\.[Uu][Tt][Ff]-?8:") { m = 1; next; }
