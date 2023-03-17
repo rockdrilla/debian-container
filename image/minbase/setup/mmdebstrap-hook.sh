@@ -119,6 +119,11 @@ rm -rf "$w"
 arch=$(dpkg --print-architecture)
 deb_file_mask=$(printf '.+_(all|%s)\.deb$' "${arch:?}")
 
+# quirk: update package lists
+# hits on relatively old releases like Ubuntu 20.04 "focal"
+apt update
+/usr/lib/dpkg/methods/apt/update "${DPKG_ADMINDIR:-/var/lib/dpkg}" apt apt
+
 # install own packages
 bootstrap='/usr/local/bootstrap'
 env -C "${bootstrap}" \
