@@ -22,6 +22,9 @@ case "$1" in
 	apt-list-installed > "$w/installed.0"
 	apt-list-manual    > "$w/manual.0"
 
+	: > "$w/keep"
+	: > "$w/new"
+
 	if [ -z "${deps}" ] ; then
 		echo 'nothing was selected as build-deps' >&2
 	else
@@ -43,6 +46,8 @@ case "$1" in
 
 		apt-list-installed > "$w/installed.1"
 		apt-list-manual    > "$w/manual.1"
+
+		grep -Fxv -f "$w/installed.0" < "$w/installed.1" > "$w/new" || :
 	fi
 
 	echo "$w"
@@ -111,7 +116,7 @@ shift
 w=$("$0" --begin "${deps}")
 
 export APT_WRAP_KEEP="$w/keep"
-: > "${APT_WRAP_KEEP}"
+export APT_WRAP_NEW="$w/new"
 
 set +e
 "$@"
