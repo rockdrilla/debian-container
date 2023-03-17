@@ -1,0 +1,95 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2022-2023, Konstantin Demin
+
+set -f
+
+if [ $# = 0 ] ; then
+	return
+fi
+
+: "${SODEPS_MISSING:=error}"
+
+w=$(mktemp -d) ; : "${w:?}"
+
+if [ -z "${NPROC}" ] ; then
+	NPROC=$(nproc)
+	NPROC=$(( NPROC + (NPROC + 1)/2 ))
+fi
+
+ufind -q -z "$@" > "$w/filelist"
+
+mkdir "$w/results"
+export SODEPS_ELF_OUT="$w/results"
+
+xargs -0 -r -n 64 is-elf -z < "$w/filelist" \
+| xargs -0 -r -P "${NPROC}" -n 64 sodeps.elf
+
+# merge results
+find "$w/results/" -type f -exec sort -uV '{}' + > "$w/all"
+rm -rf "$w/results/"
+
+mawk -F '|' -f - "$w/all" <<-EOF
+	 NF != 3 { print \$0 >> "$w/nonfit"; }
+	\$1 == 1 { print \$2 >> "$w/resolved"; }
+	\$1 == 0 { print \$2 "|" \$3 >> "$w/notfound"; }
+EOF
+
+# verify results
+if [ -s "$w/nonfit" ] ; then
+	exec >&2
+	echo '# non-fit results:'
+	sed -E 's/^/#   /' < "$w/nonfit"
+	rm -rf "$w"
+	exit 1
+fi
+
+case "${SODEPS_MISSING}" in
+ignore)
+	# don't use in production :D
+;;
+# warn|error)
+*)
+	while : ; do
+		[ -s "$w/notfound" ] || break
+
+		find /etc/sodeps/ignore.d/ -follow -type f -exec cat '{}' + 2>/dev/null \
+		| sort -uV > "$w/rules.ignore"
+		[ -s "$w/rules.ignore" ] || break
+
+		grep -E -f "$w/rules.ignore" < "$w/notfound" > "$w/ignored"
+		rm "$w/rules.ignore"
+		[ -s "$w/ignored" ] || break
+
+		grep -Fxv -f "$w/ignored" < "$w/notfound" > "$w/notfound.t"
+		mv -f "$w/notfound.t" "$w/notfound"
+		break
+	done
+
+	if [ -s "$w/ignored" ] ; then
+		echo "# not found but ignored via /etc/sodeps/ignore.d/:"
+		sed -E 's/^/#   /' < "$w/ignored"
+		echo
+	fi >&2
+
+	if [ -s "$w/notfound" ] ; then
+		echo '# not found:'
+		sed -E 's/^/#   /' < "$w/notfound"
+		echo
+
+	#	if [ "${SODEPS_MISSING}" != warn ] ; then
+		if [ "${SODEPS_MISSING}" = error ] ; then
+			rm -rf "$w"
+			exit 1
+		fi
+	fi >&2
+;;
+esac
+
+if [ -s "$w/resolved" ] ; then
+	sort -uV < "$w/resolved" \
+	| xargs -r -d '\n' dpkg-which \
+	| sort -uV
+fi
+
+rm -rf "$w"

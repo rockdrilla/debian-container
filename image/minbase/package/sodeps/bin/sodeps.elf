@@ -1,0 +1,54 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2022-2023, Konstantin Demin
+
+set -f
+
+set_output() {
+	case "$1" in
+	/*) mktemp -p "$1" ;;
+	*) printf '%s' "$1" ;;
+	esac
+}
+
+if [ -n "${SODEPS_ELF_OUT}" ] ; then
+	out=$(set_output "${SODEPS_ELF_OUT}")
+	: "${out:?}"
+	exec > "${out}"
+
+	tmp1=$(set_output "${SODEPS_ELF_OUT}")
+	tmp2=$(set_output "${SODEPS_ELF_OUT}")
+fi
+
+[ -n "${tmp1}" ] || tmp1=$(mktemp)
+[ -n "${tmp2}" ] || tmp2=$(mktemp)
+: "${tmp1:?}" "${tmp2:?}"
+
+xsedx=$(printf '\027')
+
+unset LD_PRELOAD
+
+# TODO: implement own "ldd" without actually loading ELF
+# e.g. https://github.com/crosstool-ng/crosstool-ng/blob/master/scripts/xldd.in
+
+for i ; do
+	ldd "$i" 2>/dev/null > "${tmp1}"
+
+	grep -E 'not found$' "${tmp1}" \
+	| sed -E '/^\s*(\S.+) => not found$/ {s,,0|\1,;}' \
+	| sed -E "/^.+\$/ {s${xsedx}\$${xsedx}|$i${xsedx};}"
+
+	grep -Ev 'not found$' "${tmp1}" \
+	| sed -En '
+		/^.+ => (.+) \(\S+\)$/ {s,,\1,p}
+		/^\s*(\S.+) \(\S+\)$/  {s,,\1,p}
+	' > "${tmp2}"
+
+	xargs -r -d '\n' -a "${tmp2}" readlink -ze \
+	| sort -zuV \
+	| xargs -0 -r printf '%s\n' \
+	| sed -E '/^.+$/ {s,^,1|,;}' \
+	| sed -E "/^.+\$/ {s${xsedx}\$${xsedx}|$i${xsedx};}"
+done
+
+rm -f "${tmp1}" "${tmp2}"

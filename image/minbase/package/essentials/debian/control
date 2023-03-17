@@ -22,5 +22,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
          container-image-entrypoint,
          container-persistent-ca-bundle,
          container-persistent-ca-bundle-java,
+         container-sodeps,
 Description: container - essentials (meta-package)
  This package installs all container-related packages.

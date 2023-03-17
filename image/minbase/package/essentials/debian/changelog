@@ -1,3 +1,9 @@
+container-essentials (20230317) stable; urgency=medium
+
+  * container-sodeps: introduce package.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Fri, 17 Mar 2023 19:28:00 +0300
+
 container-essentials (20230303) stable; urgency=medium
 
   * Initial release.
