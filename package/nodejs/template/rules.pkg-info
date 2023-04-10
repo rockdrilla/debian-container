@@ -1,0 +1,5 @@
+#!/usr/bin/make -f
+
+DEB_EPOCH ?=$(empty)
+DEB_MAINTAINER = Konstantin Demin <rockdrilla@gmail.com>
+DEB_CHANGELOG_DATE = $(shell date -R -d @$(SOURCE_DATE_EPOCH))

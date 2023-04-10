@@ -1,0 +1,48 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+configure)
+	prio=$(( @{DEB_NODEJS_PRIO} + 1 ))
+	bin=/usr/bin
+	nodejs_bin=/@{NODEJS_PREFIX}/bin
+
+	for suffix in '' '-@{NODEJS_MAJOR_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/npm${suffix} \
+		  npm${suffix} \
+		  ${nodejs_bin}/npm \
+		${prio} \
+		--slave \
+		  ${bin}/npx${suffix} \
+		  npx${suffix} \
+		  ${nodejs_bin}/npx \
+
+		update-alternatives --install \
+		  ${bin}/yarn${suffix} \
+		  yarn${suffix} \
+		  ${nodejs_bin}/yarn \
+		${prio} \
+		--slave \
+		  ${bin}/yarnpkg${suffix} \
+		  yarnpkg${suffix} \
+		  ${nodejs_bin}/yarn \
+
+	done
+
+	for i in npmrc yarnrc ; do
+		[ -e "/etc/$i" ] || cp -v "/@{NODEJS_PREFIX}/share/$i" /etc/
+	done
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

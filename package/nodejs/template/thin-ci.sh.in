@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+set -ef
+
+pkg_regular='container-nodejs-@{NODEJS_MAJOR_VERSION}'
+pkg_full='container-nodejs-@{NODEJS_MAJOR_VERSION}-full'
+
+pkg=
+case "${0##*/}" in
+node* | js )
+	pkg="${pkg_regular}"
+;;
+npm* | npx* | yarn* )
+	pkg="${pkg_full}"
+;;
+*)
+	echo "can't determine required package on (this) binary name: ${0##*/}" >&2
+	exit 1
+;;
+esac
+
+{ apt-install ${pkg} ; cleanup apt ; } </dev/null
+sleep 1
+exec "$0" "$@"

@@ -1,0 +1,99 @@
+Description: Multiarch search path, arch triplet, DFHS path for modules
+Author: "Bastien ROUCARIÈS" <roucaries.bastien@gmail.com>
+Last-Update: 2018-09-30
+Forwarded: https://github.com/nodejs/node/issues/22745
+Reviewed-By: Xavier Guimard <yadd@debian.org>
+Last-Update: 2020-03-04
+
+--- a/lib/internal/modules/cjs/loader.js
++++ b/lib/internal/modules/cjs/loader.js
+@@ -1102,6 +1102,7 @@ Module.createRequire = createRequire;
+ Module._initPaths = function() {
+   const homeDir = isWindows ? process.env.USERPROFILE : safeGetenv('HOME');
+   const nodePath = isWindows ? process.env.NODE_PATH : safeGetenv('NODE_PATH');
++  const relativePaths = process.config.variables.node_relative_path;
+ 
+   // process.execPath is $PREFIX/bin/node except on Windows where it is
+   // $PREFIX\node.exe where $PREFIX is the root of the Node.js installation.
+@@ -1109,7 +1110,18 @@ Module._initPaths = function() {
+     path.resolve(process.execPath, '..') :
+     path.resolve(process.execPath, '..', '..');
+ 
+-  let paths = [path.resolve(prefixDir, 'lib', 'node')];
++  const postDirs = [];
++  if (relativePaths) {
++    relativePaths.split(path.delimiter).map(path => {
++      if (path) postDirs.push(path);
++    });
++  } else {
++    postDirs.push(path.join('lib', 'node'));
++  }
++
++  let paths = postDirs.map(postDir => {
++    return path.resolve(prefixDir, postDir);
++  });
+ 
+   if (homeDir) {
+     paths.unshift(path.resolve(homeDir, '.node_libraries'));
+--- a/configure.py
++++ b/configure.py
+@@ -83,6 +83,18 @@ parser.add_option('--coverage',
+     dest='coverage',
+     help='Build node with code coverage enabled')
+ 
++parser.add_option('--arch-triplet',
++    action='store',
++    dest='arch_triplet',
++    default=None,
++    help='arch triplet used by distro')
++
++parser.add_option('--node-relative-path',
++    action='store',
++    dest='node_relative_path',
++    default=None,
++    help='Node path(s) used by require, resolved relative to prefix dir.')
++
+ parser.add_option('--debug',
+     action='store_true',
+     dest='debug',
+@@ -1220,6 +1232,17 @@ def configure_napi(output):
+   version = getnapibuildversion.get_napi_version()
+   output['variables']['napi_build_version'] = version
+ 
++def configure_debian(output):
++  if options.arch_triplet:
++    output['variables']['arch_triplet'] = options.arch_triplet
++  else:
++    output['variables']['arch_triplet'] = 'unknown-unknown-unknown'
++
++  if options.node_relative_path:
++    output['variables']['node_relative_path'] = options.node_relative_path
++  else:
++    output['variables']['node_relative_path']= ''
++
+ def configure_library(lib, output, pkgname=None):
+   shared_lib = 'shared_' + lib
+   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+@@ -1711,6 +1734,7 @@ flavor = GetFlavor(flavor_params)
+ 
+ configure_node(output)
+ configure_napi(output)
++configure_debian(output)
+ configure_library('zlib', output)
+ configure_library('http_parser', output)
+ configure_library('libuv', output)
+--- a/test/parallel/test-module-loading-globalpaths.js
++++ b/test/parallel/test-module-loading-globalpaths.js
+@@ -73,10 +73,10 @@ if (process.argv[2] === 'child') {
+ 
+   // Test module in $PREFIX/lib/node.
+   // Write module into $PREFIX/lib/node.
+-  const expectedString = '$PREFIX/lib/node';
++  const expectedString = '$PREFIX/lib/nodejs';
+   const prefixLibPath = path.join(prefixPath, 'lib');
+   fs.mkdirSync(prefixLibPath);
+-  const prefixLibNodePath = path.join(prefixLibPath, 'node');
++  const prefixLibNodePath = path.join(prefixLibPath, 'nodejs');
+   fs.mkdirSync(prefixLibNodePath);
+   const pkgPath = path.join(prefixLibNodePath, `${pkgName}.js`);
+   fs.writeFileSync(pkgPath, `exports.string = '${expectedString}';`);

@@ -26,3 +26,6 @@ image/golang/build-images.sh
 
 image/python/build-packages.sh
 image/python/build-images.sh
+
+image/nodejs/build-packages.sh
+image/nodejs/build-images.sh

@@ -1,0 +1,48 @@
+The one doesn't simply put https://nodejs.org behind proxy due to some circumstances (CloudFlare).
+Fast but dirty solution is to setup intermediate nginx server between proxy repository and real https://nodejs.org.
+Here is configuration:
+
+    proxy_cache_path
+        /var/cache/nginx/proxy/nodejs-org
+        keys_zone=nodejs_org:10m
+        levels=1:2 inactive=2h;
+
+    server {
+        server_name nodejs-org.example.org;
+
+        location / {
+            return 301 https://nodejs.org$request_uri;
+        }
+
+        location ~ ^.+/$ {
+            proxy_pass https://nodejs.org$uri$is_args$args;
+            proxy_http_version 1.1;
+            proxy_redirect off;
+
+            proxy_ssl_protocols TLSv1.2 TLSv1.3;
+            proxy_ssl_server_name on;
+
+            proxy_set_header  Accept      "*/*";
+            proxy_set_header  User-Agent  "curl/7.88.1";
+            proxy_set_header  Connection  $http_connection;
+            proxy_set_header  Upgrade     $http_upgrade;
+
+            proxy_set_header  Accept-Encoding  "";
+
+            proxy_cache nodejs_org;
+            proxy_cache_key $uri$is_args$args;
+            proxy_cache_valid 200 1h;
+            proxy_cache_valid 1m;
+            proxy_ignore_client_abort on;
+
+            proxy_ignore_headers Cache-Control;
+            proxy_hide_header Cache-Control;
+            expires 30m;
+
+            # quirks
+            chunked_transfer_encoding off;
+            proxy_method GET;
+            proxy_buffering on;
+            proxy_temp_file_write_size 1m;
+        }
+    }

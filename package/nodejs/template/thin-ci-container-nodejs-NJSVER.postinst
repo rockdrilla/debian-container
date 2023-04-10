@@ -1,0 +1,63 @@
+#!/bin/sh
+
+set -ef
+
+wrapper=/@{NODEJS_PREFIX}/share/thin-ci.sh
+
+case "$1" in
+configure)
+	prio=@{DEB_NODEJS_PRIO}
+	bin=/usr/bin
+
+	for suffix in '' '-@{NODEJS_MAJOR_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/nodejs${suffix} \
+		  nodejs${suffix} \
+		  ${wrapper} \
+		${prio} \
+		--slave \
+		  ${bin}/node${suffix} \
+		  node${suffix} \
+		  ${wrapper} \
+
+		update-alternatives --install \
+		  ${bin}/npm${suffix} \
+		  npm${suffix} \
+		  ${wrapper} \
+		${prio} \
+		--slave \
+		  ${bin}/npx${suffix} \
+		  npx${suffix} \
+		  ${wrapper} \
+
+		update-alternatives --install \
+		  ${bin}/yarn${suffix} \
+		  yarn${suffix} \
+		  ${wrapper} \
+		${prio} \
+		--slave \
+		  ${bin}/yarnpkg${suffix} \
+		  yarnpkg${suffix} \
+		  ${wrapper} \
+
+	done
+
+	# compatibility with Debian
+	update-alternatives --install \
+	  ${bin}/js \
+	  js \
+	  ${wrapper} \
+	${prio} \
+
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

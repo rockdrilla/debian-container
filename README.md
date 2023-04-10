@@ -62,3 +62,19 @@ Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/golang-min/tags)
 |
 [standard](https://hub.docker.com/r/rockdrilla/golang/tags)
+
+### nodejs - minimal/standard
+
+NodeJs image/packages - `image/nodejs/` ([dockerfile](image/nodejs/Dockerfile))
+
+Versions:
+
+- 12.22.12
+- 14.21.3
+- 16.20.0
+- 18.15.0
+
+Images on Docker.io:
+[minimal](https://hub.docker.com/r/rockdrilla/nodejs-min/tags)
+|
+[standard](https://hub.docker.com/r/rockdrilla/nodejs/tags)

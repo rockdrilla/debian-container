@@ -1,0 +1,159 @@
+Description: adapt test-ci build target for buildd
+ * run tests with ./node
+ * remove addons from test-ci suite, because it creates a dependency loop
+   nodejs -> node-gyp -> nodejs which is painful to manage.
+ * disabled because it requires stdin:
+   + test-stdout-close-unref
+   + test-regress-GH-746
+ * test-tick-processor fails on ppc64 and s390x, currently investigated
+   https://github.com/nodejs/node/issues/2471
+ * test-cluster-disconnect sometimes fails on busy buildd, forwarded upstream
+   https://github.com/nodejs/node/issues/3383
+ * test-fs-watch is flaky, might be related to https://github.com/nodejs/node/issues/4082
+ * huge timeout value for all platforms, buildd could be busy
+ * test-npm-install and test-release-npm must fail, debian package dfsg-repacked npm out
+ * ability to override CI_NATIVE_SUITES, CI_JS_SUITES
+ * disable tests failing because DNS is disabled
+ * sequential/test-http2-session-timeout is flaky https://github.com/nodejs/node/issues/20628
+Author: Jérémy Lal <kapouer@melix.org>
+Forwarded: not-needed
+Reviewed-By: Xavier Guimard <yadd@debian.org>
+Last-Update: 2020-02-09
+
+--- a/Makefile
++++ b/Makefile
+@@ -537,7 +537,7 @@ test-ci-native: | benchmark/napi/.builds
+ # This target should not use a native compiler at all
+ # Related CI job: node-test-commit-arm-fanned
+ test-ci-js: | clear-stalled
+-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
++	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap \
+ 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
+ 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
+ 	$(info Clean up any leftover processes, error if found.)
+--- a/test/parallel/parallel.status
++++ b/test/parallel/parallel.status
+@@ -6,6 +6,43 @@ prefix parallel
+ 
+ [true] # This section applies to all platforms
+ 
++test-process-config                  : PASS,FLAKY
++test-regress-GH-746                  : PASS,FLAKY
++test-stdout-close-unref              : PASS,FLAKY
++test-npm-install                     : FAIL
++test-npm-version                     : FAIL
++test-release-npm                     : FAIL
++# skip tests accessing network
++test-dns                             : SKIP
++test-net-connect-immediate-finish    : SKIP
++test-net-better-error-messages-port-hostname : SKIP
++
++# in debian build env, skip because it somehow tries to access network
++test-https-connect-address-family : SKIP
++test-tls-connect-address-family : SKIP
++test-dns-cancel-reverse-lookup: SKIP
++
++# https://bugs.debian.org/919588
++## flaky on some user environments
++test-net-listen-after-destroying-stdin: PASS,FLAKY
++## fails when running with eatmydata
++test-fs-error-messages: PASS,FLAKY
++
++# this new test doesn't have a built target properly setup
++test-child-process-stdio-overlapped: SKIP
++
++# does not pass in autopkgtest ci env
++test-cluster-bind-privileged-port: PASS,FLAKY
++test-cluster-shared-handle-bind-privileged-port: PASS,FLAKY
++
++# corepack is dfsg-excluded
++test-corepack-yarn-install: SKIP
++test-corepack-version: SKIP
++
++# might fail, see https://github.com/nodejs/node/issues/17909
++test-fs-utimes: PASS,FLAKY
++test-fs-utimes-y2K38: PASS,FLAKY
++
+ [$system==win32]
+ # https://github.com/nodejs/node/issues/24497
+ test-timers-immediate-queue: PASS,FLAKY
+--- a/test/sequential/sequential.status
++++ b/test/sequential/sequential.status
+@@ -15,6 +15,24 @@ test-watch-mode-inspect: PASS, FLAKY
+ test-tls-psk-client: PASS,FLAKY
+ test-tls-securepair-client: PASS,FLAKY
+ 
++# flaky or failing at least on debian build servers
++test-fs-watch                                   : PASS,FLAKY
++test-force-repl                                 : SKIP
++test-performance                                : SKIP
++test-http2-session-timeout                      : PASS,FLAKY
++test-debugger-preserve-breaks                   : PASS,FLAKY
++test-debugger-exec-scope                        : PASS,FLAKY
++
++# https://github.com/nodejs/node/issues/24403
++test-cli-syntax: PASS,FLAKY
++
++# for debian buildd i386 (but pass on porter barriere.d.o)
++test-debugger-heap-profiler: PASS,FLAKY
++
++# new test - failing/hanging https://github.com/nodejs/node/issues/44898
++test-watch-mode: SKIP
++test-watch-mode-inspect: SKIP
++
+ [$system==win32]
+ 
+ [$system==linux]
+--- a/tools/test.py
++++ b/tools/test.py
+@@ -941,25 +941,7 @@ class Context(object):
+     self.node_has_crypto = True
+ 
+   def GetVm(self, arch, mode):
+-    if self.vm is not None:
+-      return self.vm
+-    if arch == 'none':
+-      name = 'out/Debug/node' if mode == 'debug' else 'out/Release/node'
+-    else:
+-      name = 'out/%s.%s/node' % (arch, mode)
+-
+-    # Currently GYP does not support output_dir for MSVS.
+-    # http://code.google.com/p/gyp/issues/detail?id=40
+-    # It will put the builds into Release/node.exe or Debug/node.exe
+-    if utils.IsWindows():
+-      if not exists(name + '.exe'):
+-        name = name.replace('out/', '')
+-      name = os.path.abspath(name + '.exe')
+-
+-    if not exists(name):
+-      raise ValueError('Could not find executable. Should be ' + name)
+-
+-    return name
++    return './node'
+ 
+   def GetTimeout(self, mode, section=''):
+     timeout = self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
+--- a/test/common/index.js
++++ b/test/common/index.js
+@@ -251,16 +251,12 @@ const pwdCommand = isWindows ?
+ 
+ function platformTimeout(ms) {
+   const multipliers = typeof ms === 'bigint' ?
+-    { two: 2n, four: 4n, seven: 7n } : { two: 2, four: 4, seven: 7 };
++    { fast: 6n, slow: 12n } : { fast: 6, slow: 12 };
+ 
+-  if (process.features.debug)
+-    ms = multipliers.two * ms;
+-
+-  if (isAIX)
+-    return multipliers.two * ms; // Default localhost speed is slower on AIX
+-
+-  if (isPi)
+-    return multipliers.two * ms;  // Raspberry Pi devices
++  if (process.arch.startsWith('arm') || process.arch.startsWith('mips'))
++    ms = multipliers.slow * ms;
++  else
++    ms = multipliers.fast * ms;
+ 
+   return ms;
+ }

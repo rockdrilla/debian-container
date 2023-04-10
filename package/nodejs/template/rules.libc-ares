@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+
+DEPS_LIBC_ARES_VERSION = $(shell awk '/^AC_INIT\(\[c-ares], / {print $$2}' deps/cares/configure.ac | tr -c -d '.0-9')
+DEBIAN_LIBC_ARES_VERSION = $(dpkg-query -f '$${Version}' -W libc-ares-dev)
+
+ifneq (,$(DEBIAN_LIBC_ARES_VERSION))
+  ifneq (,$(DEPS_LIBC_ARES_VERSION))
+    system_libc_ares := $(shell dpkg --compare-versions $(DEBIAN_LIBC_ARES_VERSION) ge $(DEPS_LIBC_ARES_VERSION) && echo yes)
+  endif
+endif

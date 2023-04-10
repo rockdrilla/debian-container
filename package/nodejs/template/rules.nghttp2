@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+
+DEPS_NGHTTP2_VERSION = $(shell awk '/^#define NGHTTP2_VERSION / {print $$3}' deps/nghttp2/lib/includes/nghttp2/nghttp2ver.h | tr -c -d '.0-9')
+DEBIAN_NGHTTP2_VERSION = $(dpkg-query -f '$${Version}' -W libnghttp2-dev)
+
+ifneq (,$(DEBIAN_NGHTTP2_VERSION))
+  ifneq (,$(DEPS_NGHTTP2_VERSION))
+    system_nghttp2 := $(shell dpkg --compare-versions $(DEBIAN_NGHTTP2_VERSION) ge $(DEPS_NGHTTP2_VERSION) && echo yes)
+  endif
+endif

@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+
+DEPS_LIBUV_VERSION = $(shell awk '/^AC_INIT\(\[libuv], / {print $$2}' deps/uv/configure.ac | tr -c -d '.0-9')
+DEBIAN_LIBUV_VERSION = $(dpkg-query -f '$${Version}' -W libuv1-dev)
+
+ifneq (,$(DEBIAN_LIBUV_VERSION))
+  ifneq (,$(DEPS_LIBUV_VERSION))
+    system_libuv := $(shell dpkg --compare-versions $(DEBIAN_LIBUV_VERSION) ge $(DEPS_LIBUV_VERSION) && echo yes)
+  endif
+endif

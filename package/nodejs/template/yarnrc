@@ -1,0 +1,6 @@
+nonInteractive true
+disable-self-update-check true
+plugnplay-shebang "/usr/bin/node"
+
+# for use with proxy
+# registry "http://127.0.0.1:8081/repository/proxy_npm_yarn"

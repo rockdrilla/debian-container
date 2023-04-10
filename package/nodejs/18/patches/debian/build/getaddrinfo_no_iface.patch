@@ -1,0 +1,75 @@
+From a6c0fd2303bfd034020f4de460f3a9a61ea071ac Mon Sep 17 00:00:00 2001
+From: Adam Majer <amajer@suse.de>
+Date: Mon, 1 Aug 2022 13:16:23 +0200
+Subject: [PATCH] net, dns: socket should handle its output as input
+
+As a consequence of https://github.com/nodejs/node/issues/43014 ,
+server sockets and others, once connected, report string family
+names. But when feeding these to Socket.connect(), it passes
+these to host resolution with a string for family while a numeric
+family is expected internally. This results in wrong hints flags
+to be set and resolution to fail.
+
+As solution, is to add ability to handle both numeric and string
+family names when doing lookup and connect.
+
+Fixes: https://github.com/nodejs/node/issues/44003
+---
+ lib/net.js                    | 12 +++++++++++-
+ test/parallel/parallel.status | 10 ----------
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+
+--- a/lib/net.js
++++ b/lib/net.js
+@@ -1073,6 +1073,16 @@
+   return this;
+ };
+ 
++function socketToDnsFamily(family) {
++  switch (family) {
++    case 'IPv4':
++      return 4;
++    case 'IPv6':
++      return 6;
++  }
++
++  return family;
++}
+ 
+ function lookupAndConnect(self, options) {
+   const { localAddress, localPort } = options;
+@@ -1115,7 +1125,7 @@
+ 
+   if (dns === undefined) dns = require('dns');
+   const dnsopts = {
+-    family: options.family,
++    family: socketToDnsFamily(options.family),
+     hints: options.hints || 0
+   };
+ 
+--- a/test/parallel/parallel.status
++++ b/test/parallel/parallel.status
+@@ -84,10 +84,6 @@
+ test-debug-args: PASS,FLAKY
+ 
+ [$system==solaris] # Also applies to SmartOS
+-# https://github.com/nodejs/node/pull/43054
+-test-net-socket-connect-without-cb: SKIP
+-test-net-socket-ready-without-cb: SKIP
+-test-tcp-wrap-listen: SKIP
+ # https://github.com/nodejs/node/issues/43446
+ test-net-connect-reset-until-connected: PASS, FLAKY
+ # https://github.com/nodejs/node/issues/43457
+@@ -112,12 +108,6 @@
+ # https://github.com/nodejs/node/issues/43446
+ test-net-connect-reset-until-connected: PASS, FLAKY
+ 
+-[$system==aix]
+-# https://github.com/nodejs/node/pull/43054
+-test-net-socket-connect-without-cb: SKIP
+-test-net-socket-ready-without-cb: SKIP
+-test-tcp-wrap-listen: SKIP
+-
+ [$system==ibmi]
+ # https://github.com/nodejs/node/pull/30819
+ test-child-process-fork-net-server: SKIP

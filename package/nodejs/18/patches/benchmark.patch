@@ -1,0 +1,22 @@
+--- a/benchmark/blob/blob.js
++++ b/benchmark/blob/blob.js
+@@ -3,7 +3,7 @@ const common = require('../common.js');
+ const { Blob } = require('buffer');
+ 
+ const bench = common.createBenchmark(main, {
+-  bytes: [128, 1024, 1024 ** 2],
++  bytes: [128, 1024, 8192],
+   n: [1e6],
+   operation: ['text', 'arrayBuffer'],
+ });
+--- a/benchmark/blob/file.js
++++ b/benchmark/blob/file.js
+@@ -3,7 +3,7 @@ const common = require('../common.js');
+ const { File } = require('buffer');
+ 
+ const bench = common.createBenchmark(main, {
+-  bytes: [128, 1024, 1024 ** 2],
++  bytes: [128, 1024, 8192],
+   n: [1e6],
+   operation: ['text', 'arrayBuffer'],
+ });

@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+# NB: LTO is handled via debian/rules.gcc-lto
+DEB_BUILD_MAINT_OPTIMIZE = optimize=-lto
+
+dpkg_buildflags = env \
+  DEB_BUILD_MAINT_OPTIONS='$(DEB_BUILD_MAINT_OPTIONS) $(DEB_BUILD_MAINT_OPTIMIZE)' \
+  dpkg-buildflags
+
+CFLAGS   = $(filter-out -O%,$(shell $(dpkg_buildflags) --get CFLAGS))
+CXXFLAGS = $(filter-out -O%,$(shell $(dpkg_buildflags) --get CXXFLAGS))
+CPPFLAGS = $(shell $(dpkg_buildflags) --get CPPFLAGS)
+LDFLAGS  = $(filter-out -O%,$(shell $(dpkg_buildflags) --get LDFLAGS))
+
+# enforce minimal optimization even with "noopt"
+ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
+  CFLAGS   := -O1 $(CFLAGS)
+  CXXFLAGS := -O1 $(CXXFLAGS)
+  LDFLAGS  := -O1 $(LDFLAGS)
+endif
+
+export CFLAGS CPPFLAGS CXXFLAGS LDFLAGS

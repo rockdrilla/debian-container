@@ -1,0 +1,354 @@
+#!/usr/bin/make -f
+
+SHELL       :=/bin/sh
+.SHELLFLAGS :=-ec
+
+MAKEFLAGS += --no-print-directory
+
+export DH_VERBOSE := 1
+
+include /usr/share/dpkg/default.mk
+
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all
+
+# Ubuntu mangles png files by default, which can break some files.
+export NO_PNG_PKG_MANGLE := 1
+
+export SOURCE_DATE_EPOCH
+
+ifneq ($(DEB_HOST_ARCH_OS),linux)
+  $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
+endif
+
+include debian/rules.pkg-info
+
+NODEJS_VERSION ?= $(DEB_VERSION_UPSTREAM)
+
+empty :=
+space :=$(empty) $(empty)
+comma :=,
+xsedx :=$(shell printf '\027')
+
+NODEJS_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(NODEJS_VERSION)))
+
+DEB_NODEJS_PRIO = $(shell printf '1%03d0' $(NODEJS_MAJOR_VERSION))
+
+NODEJS_BINARY = usr/bin/node-$(NODEJS_MAJOR_VERSION)
+NODEJS_PREFIX = opt/node-$(NODEJS_MAJOR_VERSION)
+NODEJS_MODULES = $(NODEJS_PREFIX)/lib/node
+
+NPROC_MAKE := $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+NPROC_MAKE := $(if $(NPROC_MAKE),$(NPROC_MAKE),$(shell nproc))
+NPROC_TEST := $(shell echo "$$(( ( $(NPROC_MAKE) + 1 ) / 2 ))")
+
+with_shared := $(if $(filter $(NODEJS_MAJOR_VERSION),12 18),yes)
+
+include debian/rules.ver
+
+include debian/rules.gcc-latest-ver
+include debian/rules.gcc-flags
+include debian/rules.gcc-lto
+# TODO: PGO/benchmark is broken AF
+# include debian/rules.gcc-pgo
+
+include debian/rules.icu
+include debian/rules.libc-ares
+include debian/rules.libuv
+include debian/rules.nghttp2
+
+corepack_available = $(if $(wildcard deps/corepack),yes)
+
+CONFIGURE_FLAGS = \
+	--prefix=/$(NODEJS_PREFIX) \
+	--arch-triplet=$(DEB_HOST_MULTIARCH) \
+	--verbose \
+	--without-npm \
+	$(if $(corepack_available),--without-corepack) \
+	--shared-zlib \
+	--shared-openssl \
+	--openssl-use-def-ca-store \
+	--shared-brotli \
+	$(if $(system_icu),--with-intl=system-icu) \
+	$(if $(system_libc_ares),--shared-cares) \
+	$(if $(system_libuv),--shared-libuv) \
+	$(if $(system_nghttp2),--shared-nghttp2) \
+	--node-relative-path='lib/$(DEB_HOST_MULTIARCH)/nodejs:share/nodejs'
+
+CONFIGURE_SHARED = $(CONFIGURE_FLAGS) --shared
+INSTALL_SHARED = debian/tmp.shared
+CONFIGURE_BINARY = $(CONFIGURE_FLAGS) \
+	$(if $(filter yes,$(with_lto)),--enable-lto)
+
+# needed for tests to avoid "ee key too small" errors
+export OPENSSL_CONF = $(CURDIR)/deps/openssl/openssl/apps/openssl.cnf
+
+export PYTHON = python3
+export PYTHONUNBUFFERED = 1
+export PYTHONDONTWRITEBYTECODE = 1
+
+ifneq (,$(wildcard debian/rules.local))
+include debian/rules.local
+endif
+
+.NOTPARALLEL:
+
+DH_ARGS =
+
+%:
+	dh $@ $(DH_ARGS)
+
+execute_before_dh_auto_configure:
+	: # verify that we' having "right" gcc version
+	@echo '# CC = $(CC)' >&2
+	@$(CC) --version 2>&1 | head -n 1 >&2
+
+	: # verify CFLAGS
+	@echo "# CFLAGS = $${CFLAGS}" >&2
+
+	: # verify DEB_BUILD_OPTIONS
+	@echo "# DEB_BUILD_OPTIONS = $${DEB_BUILD_OPTIONS}" >&2
+
+	: # collect extra package versions for dh_gencontrol
+	for i in types npm yarn ; do \
+	  jq -r "\"jspkg:$$i=\" + .version" node-$$i/package.json ; \
+	done | tee debian/jspkg.substvars
+
+override_dh_auto_configure:
+
+define try_dh_auto_build
+	build_ret=0 ; \
+	for i in $$( seq 1 $(if $(strip $(1)),$(strip $(1)),3) ) ; do \
+	  set +e ; \
+	  dh_auto_build $(strip $(2)); \
+	  build_ret=$$? ; \
+	  set -e ; \
+	  [ "$${build_ret}" = 0 ] || continue ; \
+	  break ; \
+	done ; \
+	[ "$${build_ret}" = 0 ] || exit $${build_ret}
+endef
+
+export NODE_TEST_DIR = $(CURDIR)/debian/tmp.test
+export NODE_TEST_NO_INTERNET = 1
+export CI_JS_SUITES = message parallel sequential
+export TEST_CI_ARGS = --timeout=3000
+export FLAKY_TESTS = dontcare
+
+define try_dh_auto_test
+	mkdir -p $(NODE_TEST_DIR) ; \
+	HOME=$(NODE_TEST_DIR) \
+	$(PYTHON) tools/test.py -j $(if $(strip $(1)),$(strip $(1)),$(NPROC_TEST)) \
+	  -p tap \
+	  --mode=release \
+	  --flaky-tests=dontcare \
+	  --timeout=3000 \
+	  message parallel sequential \
+	|| : ; \
+	rm -rf $(NODE_TEST_DIR)
+endef
+
+define try_run_benchmark
+	mkdir -p $(NODE_TEST_DIR) ; \
+	HOME=$(NODE_TEST_DIR) \
+	./node benchmark/run.js all \
+	|| : ; \
+	rm -rf $(NODE_TEST_DIR)
+endef
+
+export PGO_DIR = $(CURDIR)/debian/tmp.pgo
+
+override_dh_auto_build:
+	: # build empty shim shared library
+	: > debian/libempty.c
+	gcc -o debian/libempty.so debian/libempty.c \
+	  -fPIC -shared -nostartfiles \
+	  -Wl,-soname=libnode.so.$(NODEJS_API_VERSION)
+
+ifeq ($(with_shared),yes)
+	: # build shared library
+	$(PYTHON) configure.py $(CONFIGURE_SHARED)
+	$(call try_dh_auto_build, , )
+	mkdir -p $(INSTALL_SHARED)
+	mv -vt $(INSTALL_SHARED) out/Release/obj.target/libnode.so.*
+	rm -rf out
+endif
+
+ifeq ($(with_pgo),yes)
+	rm -rf $(PGO_DIR) ; mkdir -p $(PGO_DIR)
+
+	$(PYTHON) configure.py $(CONFIGURE_BINARY) --enable-pgo-generate
+	$(call try_dh_auto_build, , )
+
+	: # strip debug information from intermediate binaries
+	find out/Release -maxdepth 1 ! -name node -type f -exec strip --strip-debug {} + || :
+
+	: # bench run 1 - collect coverage/profiling
+	$(call try_dh_auto_test, 1 )
+	$(call try_run_benchmark)
+
+	rm -rf out
+
+	$(PYTHON) configure.py $(CONFIGURE_BINARY) --enable-pgo-use
+	$(call try_dh_auto_build, , )
+
+	: # strip debug information from intermediate binaries
+	find out/Release -maxdepth 1 ! -name node -type f -exec strip --strip-debug {} + || :
+
+	du -xhd1 $(PGO_DIR)
+
+	: # bench run 2 - test result
+	$(call try_run_benchmark)
+
+	rm -rf $(PGO_DIR)
+else
+	$(PYTHON) configure.py $(CONFIGURE_BINARY)
+	$(call try_dh_auto_build, , )
+endif
+
+execute_after_dh_auto_build:
+	env -C /tmp \
+	  $(CURDIR)/out/Release/node -e 'console.log(module.paths)'
+
+override_dh_auto_test:
+	$(call try_dh_auto_test,)
+
+define fix_hashbangs_r
+
+	hashbang_rx='^#!.*[/ ]node(js|)' ; \
+	list='$(strip $(1)).hashbang' ; \
+	find '$(strip $(1))/' -type f -exec grep -EIl "$${hashbang_rx}" '{}' '+' \
+	> "$${list}" || : ; \
+	if [ -s "$${list}" ] ; then \
+		while read -r f ; do \
+			[ -n "$$f" ] || continue ; \
+			x_flag=1 ; \
+			[ -x "$$f" ] || x_flag= ; \
+			sed -E "1s$(xsedx)$${hashbang_rx}$(xsedx)#!/$(NODEJS_BINARY)$(xsedx)" \
+			< "$$f" > "$${list}.tmp" ; \
+			if ! cmp -s "$${list}.tmp" "$$f" ; then \
+				echo "# fixed hashbang: $$f" ; \
+				mv -f "$${list}.tmp" "$$f" ; \
+			fi ; \
+			if [ -z "$${x_flag}" ] ; then \
+				echo "# fixed permissions: $$f" ; \
+			fi ; \
+			chmod 0755 "$$f" ; \
+		done < "$${list}" >&2 ; \
+		rm -f "$${list}.tmp" ; \
+	fi ; \
+	rm -f "$${list}"
+
+endef
+
+define remove_pycache
+
+	: # $(strip $(1)): remove Python cache
+	find $(strip $(1))/ -name __pycache__ -type d -exec rm -rf '{}' '+'
+	find $(strip $(1))/ -name '*.py[co]' -ls -delete
+
+endef
+
+execute_after_dh_auto_install:
+ifeq ($(with_shared),yes)
+	: # move shared library from staged location
+	mkdir -p debian/tmp/$(NODEJS_PREFIX)/lib
+	mv -vt debian/tmp/$(NODEJS_PREFIX)/lib $(INSTALL_SHARED)/libnode.so.*
+else
+	sed -i -e '/libnode/d' $(addprefix debian/container-nodejs-$(NODEJS_MAJOR_VERSION).,install links)
+	sed -i -e '/libnode$(NODEJS_API_VERSION)/d' debian/control
+endif
+
+	: # move binaries to appropriate location
+	mkdir -p debian/tmp/$(NODEJS_PREFIX)/bin
+	env -C out/Release \
+	  mv -n -t $(CURDIR)/debian/tmp/$(NODEJS_PREFIX)/bin \
+	  node
+
+	: # remove build artifacts (uses a lot of disk space)
+	rm -rf out
+
+	: # fix RPATH
+#	patchelf --set-rpath '$$ORIGIN/../lib' debian/tmp/$(NODEJS_PREFIX)/bin/node
+	patchelf --remove-rpath debian/tmp/$(NODEJS_PREFIX)/bin/node
+
+	: # remove unneeded manpages
+	rm -rf debian/tmp/$(NODEJS_PREFIX)/share/man
+
+	: # copy own scripts
+	for i in node-gyp node-shlib-$(NODEJS_MAJOR_VERSION) npm npx yarn ; do \
+	  d=debian/tmp/$(NODEJS_PREFIX)/bin/$$i ; \
+	  cp debian/$$i.sh $$d ; \
+	  chmod 0755 $$d ; \
+	done
+
+	: # prepare development files
+	mkdir -p debian/tmp/$(NODEJS_PREFIX)/include/node
+	env -C debian/tmp/$(NODEJS_PREFIX)/include \
+	  ln -s node nodejs
+
+	: # copy (missing) headers
+	find src/ deps/v8/include/ -name '*.h*' -type f -print0 \
+	| sort -zuV | tar --null -T - -cf - \
+	| tar -C debian/tmp/$(NODEJS_PREFIX)/include/node -xf -
+
+	: # prepare node modules location
+	mkdir -p debian/tmp/$(NODEJS_MODULES)
+	env -C debian/tmp/$(NODEJS_PREFIX)/lib \
+	  ln -s node node_modules
+
+	: # copy extra node packages to appropriate location
+
+	: # @types/node
+	mkdir -p debian/tmp/$(NODEJS_MODULES)/@types/node ; \
+	tar -C node-types -cf - . \
+	| tar -C debian/tmp/$(NODEJS_MODULES)/@types/node -xf -
+
+	: # npm & yarn
+	for i in npm yarn ; do \
+	  mkdir -p debian/tmp/$(NODEJS_MODULES)/$$i ; \
+	  tar -C node-$$i -cf - . \
+	  | tar -C debian/tmp/$(NODEJS_MODULES)/$$i -xf - ; \
+	done
+
+	: # patch yarn
+	sed -i -E \
+	  -e 's,/usr/local/share,/$(NODEJS_PREFIX)/var,g' \
+	  -e 's,/usr/local,/$(NODEJS_PREFIX),g' \
+	  -e 's,("installationMethod":) "tar",\1 "npm",' \
+	debian/tmp/$(NODEJS_MODULES)/yarn/lib/cli.js
+
+	: # cleanup node packages
+	find debian/tmp/$(NODEJS_MODULES)/ -name 'README*' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -name 'CHANGELOG*' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -path '*/bin/*.cmd' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -path '*/test*/*' -type f -exec rm -fv '{}' +
+
+	$(call remove_pycache, debian/tmp )
+
+	: # fix permissions and hashbangs
+	find debian/tmp/$(NODEJS_MODULES)/ -type f -exec chmod a-x '{}' +
+	$(call fix_hashbangs_r, debian/tmp )
+
+	: # remove directories without files/symlinks
+	find debian/tmp/ -type d | sort -V | while read -r d ; do \
+	  [ -d "$$d" ] || continue ; \
+	  find "$$d/" ! -type d -printf . -quit | grep -Fq . || rm -rfv "$$d" ; \
+	done
+
+override_dh_strip_nondeterminism:
+	dh_strip_nondeterminism $(addprefix --exclude=,.png)
+
+execute_after_dh_fixperms:
+	find debian/ -path '*/$(NODEJS_MODULES)/*/bin/*' -type f -exec chmod 0755 '{}' +
+	find debian/ -path '*/share/thin-ci.sh' -type f -exec chmod 0755 '{}' +
+
+# don't run dwz - nodejs is too heavy
+override_dh_dwz:
+
+override_dh_shlibdeps:
+	dh_shlibdeps -ldebian/tmp/$(NODEJS_PREFIX)/lib
+
+override_dh_gencontrol:
+	dh_gencontrol -- -Tdebian/jspkg.substvars -Tdebian/substvars
+
+include debian/rules.selftemplate

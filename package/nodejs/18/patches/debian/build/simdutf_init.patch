@@ -1,0 +1,118 @@
+From: Anna Henningsen <anna.henningsen@mongodb.com>
+Date: Wed, 18 Jan 2023 17:27:12 +0100
+Subject: [PATCH] src: lazily initialize global BuiltinLoader
+
+Using simdutf during startup can fail when compilation units are
+linked in the wrong order by a static initialization order issue.
+
+https://github.com/nodejs/node/issues/46235 would also solve this,
+but since that is a larger effort, this patch focuses on solving
+the immediate problem. Alternatively, simdutf should arguably
+be made usable during static initialization, but that is also not
+as straightforward as this patch.
+
+Fixes: https://github.com/nodejs/node/issues/46235
+---
+ src/node_builtins.cc            | 18 +++++++++++-------
+ src/node_builtins.h             | 13 +++++++++----
+ test/cctest/test_per_process.cc |  2 +-
+ 3 files changed, 21 insertions(+), 12 deletions(-)
+
+--- a/src/node_builtins.cc
++++ b/src/node_builtins.cc
+@@ -29,8 +29,6 @@ using v8::SideEffectType;
+ using v8::String;
+ using v8::Value;
+ 
+-BuiltinLoader BuiltinLoader::instance_;
+-
+ BuiltinLoader::BuiltinLoader() : config_(GetConfig()), has_code_cache_(false) {
+   LoadJavaScriptSource();
+ #ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
+@@ -52,6 +50,7 @@ BuiltinLoader::BuiltinLoader() : config_
+ }
+ 
+ BuiltinLoader* BuiltinLoader::GetInstance() {
++  static BuiltinLoader instance_;
+   return &instance_;
+ }
+ 
+@@ -60,8 +59,11 @@ bool BuiltinLoader::Exists(const char* i
+   return source.find(id) != source.end();
+ }
+ 
+-bool BuiltinLoader::Add(const char* id, const UnionBytes& source) {
+-  auto result = GetInstance()->source_.emplace(id, source);
++bool BuiltinLoader::Add(const char* id,
++                        const UnionBytes& source,
++                        BuiltinLoader* instance) {
++  if (instance == nullptr) instance = GetInstance();
++  auto result = instance->source_.emplace(id, source);
+   return result.second;
+ }
+ 
+@@ -246,10 +248,12 @@ void BuiltinLoader::AddExternalizedBuilt
+     ABORT();
+   }
+ 
+-  Add(id, source);
++  Add(id, source, this);
+ }
+ 
+-bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
++bool BuiltinLoader::Add(const char* id,
++                        std::string_view utf8source,
++                        BuiltinLoader* instance) {
+   size_t expected_u16_length =
+       simdutf::utf16_length_from_utf8(utf8source.data(), utf8source.length());
+   auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
+@@ -258,7 +262,7 @@ bool BuiltinLoader::Add(const char* id,
+                                      utf8source.length(),
+                                      reinterpret_cast<char16_t*>(out->data()));
+   out->resize(u16_length);
+-  return Add(id, UnionBytes(out));
++  return Add(id, UnionBytes(out), instance);
+ }
+ 
+ // Returns Local<Function> of the compiled module if return_code_cache
+--- a/src/node_builtins.h
++++ b/src/node_builtins.h
+@@ -55,8 +55,14 @@ class NODE_EXTERN_PRIVATE BuiltinLoader
+   // Returns config.gypi as a JSON string
+   static v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
+   static bool Exists(const char* id);
+-  static bool Add(const char* id, const UnionBytes& source);
+-  static bool Add(const char* id, std::string_view utf8source);
++  // TODO(addaleax): Make BuiltinLoader non-global so that these
++  // methods do not need to be static.
++  static bool Add(const char* id,
++                  const UnionBytes& source,
++                  BuiltinLoader* instance = nullptr);
++  static bool Add(const char* id,
++                  std::string_view utf8source,
++                  BuiltinLoader* instance = nullptr);
+ 
+   static bool CompileAllBuiltins(v8::Local<v8::Context> context);
+   static void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
+@@ -122,9 +128,8 @@ class NODE_EXTERN_PRIVATE BuiltinLoader
+   static void HasCachedBuiltins(
+       const v8::FunctionCallbackInfo<v8::Value>& args);
+ 
+-  static void AddExternalizedBuiltin(const char* id, const char* filename);
++  void AddExternalizedBuiltin(const char* id, const char* filename);
+ 
+-  static BuiltinLoader instance_;
+   BuiltinCategories builtin_categories_;
+   BuiltinSourceMap source_;
+   BuiltinCodeCacheMap code_cache_;
+--- a/test/cctest/test_per_process.cc
++++ b/test/cctest/test_per_process.cc
+@@ -11,7 +11,7 @@ using node::builtins::BuiltinSourceMap;
+ class PerProcessTest : public ::testing::Test {
+  protected:
+   static const BuiltinSourceMap get_sources_for_test() {
+-    return BuiltinLoader::instance_.source_;
++    return BuiltinLoader::GetInstance()->source_;
+   }
+ };
+ 

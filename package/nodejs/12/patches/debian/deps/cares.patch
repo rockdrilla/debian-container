@@ -1,0 +1,23 @@
+Description: keep nodejs compatible with libc-ares public headers
+Forwarded: not-needed
+Last-Update: 2021-10-20
+Author: Jérémy Lal <kapouer@melix.org>
+--- a/src/cares_wrap.cc
++++ b/src/cares_wrap.cc
+@@ -39,7 +39,15 @@
+ # include <netdb.h>
+ #endif  // __POSIX__
+ 
+-# include <ares_nameser.h>
++#if defined(__ANDROID__) || \
++    defined(__MINGW32__) || \
++    defined(__OpenBSD__) || \
++    defined(_MSC_VER)
++# include <nameser.h>
++#else
++# include <arpa/nameser.h>
++#endif
++
+ 
+ // OpenBSD does not define these
+ #ifndef AI_ALL

@@ -1,0 +1,12 @@
+@{NODEJS_PREFIX}/bin/node
+@{NODEJS_PREFIX}/bin/node-shlib-@{NODEJS_MAJOR_VERSION} usr/bin/
+@{NODEJS_PREFIX}/lib/libnode.so.*
+@{NODEJS_PREFIX}/lib/node_modules
+@{NODEJS_MODULES}/@types/node
+
+debian/libempty.so  @{NODEJS_PREFIX}/lib/
+
+deps/openssl/openssl/apps/openssl.cnf             @{NODEJS_PREFIX}/share/
+@{NODEJS_PREFIX}/share/doc/node/gdbinit           @{NODEJS_PREFIX}/share/
+@{NODEJS_PREFIX}/share/doc/node/lldb_commands.py  @{NODEJS_PREFIX}/share/
+@{NODEJS_PREFIX}/share/systemtap/tapset/node.stp  @{NODEJS_PREFIX}/share/

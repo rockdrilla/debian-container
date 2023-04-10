@@ -1,0 +1,24 @@
+Subject: skip buffer NaN internal representation check
+ this fails on whatever archs having other internal representations of NaN.
+Last-Update: 2022-05-02
+Author: Jérémy Lal <kapouer@melix.org>
+Forwarded: https://github.com/nodejs/node/issues/42945
+
+--- a/test/parallel/test-buffer-writefloat.js
++++ b/test/parallel/test-buffer-writefloat.js
+@@ -53,6 +53,7 @@ buffer.writeFloatLE(NaN, 4);
+ 
+ // JS only knows a single NaN but there exist two platform specific
+ // implementations. Therefore, allow both quiet and signalling NaNs.
++/*
+ if (buffer[1] === 0xBF) {
+   assert.ok(
+     buffer.equals(new Uint8Array(
+@@ -62,6 +63,7 @@ if (buffer[1] === 0xBF) {
+     buffer.equals(new Uint8Array(
+       [ 0x7F, 0xC0, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x7F ])));
+ }
++*/
+ 
+ assert.ok(Number.isNaN(buffer.readFloatBE(0)));
+ assert.ok(Number.isNaN(buffer.readFloatLE(4)));

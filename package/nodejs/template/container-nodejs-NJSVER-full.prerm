@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "purge" ] ; then
+	for i in npmrc yarnrc ; do
+		grep -Eq '^# KEEP' "/etc/$i" || rm -fv "/etc/$i"
+	done
+fi
+
+if [ "$1" != "upgrade" ]; then
+	nodejs_bin=/@{NODEJS_PREFIX}/bin
+
+	for suffix in '' '-@{NODEJS_MAJOR_VERSION}' ; do
+		for i in npm yarn ; do
+			update-alternatives --remove \
+			  $i${suffix} \
+			  ${nodejs_bin}/$i
+		done
+	done
+
+	for i in npmrc yarnrc ; do
+		[ -e "/etc/$i" ] || continue
+
+		if cmp -s "/etc/$i" "/@{NODEJS_PREFIX}/share/$i" ; then
+			rm -f "/etc/$i"
+		fi
+	done
+fi
+
+#DEBHELPER#
+
+exit 0

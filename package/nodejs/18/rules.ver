@@ -1,0 +1,6 @@
+#!/usr/bin/make -f
+
+NODEJS_API_VERSION = 108
+
+NPM_BASE_VERSION = 9.6
+YARN_BASE_VERSION = 1.22

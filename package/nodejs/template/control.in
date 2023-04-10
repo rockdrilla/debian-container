@@ -1,0 +1,89 @@
+Source: container-nodejs-@{NODEJS_MAJOR_VERSION}
+Section: javascript
+Priority: optional
+Maintainer: @{DEB_MAINTAINER}
+Build-Depends: debhelper-compat (= 13),
+               ca-certificates,
+               curl,
+               gyp,
+               jq,
+               libbrotli-dev,
+               libc-ares-dev,
+               libhttp-parser-dev,
+               libicu-dev,
+               libnghttp2-dev,
+               libssl-dev,
+               libuv1-dev,
+               openssl,
+               patchelf,
+               procps,
+               python3,
+               python3-distutils,
+               wrk,
+               zlib1g-dev,
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://nodejs.org/
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/nodejs/@{NODEJS_MAJOR_VERSION}
+
+Package: container-nodejs-@{NODEJS_MAJOR_VERSION}
+Architecture: any
+Pre-Depends: ${shlibs:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+Recommends: ca-certificates,
+Suggests: container-nodejs-@{NODEJS_MAJOR_VERSION}-full (= ${binary:Version}),
+Provides: nodejs:any (= @{NODEJS_VERSION}),
+          libnode@{NODEJS_API_VERSION} (= @{NODEJS_VERSION}),
+          node-types-node (= ${jspkg:types}),
+Conflicts: libnode@{NODEJS_API_VERSION},
+Breaks: libnode@{NODEJS_API_VERSION},
+Description: Node.js v@{NODEJS_MAJOR_VERSION}
+ This package contains almost full Node.js installation (executable,
+ shared library, runtime) except package managers and development files.
+
+Package: container-nodejs-@{NODEJS_MAJOR_VERSION}-full
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-nodejs-@{NODEJS_MAJOR_VERSION} (= ${binary:Version}),
+Recommends: container-nodejs-@{NODEJS_MAJOR_VERSION}-dev (= ${binary:Version}),
+Provides: npm (= ${jspkg:npm}),
+          yarnpkg (= ${jspkg:yarn}),
+Description: Node.js v@{NODEJS_MAJOR_VERSION} - full package
+ This package contains Node.js package managers "npm" and "yarn".
+ It also installs /etc/npmrc and /etc/yarnrc with sane defaults.
+
+Package: container-nodejs-@{NODEJS_MAJOR_VERSION}-dev
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-nodejs-@{NODEJS_MAJOR_VERSION}-full (= ${binary:Version}),
+         libuv1-dev,
+         libssl-dev,
+Recommends: libc6-dev | libc-dev,
+Provides: libnode-dev (= @{NODEJS_VERSION}),
+Conflicts: libnode-dev,
+Breaks: libnode-dev,
+Description: Node.js v@{NODEJS_MAJOR_VERSION} - development files
+ This package contains header files and development tools for building
+ Node.js v@{NODEJS_MAJOR_VERSION} modules, extending the Node.js
+ or embedding Node.js v@{NODEJS_MAJOR_VERSION} in applications.
+
+# Package: container-nodejs-@{NODEJS_MAJOR_VERSION}-misc
+# Architecture: any
+# Depends: ${shlibs:Depends}, ${misc:Depends},
+#          container-nodejs-@{NODEJS_MAJOR_VERSION}-dev (= ${binary:Version}),
+# Description: Node.js v@{NODEJS_MAJOR_VERSION} - miscellaneous files
+#  This package contains auxiliary files for Node.js v@{NODEJS_MAJOR_VERSION}.
+#  .
+#  If you are encouraged to install this package then something goes wrong.
+#  Feel free to open the issue/PR.
+
+Package: thin-ci-container-nodejs-@{NODEJS_MAJOR_VERSION}
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+Description: Node.js v@{NODEJS_MAJOR_VERSION} - thin CI installer
+ This package contains wrapper script to install container-nodejs-@{NODEJS_MAJOR_VERSION}
+ or container-nodejs-@{NODEJS_MAJOR_VERSION}-full on first call.

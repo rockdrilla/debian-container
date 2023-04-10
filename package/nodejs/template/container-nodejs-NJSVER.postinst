@@ -1,0 +1,44 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+configure)
+	prio=$(( @{DEB_NODEJS_PRIO} + 1 ))
+	bin=/usr/bin
+	nodejs_bin=/@{NODEJS_PREFIX}/bin
+
+	for suffix in '' '-@{NODEJS_MAJOR_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/nodejs${suffix} \
+		  nodejs${suffix} \
+		  ${nodejs_bin}/node \
+		${prio} \
+		--slave \
+		  ${bin}/node${suffix} \
+		  node${suffix} \
+		  ${nodejs_bin}/node \
+
+	done
+
+	# compatibility with Debian
+	update-alternatives --install \
+	  ${bin}/js \
+	  js \
+	  ${nodejs_bin}/node \
+	${prio} \
+
+	# install shim library as symlink for libnode.so.@{NODEJS_API_VERSION}
+	node-shlib-@{NODEJS_MAJOR_VERSION} shim
+;;
+abort-upgrade|abort-remove|abort-deconfigure)
+;;
+*)
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

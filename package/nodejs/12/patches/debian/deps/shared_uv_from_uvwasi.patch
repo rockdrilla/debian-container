@@ -1,0 +1,26 @@
+Description: uvwasi depends on uv.gyp and ignores shared_libuv
+Author: Jérémy Lal <kapouer@melix.org>
+Last-Update: 2021-07-03
+Forwarded: https://github.com/nodejs/node/issues/39248
+--- a/deps/uvwasi/uvwasi.gyp
++++ b/deps/uvwasi/uvwasi.gyp
+@@ -18,9 +18,6 @@
+         'src/wasi_rights.c',
+         'src/wasi_serdes.c',
+       ],
+-      'dependencies': [
+-        '../uv/uv.gyp:libuv',
+-      ],
+       'direct_dependent_settings': {
+         'include_dirs': ['include']
+       },
+@@ -31,6 +28,9 @@
+             '_POSIX_C_SOURCE=200112',
+           ],
+         }],
++        [ 'node_shared_libuv=="false"', {
++          'dependencies': [ '../uv/uv.gyp:libuv' ],
++        }],
+       ],
+     }
+   ]

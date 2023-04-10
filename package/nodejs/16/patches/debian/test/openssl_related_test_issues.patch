@@ -1,0 +1,21 @@
+Description: node use old keys, and new openssl don't allow them
+ this test might fail just because of that.
+ Upstream is actually merging a PR that upgrades their test keys
+Author: Jérémy Lal <kapouer@melix.org>
+Last-Update: 2022-09-29
+Forwarded: not-needed, https://github.com/nodejs/node/pull/44498
+--- a/test/parallel/parallel.status
++++ b/test/parallel/parallel.status
+@@ -32,6 +32,12 @@ test-net-listen-after-destroying-stdin:
+ ## fails when running with eatmydata
+ test-fs-error-messages: PASS,FLAKY
+ 
++# upstream is currently updating its keys so openssl stop complaining
++test-tls-server-verify: PASS, FLAKY
++test-tls-env-extra-ca: PASS, FLAKY
++# this one even fails silently
++test-tls-dhe: SKIP
++
+ # this new test doesn't have a built target properly setup
+ test-child-process-stdio-overlapped: SKIP
+ 

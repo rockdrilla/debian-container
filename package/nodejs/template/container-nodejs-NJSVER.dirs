@@ -1,0 +1,4 @@
+@{NODEJS_PREFIX}/share
+
+usr/bin
+usr/lib/${DEB_HOST_MULTIARCH}

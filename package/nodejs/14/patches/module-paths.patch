@@ -1,0 +1,15 @@
+--- a/lib/internal/modules/cjs/loader.js
++++ b/lib/internal/modules/cjs/loader.js
+@@ -1241,9 +1241,9 @@ Module._initPaths = function() {
+     postDirs.push(path.join('lib', 'node'));
+   }
+ 
+-  let paths = postDirs.map(postDir => {
+-    return path.resolve(prefixDir, postDir);
+-  });
++  let paths = [path.resolve(prefixDir, 'lib', 'node')];
++  // compatibility with Debian
++  paths = paths.concat(postDirs.map(postDir => { return path.resolve('/usr', postDir); }));
+ 
+   if (homeDir) {
+     ArrayPrototypeUnshift(paths, path.resolve(homeDir, '.node_libraries'));

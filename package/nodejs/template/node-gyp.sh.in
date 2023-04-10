@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /@{NODEJS_MODULES}/npm/bin/node-gyp-bin/node-gyp "$@"

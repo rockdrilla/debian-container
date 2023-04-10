@@ -1,0 +1,5 @@
+container-nodejs-@{NODEJS_MAJOR_VERSION} (@{DEB_EPOCH}@{NODEJS_VERSION}-1) @{SUITE}; urgency=medium
+
+  * New upstream version @{NODEJS_VERSION}.
+
+ -- @{DEB_MAINTAINER}  @{DEB_CHANGELOG_DATE}

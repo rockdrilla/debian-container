@@ -1,0 +1,239 @@
+--- a/common.gypi
++++ b/common.gypi
+@@ -165,8 +165,8 @@
+       'Release': {
+         'variables': {
+           'v8_enable_handle_zapping': 0,
+-          'pgo_generate': ' -fprofile-generate ',
+-          'pgo_use': ' -fprofile-use -fprofile-correction ',
++          'pgo_generate': ' -fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR) ',
++          'pgo_use': ' -fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR) ',
+           'conditions': [
+             ['node_shared != "true"', {
+               'MSVC_runtimeType': 0    # MultiThreaded (/MT)
+@@ -174,7 +174,7 @@
+               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
+             }],
+             ['llvm_version=="0.0"', {
+-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
++              'lto': ' -flto=2 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none ', # GCC
+             }, {
+               'lto': ' -flto ', # Clang
+             }],
+--- a/deps/openssl/openssl-cli.gypi
++++ b/deps/openssl/openssl-cli.gypi
+@@ -21,5 +21,9 @@
+         ],
+       },
+     }],
++    # Avoid excessive LTO & PGO
++    ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++    ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++    ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+   ],
+ }
+--- a/deps/openssl/openssl.gyp
++++ b/deps/openssl/openssl.gyp
+@@ -79,6 +79,10 @@
+         }, {
+           'includes': ['./openssl-cl_asm.gypi'],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+      ]
+     }, {
+       # openssl-fipsmodule target
+--- a/node.gyp
++++ b/node.gyp
+@@ -1155,6 +1155,10 @@
+         [ 'OS!="linux" or ossfuzz!="true"', {
+           'type': 'none',
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+     }, # fuzz_url
+     { # fuzz_env
+@@ -1197,6 +1201,10 @@
+         [ 'OS!="linux" or ossfuzz!="true"', {
+           'type': 'none',
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+     }, # fuzz_env
+     {
+@@ -1299,6 +1307,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+     }, # cctest
+ 
+@@ -1354,6 +1366,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+     }, # embedtest
+ 
+@@ -1372,6 +1388,10 @@
+             'test/overlapped-checker/main_unix.c'
+           ],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ]
+     }, # overlapped-checker
+     {
+@@ -1427,6 +1447,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+     }, # node_mksnapshot
+   ], # end targets
+--- a/tools/icu/icu-generic.gyp
++++ b/tools/icu/icu-generic.gyp
+@@ -428,6 +428,12 @@
+         '<@(icu_src_derb)',
+         'no-op.cc',
+       ],
++      'conditions': [
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
++      ]
+     },
+     # This tool is used to rebuild res_index.res manifests
+     {
+@@ -439,6 +445,12 @@
+         'iculslocs.cc',
+         'no-op.cc',
+       ],
++      'conditions': [
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
++      ]
+     },
+     # This tool is used to package, unpackage, repackage .dat files
+     # and convert endianesses
+@@ -451,6 +463,12 @@
+         '<@(icu_src_icupkg)',
+         'no-op.cc',
+       ],
++      'conditions': [
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
++      ]
+     },
+     # this is used to convert .dat directly into .obj
+     {
+@@ -462,6 +480,12 @@
+         '<@(icu_src_genccode)',
+         'no-op.cc',
+       ],
++      'conditions': [
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
++      ]
+     },
+   ],
+ }
+--- a/tools/v8_gypfiles/d8.gyp
++++ b/tools/v8_gypfiles/d8.gyp
+@@ -69,6 +69,10 @@
+             '<(icu_gyp_path):icudata',
+           ],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+     },
+   ],
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -1401,6 +1401,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+       'defines!': [
+         'BUILDING_V8_SHARED=1',
+@@ -1445,6 +1449,10 @@
+             '<(_msvs_precompiled_source)',
+           ],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+     },  # mksnapshot
+     {
+@@ -1458,6 +1466,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+       'defines!': [
+         '_HAS_EXCEPTIONS=0',
+@@ -1492,6 +1504,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+       'dependencies': [
+         'torque_base',
+@@ -1524,6 +1540,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid excessive LTO & PGO
++        ['enable_lto=="true"', { 'ldflags': [ '-fno-lto' ], }, ],
++        ['enable_pgo_generate=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-generate -fprofile-update=prefer-atomic -fprofile-dir=$(PGO_DIR)' ], }, ],
++        ['enable_pgo_use=="true"', { 'cflags': [ '-fno-profile' ], 'cflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], 'ldflags': [ '-fno-profile' ], 'ldflags!': [ '-fprofile-use -fprofile-correction -fprofile-dir=$(PGO_DIR)' ], }, ],
+       ],
+       'sources': [
+         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",
