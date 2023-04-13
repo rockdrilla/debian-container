@@ -1,0 +1,4 @@
+#!/usr/bin/make -f
+
+PYTHON_SO_ABI = 1.0
+PYPERFORMANCE_GIT_TAG = 9c58774e

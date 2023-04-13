@@ -2,29 +2,30 @@
 
 set -e
 
-pip_conf=/etc/pip.conf
-pip_conf_dist=/usr/share/python@{PYTHON_BASE_VERSION}/pip.conf
-
 if [ "$1" = "purge" ] ; then
-	grep -Fq '# DO NOT REMOVE' ${pip_conf} || rm -f ${pip_conf}
+	for i in pip.conf ; do
+		grep -Eq '^# KEEP' "/etc/$i" || rm -fv "/etc/$i"
+	done
 fi
 
 if [ "$1" != "upgrade" ] ; then
-	bin=/usr/bin
+	python_bin=/@{PYTHON_PREFIX}/bin
 
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
-		for exe in pip wheel ; do
-			update-alternatives --remove \
-			  ${exe}${suffix} \
-			  ${bin}/${exe}@{PYTHON_BASE_VERSION}
-		done
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+		update-alternatives --remove \
+		  pip${suffix} \
+		  ${python_bin}/pip
+
+		update-alternatives --remove \
+		  wheel${suffix} \
+		  ${python_bin}/wheel
 	done
 
-	if [ -e ${pip_conf} ] ; then
-		if cmp -s ${pip_conf} ${pip_conf_dist} ; then
-			rm -f ${pip_conf}
-		fi
-	fi
+	for i in pip.conf ; do
+		[ -e "/etc/$i" ] || continue
+		cmp -s "/etc/$i" "/@{PYTHON_PREFIX}/share/$i" || continue
+		rm -fv "/etc/$i"
+	done
 fi
 
 #DEBHELPER#

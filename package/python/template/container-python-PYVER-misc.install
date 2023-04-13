@@ -1,8 +1,7 @@
-usr/bin/idle@{PYTHON_BASE_VERSION}
-usr/lib/${DEB_HOST_MULTIARCH}/libpython@{PYTHON_MAJOR_VERSION}.so
-usr/lib/python@{PYTHON_BASE_VERSION}/config-*/*.a
-usr/lib/python@{PYTHON_BASE_VERSION}/idlelib
-usr/lib/python@{PYTHON_BASE_VERSION}/lib-dynload/_tkinter.*.so
-usr/lib/python@{PYTHON_BASE_VERSION}/tkinter
-usr/lib/python@{PYTHON_BASE_VERSION}/turtle.py
-usr/lib/python@{PYTHON_BASE_VERSION}/turtledemo
+@{PYTHON_PREFIX}/bin/idle
+
+@{PYTHON_MODULES}/idlelib
+@{PYTHON_MODULES}/lib-dynload/_tkinter.*.so
+@{PYTHON_MODULES}/tkinter
+@{PYTHON_MODULES}/turtle.py
+@{PYTHON_MODULES}/turtledemo

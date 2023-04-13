@@ -1,5 +1,6 @@
-usr/bin/${DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config
-usr/include
-usr/lib/${DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.so
-usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig
-usr/lib/python@{PYTHON_BASE_VERSION}/config-*/
+@{PYTHON_PREFIX}/bin/python-config
+@{PYTHON_PREFIX}/include
+@{PYTHON_PREFIX}/lib/libpython@{PYTHON_BASE_VERSION}.a
+@{PYTHON_PREFIX}/lib/pkgconfig
+
+@{PYTHON_MODULES}/config-*/

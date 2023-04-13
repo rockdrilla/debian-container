@@ -3,20 +3,23 @@
 set -e
 
 if [ "$1" != "upgrade" ]; then
-	bin=/usr/bin
+	python_bin=/@{PYTHON_PREFIX}/bin
 
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		stem=python${suffix}
 
 		update-alternatives --remove \
-		  @{DEB_HOST_MULTIARCH}-${stem}-config \
-		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config
-
-		update-alternatives --remove \
 		  ${stem}-config \
-		  ${bin}/python@{PYTHON_BASE_VERSION}-config
-
+		  ${python_bin}/python-config
 	done
+
+	update-alternatives --remove \
+	  python-config-@{PYTHON_BASE_VERSION} \
+	  ${python_bin}/python-config
+
+	# remove compatibility symlinks for static library and headers
+	rm -fv /usr/lib/@{DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.a
+	rm -fv /usr/include/python@{PYTHON_BASE_VERSION}
 fi
 
 #DEBHELPER#

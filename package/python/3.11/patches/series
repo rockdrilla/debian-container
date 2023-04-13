@@ -3,7 +3,6 @@
 debian/deb-setup.diff
 debian/destshared-location.diff
 debian/disable-some-tests.diff
-debian/distutils-install-layout.diff
 debian/distutils-link.diff
 debian/distutils-sysconfig.diff
 debian/fix-py_compile.diff
@@ -14,8 +13,6 @@ debian/multiarch.diff
 debian/ntpath-import.diff
 debian/pydoc-use-pager.diff
 debian/setup-modules.diff
-debian/shutdown-deadlock.diff
-debian/sysconfig-debian-schemes.diff
 debian/sysconfigdata-name.diff
 debian/test-no-random-order.diff
 
@@ -24,3 +21,5 @@ reenable-tests.patch
 install-no-pycache.patch
 container-python-compat-switch.patch
 hybrid-layout.patch
+lto-pgo-flags.patch
+pgo-extra-pass.patch

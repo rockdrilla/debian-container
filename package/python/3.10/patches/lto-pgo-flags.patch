@@ -1,0 +1,20 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -1427,7 +1427,7 @@ if test "$Py_LTO" = 'true' ; then
+           LTOCFLAGS="-flto"
+           ;;
+         *)
+-          LTOFLAGS="-flto -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
++          LTOFLAGS="-g -O3 -fwrapv -flto=2 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
+           ;;
+       esac
+       ;;
+@@ -1505,7 +1505,7 @@ case $CC in
+         fi
+         ;;
+       *)
+-        PGO_PROF_GEN_FLAG="-fprofile-generate"
++        PGO_PROF_GEN_FLAG="-fprofile-generate -fprofile-update=prefer-atomic"
+         PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction"
+         LLVM_PROF_MERGER="true"
+         LLVM_PROF_FILE=""

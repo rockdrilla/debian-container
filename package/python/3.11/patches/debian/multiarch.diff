@@ -22,7 +22,7 @@ Forwarded: no
          if os.name == 'posix':
 --- a/Lib/distutils/sysconfig.py
 +++ b/Lib/distutils/sysconfig.py
-@@ -302,6 +302,9 @@ def get_python_inc(plat_specific=0, pref
+@@ -298,6 +298,9 @@ def get_python_inc(plat_specific=0, pref
                  incdir = os.path.join(get_config_var('srcdir'), 'Include')
                  return os.path.normpath(incdir)
          python_dir = 'python' + get_python_version() + build_flags

@@ -1,5 +1,6 @@
-usr/bin/pip@{PYTHON_BASE_VERSION}
-usr/bin/wheel@{PYTHON_BASE_VERSION}
-usr/lib/python@{PYTHON_BASE_VERSION}/site-packages
-usr/lib/python@{PYTHON_BASE_VERSION}/ensurepip
-usr/share/python@{PYTHON_BASE_VERSION}/pip.conf
+@{PYTHON_PREFIX}/bin/pip
+@{PYTHON_PREFIX}/bin/wheel
+@{PYTHON_PREFIX}/share/pip.conf
+
+@{PYTHON_MODULES}/dist-packages
+@{PYTHON_MODULES}/ensurepip

@@ -2,29 +2,30 @@
 
 set -e
 
-pip_conf=/etc/pip.conf
-pip_conf_dist=/usr/share/python@{PYTHON_BASE_VERSION}/pip.conf
-
 case "$1" in
 configure)
 	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
+	python_bin=/@{PYTHON_PREFIX}/bin
 
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
-		for exe in pip wheel ; do
-			update-alternatives --install \
-			  ${bin}/${exe}${suffix} \
-			  ${exe}${suffix} \
-			  ${bin}/${exe}@{PYTHON_BASE_VERSION} \
-			${prio} \
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/pip${suffix} \
+		  pip${suffix} \
+		  ${python_bin}/pip \
+		${prio} \
 
+		update-alternatives --install \
+		  ${bin}/wheel${suffix} \
+		  wheel${suffix} \
+		  ${python_bin}/wheel \
+		${prio} \
 
-		done
 	done
 
-	if ! [ -e ${pip_conf} ] ; then
-		cp ${pip_conf_dist} ${pip_conf}
-	fi
+	for i in pip.conf ; do
+		[ -e "/etc/$i" ] || cp -v "/@{PYTHON_PREFIX}/share/$i" /etc/
+	done
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

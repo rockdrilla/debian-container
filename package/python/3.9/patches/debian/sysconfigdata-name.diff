@@ -7,7 +7,7 @@ Forwarded: no
 
 --- a/Lib/sysconfig.py
 +++ b/Lib/sysconfig.py
-@@ -386,9 +386,8 @@ def get_makefile_filename():
+@@ -353,9 +353,8 @@ def get_makefile_filename():
  
  def _get_sysconfigdata_name():
      return os.environ.get('_PYTHON_SYSCONFIGDATA_NAME',
@@ -43,7 +43,7 @@ Forwarded: no
  
 --- a/Lib/distutils/sysconfig.py
 +++ b/Lib/distutils/sysconfig.py
-@@ -460,9 +460,8 @@ def _init_posix():
+@@ -453,9 +453,8 @@ def _init_posix():
      """Initialize the module as appropriate for POSIX systems."""
      # _sysconfigdata is generated at build time, see the sysconfig module
      name = os.environ.get('_PYTHON_SYSCONFIGDATA_NAME',

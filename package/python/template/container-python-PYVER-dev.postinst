@@ -6,34 +6,42 @@ case "$1" in
 configure)
 	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
+	python_bin=/@{PYTHON_PREFIX}/bin
 	pkgcfg=/usr/lib/@{DEB_HOST_MULTIARCH}/pkgconfig
+	python_pkgcfg=/@{PYTHON_PREFIX}/lib/pkgconfig
 
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		stem=python${suffix}
-
-		update-alternatives --install \
-		  ${bin}/@{DEB_HOST_MULTIARCH}-${stem}-config \
-		  @{DEB_HOST_MULTIARCH}-${stem}-config \
-		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
-		${prio} \
-
 
 		update-alternatives --install \
 		  ${bin}/${stem}-config \
 		  ${stem}-config \
-		  ${bin}/@{DEB_HOST_MULTIARCH}-python@{PYTHON_BASE_VERSION}-config \
+		  ${python_bin}/python-config \
 		${prio} \
+		--slave \
+		  ${bin}/@{DEB_HOST_MULTIARCH}-${stem}-config \
+		  @{DEB_HOST_MULTIARCH}-${stem}-config \
+		  ${python_bin}/python-config \
 		--slave \
 		  ${pkgcfg}/${stem}.pc \
 		  ${stem}.pc-@{DEB_HOST_MULTIARCH} \
-		  ${pkgcfg}/python-@{PYTHON_BASE_VERSION}.pc \
+		  ${python_pkgcfg}/python-@{PYTHON_BASE_VERSION}.pc \
 		--slave \
 		  ${pkgcfg}/${stem}-embed.pc \
 		  ${stem}-embed.pc-@{DEB_HOST_MULTIARCH} \
-		  ${pkgcfg}/python-@{PYTHON_BASE_VERSION}-embed.pc \
-
+		  ${python_pkgcfg}/python-@{PYTHON_BASE_VERSION}-embed.pc \
 
 	done
+
+	update-alternatives --install \
+	  ${bin}/python-config-@{PYTHON_BASE_VERSION} \
+	  python-config-@{PYTHON_BASE_VERSION} \
+	  ${python_bin}/python-config \
+	${prio} \
+
+	# install compatibility symlinks for static library and headers
+	ln -sv /@{PYTHON_PREFIX}/lib/libpython@{PYTHON_BASE_VERSION}.a /usr/lib/@{DEB_HOST_MULTIARCH}/
+	ln -sv /@{PYTHON_PREFIX}/include/python@{PYTHON_BASE_VERSION} /usr/include/
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

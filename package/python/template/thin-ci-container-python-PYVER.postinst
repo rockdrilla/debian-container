@@ -2,17 +2,16 @@
 
 set -ef
 
-wrapper=/usr/lib/python@{PYTHON_BASE_VERSION}/thin-ci.sh
+wrapper=/@{PYTHON_PREFIX}/share/thin-ci.sh
 
 case "$1" in
 configure)
 	prio=@{DEB_PYTHON_PRIO}
 	bin=/usr/bin
 
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
+	# container-python-{PYTHON_BASE_VERSION}
 
-		# container-python-@{PYTHON_BASE_VERSION}
-
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' ; do
 		update-alternatives --install \
 		  ${bin}/python${suffix} \
 		  python${suffix} \
@@ -21,37 +20,66 @@ configure)
 		--slave \
 		  ${bin}/pydoc${suffix} \
 		  pydoc${suffix} \
-		  ${wrapper}
+		  ${wrapper} \
+		--slave \
+		  ${bin}/2to3${suffix} \
+		  2to3${suffix} \
+		  ${wrapper} \
 
-		# container-python-@{PYTHON_BASE_VERSION}-full
+	done
 
-		for exe in pip wheel ; do
-			update-alternatives --install \
-			  ${bin}/${exe}${suffix} \
-			  ${exe}${suffix} \
-			  ${wrapper} \
-			${prio}
-		done
+	for suffix in '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/python${suffix} \
+		  python${suffix} \
+		  ${wrapper} \
+		${prio} \
+		--slave \
+		  ${bin}/pydoc${suffix} \
+		  pydoc${suffix} \
+		  ${wrapper} \
 
-		# container-python-@{PYTHON_BASE_VERSION}-dev
+	done
 
+	# container-python-{PYTHON_BASE_VERSION}-full
+
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/pip${suffix} \
+		  pip${suffix} \
+		  ${wrapper} \
+		${prio} \
+
+		update-alternatives --install \
+		  ${bin}/wheel${suffix} \
+		  wheel${suffix} \
+		  ${wrapper} \
+		${prio} \
+
+	done
+
+	# container-python-{PYTHON_BASE_VERSION}-dev
+
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		stem=python${suffix}
 
 		update-alternatives --install \
 		  ${bin}/${stem}-config \
 		  ${stem}-config \
 		  ${wrapper} \
-		${prio}
+		${prio} \
+		--slave \
+		  ${bin}/@{DEB_HOST_MULTIARCH}-${stem}-config \
+		  @{DEB_HOST_MULTIARCH}-${stem}-config \
+		  ${wrapper} \
 
 	done
 
-	# container-python-@{PYTHON_BASE_VERSION}
-
 	update-alternatives --install \
-	  ${bin}/2to3 \
-	  2to3 \
+	  ${bin}/python-config-@{PYTHON_BASE_VERSION} \
+	  python-config-@{PYTHON_BASE_VERSION} \
 	  ${wrapper} \
-	${prio}
+	${prio} \
 
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)

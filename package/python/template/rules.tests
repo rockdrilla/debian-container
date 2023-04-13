@@ -3,6 +3,9 @@
 # never test them (always failing, maybe due to PGO+LTO)
 TEST_EXCLUDES = test_asyncio test_distutils test_email test_lib2to3 test_minidom test_selectors test_socket
 
+# requires fixing in upstream
+TEST_EXCLUDES += test_pyexpat
+
 # avoid compile-related tasks
 TEST_EXCLUDES += test_tools
 

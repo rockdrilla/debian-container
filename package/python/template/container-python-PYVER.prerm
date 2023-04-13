@@ -3,22 +3,21 @@
 set -e
 
 if [ "$1" != "upgrade" ]; then
-	bin=/usr/bin
-	lib=/usr/lib/python@{PYTHON_BASE_VERSION}
+	python_bin=/@{PYTHON_PREFIX}/bin
+	lib=/@{PYTHON_MODULES}
 
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		update-alternatives --remove \
 		  python${suffix} \
-		  ${bin}/python@{PYTHON_BASE_VERSION}
+		  ${python_bin}/python
 	done
-
-	update-alternatives --remove \
-	  2to3 \
-	  ${bin}/2to3-@{PYTHON_BASE_VERSION}
 
 	# remove precompiled Python bytecode
 	find ${lib}/ -name __pycache__ -type d -exec rm -rf '{}' '+'
 	find ${lib}/ -name '*.py[co]' -ls -delete
+
+	# remove compatibility symlink for shared library
+	rm -fv /usr/lib/@{DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.so.@{PYTHON_SO_ABI}
 fi
 
 #DEBHELPER#

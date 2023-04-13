@@ -6,31 +6,45 @@ case "$1" in
 configure)
 	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
-	lib=/usr/lib/python@{PYTHON_BASE_VERSION}
+	python_bin=/@{PYTHON_PREFIX}/bin
+	lib=/@{PYTHON_MODULES}
 
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' ; do
 		update-alternatives --install \
 		  ${bin}/python${suffix} \
 		  python${suffix} \
-		  ${bin}/python@{PYTHON_BASE_VERSION} \
+		  ${python_bin}/python \
 		${prio} \
 		--slave \
 		  ${bin}/pydoc${suffix} \
 		  pydoc${suffix} \
-		  ${bin}/pydoc@{PYTHON_BASE_VERSION} \
-
+		  ${python_bin}/pydoc \
+		--slave \
+		  ${bin}/2to3${suffix} \
+		  2to3${suffix} \
+		  ${python_bin}/2to3 \
 
 	done
 
-	update-alternatives --install \
-	  ${bin}/2to3 \
-	  2to3 \
-	  ${bin}/2to3-@{PYTHON_BASE_VERSION} \
-	${prio} \
+	# extra symlinks
+	for suffix in '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/python${suffix} \
+		  python${suffix} \
+		  ${python_bin}/python \
+		${prio} \
+		--slave \
+		  ${bin}/pydoc${suffix} \
+		  pydoc${suffix} \
+		  ${python_bin}/pydoc \
 
+	done
 
 	# precompile Python bytecode (no matter what packages were installed with it)
-	${bin}/python@{PYTHON_BASE_VERSION} -m compileall -q ${lib}
+	${python_bin}/python -m compileall -q ${lib}
+
+	# install compatibility symlink for shared library
+	ln -sv /@{PYTHON_PREFIX}/lib/libpython@{PYTHON_BASE_VERSION}.so.@{PYTHON_SO_ABI} /usr/lib/@{DEB_HOST_MULTIARCH}/
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

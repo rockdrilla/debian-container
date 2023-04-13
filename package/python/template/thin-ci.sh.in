@@ -9,23 +9,14 @@ pkg_full='container-python-@{PYTHON_BASE_VERSION}-full'
 
 pkg=
 case "${0##*/}" in
-python | python@{PYTHON_MAJOR_VERSION})
-	pkg="${pkg_regular}"
-;;
-pydoc | pydoc@{PYTHON_MAJOR_VERSION} )
-	pkg="${pkg_regular}"
-;;
-2to3 | 2to3-@{PYTHON_MAJOR_VERSION} )
-	pkg="${pkg_regular}"
-;;
-pip | pip@{PYTHON_MAJOR_VERSION})
-	pkg="${pkg_full}"
-;;
-wheel | wheel@{PYTHON_MAJOR_VERSION} )
-	pkg="${pkg_full}"
-;;
-python-config | python@{PYTHON_MAJOR_VERSION}-config )
+python*-config | *-python*-config )
 	pkg="${pkg_dev}"
+;;
+python* | pydoc* | 2to3* )
+	pkg="${pkg_regular}"
+;;
+pip* | wheel* )
+	pkg="${pkg_full}"
 ;;
 *)
 	echo "can't determine required package on (this) binary name: ${0##*/}" >&2
@@ -33,6 +24,6 @@ python-config | python@{PYTHON_MAJOR_VERSION}-config )
 ;;
 esac
 
-apt-install ${pkg} ; cleanup apt
+{ apt-install ${pkg} ; cleanup apt ; } </dev/null
 sleep 1
 exec "$0" "$@"

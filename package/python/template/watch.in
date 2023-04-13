@@ -1,12 +1,27 @@
 version=4
 
 opts=\
-dversionmangle=s/.*\+//,\
-uversionmangle=s/([abcr]+[1-9])$/~$1/ \
-  https://www.python.org/ftp/python/@{PYTHON_BASE_VERSION}(\.\d+)?/Python-(@{PYTHON_BASE_VERSION}[.\dabcr]*)\.tar.xz
+dversionmangle=s/.*\+// \
+  https://www.python.org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
+
+opts=component=pyperformance,\
+repack,pgpmode=none,\
+filenamemangle=s/\.zip$/.tar.gz/,\
+downloadurlmangle=s/^.+\/(.+)\.zip$/https:\/\/github.com\/python\/pyperformance\/archive\/$1.tar.gz/ \
+  https://github.com/python/pyperformance/tree/@{PYPERFORMANCE_GIT_TAG}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
+ignore
 
 # for use with proxy
+
 # opts=\
-# dversionmangle=s/.*\+//,\
-# uversionmangle=s/([abcr]+[1-9])$/~$1/ \
-#   http://127.0.0.1:8081/repository/proxy_raw_python_org/ftp/python/@{PYTHON_BASE_VERSION}(\.\d+)?/Python-(@{PYTHON_BASE_VERSION}[.\dabcr]*)\.tar.xz
+# dversionmangle=s/.*\+// \
+#   http://127.0.0.1:8081/repository/proxy_raw_python_org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
+
+# opts=component=pyperformance,\
+# repack,pgpmode=none,\
+# filenamemangle=s/\.zip$/.tar.gz/,\
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_com_python_pyperformance\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_com_python_pyperformance/tree/@{PYPERFORMANCE_GIT_TAG}/ \
+#   .+/(.+)@ARCHIVE_EXT@ \
+# ignore

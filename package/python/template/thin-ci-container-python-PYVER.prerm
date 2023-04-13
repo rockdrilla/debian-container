@@ -5,38 +5,40 @@ set -ef
 wrapper=/usr/lib/python@{PYTHON_BASE_VERSION}/thin-ci.sh
 
 if [ "$1" != "upgrade" ]; then
-	for suffix in '' '@{PYTHON_MAJOR_VERSION}' ; do
 
-		# container-python-@{PYTHON_BASE_VERSION}
+	# container-python-{PYTHON_BASE_VERSION}
 
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		update-alternatives --remove \
 		  python${suffix} \
 		  ${wrapper}
+	done
 
-		# container-python-@{PYTHON_BASE_VERSION}-full
+	# container-python-{PYTHON_BASE_VERSION}-full
 
-		for exe in pip wheel ; do
-			update-alternatives --remove \
-			  ${exe}${suffix} \
-			  ${wrapper}
-		done
+	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+		update-alternatives --remove \
+		  pip${suffix} \
+		  ${wrapper}
 
-		# container-python-@{PYTHON_BASE_VERSION}-dev
+		update-alternatives --remove \
+		  wheel${suffix} \
+		  ${wrapper}
+	done
 
+	# container-python-{PYTHON_BASE_VERSION}-dev
+
+	for suffix in '' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		stem=python${suffix}
 
 		update-alternatives --remove \
 		  ${stem}-config \
 		  ${wrapper}
-
 	done
 
-	# container-python-@{PYTHON_BASE_VERSION}
-
 	update-alternatives --remove \
-	  2to3 \
+	  python-config-@{PYTHON_BASE_VERSION} \
 	  ${wrapper}
-
 fi
 
 #DEBHELPER#
