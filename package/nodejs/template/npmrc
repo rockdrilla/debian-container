@@ -1,5 +1,8 @@
 update-notifier=false
+send-metrics=false
+
 cache="/tmp/npm"
+devdir="/tmp/node-gyp"
 
 # for use with proxy
 # registry=http://127.0.0.1:8081/repository/proxy_npm

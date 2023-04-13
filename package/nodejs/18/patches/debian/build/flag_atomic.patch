@@ -16,6 +16,6 @@ Bug: https://github.com/nodejs/node/issues/30093
 +        '-latomic',
 +      ],
 +    }],
-     [ 'OS=="aix"', {
+     [ 'OS in "aix os400"', {
        'defines': [
          '_LINUX_SOURCE_COMPAT',

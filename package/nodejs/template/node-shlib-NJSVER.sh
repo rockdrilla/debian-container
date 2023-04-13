@@ -7,7 +7,7 @@ set -ef
 shim_shlib='/@{NODEJS_PREFIX}/lib/libempty.so'
 real_shlib='/@{NODEJS_PREFIX}/lib/libnode.so.@{NODEJS_API_VERSION}'
 
-dest="/usr/lib/@{DEB_HOST_MULTIARCH}/libnode.so.@{NODEJS_API_VERSION}"
+dest='/usr/lib/@{DEB_HOST_MULTIARCH}/libnode.so.@{NODEJS_API_VERSION}'
 
 usage() {
 	echo "# usage: ${0##*/} [shim|real|rm|status]" >&2

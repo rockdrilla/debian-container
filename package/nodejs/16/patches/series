@@ -11,5 +11,8 @@ debian/test/skip-buffer-nan-internal-check.patch
 debian/test/openssl_related_test_issues.patch
 debian/test/openssl_config_explicit_lower.patch
 
+npm-9.6.patch
+yarn-1.22.patch
+
 module-paths.patch
 lto-pgo-flags.patch

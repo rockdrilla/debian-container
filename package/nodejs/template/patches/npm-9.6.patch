@@ -1,0 +1,19 @@
+--- a/node-npm/lib/npm.js
++++ b/node-npm/lib/npm.js
+@@ -442,7 +442,7 @@
+   }
+ 
+   get globalBin () {
+-    const b = this.globalPrefix
++    const b = '/usr/local'
+     return process.platform !== 'win32' ? resolve(b, 'bin') : b
+   }
+ 
+--- a/node-npm/node_modules/bin-links/lib/bin-target.js
++++ b/node-npm/node_modules/bin-links/lib/bin-target.js
+@@ -6,4 +6,4 @@
+ module.exports = ({ top, path }) =>
+   !top ? getNodeModules(path) + '/.bin'
+   : isWindows ? getPrefix(path)
+-  : dirname(getPrefix(path)) + '/bin'
++  : '/usr/local/bin'

@@ -7,7 +7,7 @@
 -  let paths = postDirs.map(postDir => {
 -    return path.resolve(prefixDir, postDir);
 -  });
-+  let paths = [path.resolve(prefixDir, 'lib', 'node')];
++  let paths = [path.resolve(prefixDir, 'lib', 'node_modules')];
 +  // compatibility with Debian
 +  paths = paths.concat(postDirs.map(postDir => { return path.resolve('/usr', postDir); }));
  

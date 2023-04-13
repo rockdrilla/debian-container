@@ -12,9 +12,6 @@ export PATH="${rootdir}/scripts:${PATH}"
 . "${rootdir}/scripts/_common.sh"
 . "${rootdir}/image/nodejs/common.envsh"
 
-: "${DEB_BUILD_OPTIONS:=pgo_full lto_part=none}"
-export DEB_BUILD_OPTIONS
-
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	CI
 	NODEJS_VERSION

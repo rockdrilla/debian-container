@@ -7,7 +7,7 @@ Last-Update: 2020-03-04
 
 --- a/lib/internal/modules/cjs/loader.js
 +++ b/lib/internal/modules/cjs/loader.js
-@@ -1319,6 +1319,7 @@ Module.createRequire = createRequire;
+@@ -1324,6 +1324,7 @@ Module.createRequire = createRequire;
  Module._initPaths = function() {
    const homeDir = isWindows ? process.env.USERPROFILE : safeGetenv('HOME');
    const nodePath = isWindows ? process.env.NODE_PATH : safeGetenv('NODE_PATH');
@@ -15,7 +15,7 @@ Last-Update: 2020-03-04
  
    // process.execPath is $PREFIX/bin/node except on Windows where it is
    // $PREFIX\node.exe where $PREFIX is the root of the Node.js installation.
-@@ -1326,7 +1327,18 @@ Module._initPaths = function() {
+@@ -1331,7 +1332,18 @@ Module._initPaths = function() {
      path.resolve(process.execPath, '..') :
      path.resolve(process.execPath, '..', '..');
  
@@ -37,7 +37,7 @@ Last-Update: 2020-03-04
      ArrayPrototypeUnshift(paths, path.resolve(homeDir, '.node_libraries'));
 --- a/configure.py
 +++ b/configure.py
-@@ -85,6 +85,12 @@ parser.add_argument('--coverage',
+@@ -93,6 +93,12 @@ parser.add_argument('--coverage',
      default=None,
      help='Build node with code coverage enabled')
  
@@ -50,7 +50,7 @@ Last-Update: 2020-03-04
  parser.add_argument('--debug',
      action='store_true',
      dest='debug',
-@@ -132,6 +138,13 @@ parser.add_argument('--gdb',
+@@ -140,6 +146,13 @@ parser.add_argument('--gdb',
      default=None,
      help='add gdb support')
  
@@ -64,7 +64,7 @@ Last-Update: 2020-03-04
  parser.add_argument('--no-ifaddrs',
      action='store_true',
      dest='no_ifaddrs',
-@@ -1424,6 +1437,17 @@ def configure_napi(output):
+@@ -1442,6 +1455,17 @@ def configure_napi(output):
    version = getnapibuildversion.get_napi_version()
    output['variables']['napi_build_version'] = version
  
@@ -82,7 +82,7 @@ Last-Update: 2020-03-04
  def configure_library(lib, output, pkgname=None):
    shared_lib = 'shared_' + lib
    output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
-@@ -1991,6 +2015,7 @@ flavor = GetFlavor(flavor_params)
+@@ -2009,6 +2033,7 @@ flavor = GetFlavor(flavor_params)
  configure_node(output)
  configure_node_lib_files(output)
  configure_napi(output)

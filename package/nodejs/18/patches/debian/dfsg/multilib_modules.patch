@@ -64,7 +64,7 @@ Last-Update: 2020-03-04
  parser.add_argument('--no-ifaddrs',
      action='store_true',
      dest='no_ifaddrs',
-@@ -1481,6 +1494,17 @@ def configure_napi(output):
+@@ -1493,6 +1506,17 @@ def configure_napi(output):
    version = getnapibuildversion.get_napi_version()
    output['variables']['napi_build_version'] = version
  
@@ -82,7 +82,7 @@ Last-Update: 2020-03-04
  def configure_library(lib, output, pkgname=None):
    shared_lib = 'shared_' + lib
    output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
-@@ -2060,6 +2084,7 @@ flavor = GetFlavor(flavor_params)
+@@ -2074,6 +2098,7 @@ flavor = GetFlavor(flavor_params)
  configure_node(output)
  configure_node_lib_files(output)
  configure_napi(output)

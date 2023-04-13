@@ -35,7 +35,7 @@ DEB_NODEJS_PRIO = $(shell printf '1%03d0' $(NODEJS_MAJOR_VERSION))
 
 NODEJS_BINARY = usr/bin/node-$(NODEJS_MAJOR_VERSION)
 NODEJS_PREFIX = opt/node-$(NODEJS_MAJOR_VERSION)
-NODEJS_MODULES = $(NODEJS_PREFIX)/lib/node
+NODEJS_MODULES = $(NODEJS_PREFIX)/lib/node_modules
 
 NPROC_MAKE := $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 NPROC_MAKE := $(if $(NPROC_MAKE),$(NPROC_MAKE),$(shell nproc))
@@ -75,7 +75,7 @@ CONFIGURE_FLAGS = \
 	--node-relative-path='lib/$(DEB_HOST_MULTIARCH)/nodejs:share/nodejs'
 
 CONFIGURE_SHARED = $(CONFIGURE_FLAGS) --shared
-INSTALL_SHARED = debian/tmp.shared
+INSTALL_SHARED = $(CURDIR)/debian/tmp.shared
 CONFIGURE_BINARY = $(CONFIGURE_FLAGS) \
 	$(if $(filter yes,$(with_lto)),--enable-lto)
 
@@ -160,7 +160,7 @@ export PGO_DIR = $(CURDIR)/debian/tmp.pgo
 override_dh_auto_build:
 	: # build empty shim shared library
 	: > debian/libempty.c
-	gcc -o debian/libempty.so debian/libempty.c \
+	$(CC) -o debian/libempty.so debian/libempty.c \
 	  -fPIC -shared -nostartfiles \
 	  -Wl,-soname=libnode.so.$(NODEJS_API_VERSION)
 
@@ -294,7 +294,7 @@ endif
 	: # prepare node modules location
 	mkdir -p debian/tmp/$(NODEJS_MODULES)
 	env -C debian/tmp/$(NODEJS_PREFIX)/lib \
-	  ln -s node node_modules
+	  ln -s node_modules node
 
 	: # copy extra node packages to appropriate location
 
@@ -310,17 +310,18 @@ endif
 	  | tar -C debian/tmp/$(NODEJS_MODULES)/$$i -xf - ; \
 	done
 
-	: # patch yarn
+	: # patch yarn (sic!)
 	sed -i -E \
 	  -e 's,/usr/local/share,/$(NODEJS_PREFIX)/var,g' \
-	  -e 's,/usr/local,/$(NODEJS_PREFIX),g' \
-	  -e 's,("installationMethod":) "tar",\1 "npm",' \
 	debian/tmp/$(NODEJS_MODULES)/yarn/lib/cli.js
 
 	: # cleanup node packages
-	find debian/tmp/$(NODEJS_MODULES)/ -name 'README*' -type f -exec rm -fv '{}' +
-	find debian/tmp/$(NODEJS_MODULES)/ -name 'CHANGELOG*' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -iname 'readme*' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -iname 'changelog*' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -iname '*.md' ! -iname 'license*' -type f -exec rm -fv '{}' +
 	find debian/tmp/$(NODEJS_MODULES)/ -path '*/bin/*.cmd' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -path '*/doc*/*' -type f -exec rm -fv '{}' +
+	find debian/tmp/$(NODEJS_MODULES)/ -path '*/man*/*' -type f -exec rm -fv '{}' +
 	find debian/tmp/$(NODEJS_MODULES)/ -path '*/test*/*' -type f -exec rm -fv '{}' +
 
 	$(call remove_pycache, debian/tmp )

@@ -1,0 +1,11 @@
+--- a/node-npm/lib/npm.js
++++ b/node-npm/lib/npm.js
+@@ -412,7 +412,7 @@
+   Object.defineProperty(npm, 'globalBin',
+     {
+       get: function () {
+-        var b = npm.globalPrefix
++        var b = '/usr/local'
+         if (process.platform !== 'win32') b = path.resolve(b, 'bin')
+         return b
+       }

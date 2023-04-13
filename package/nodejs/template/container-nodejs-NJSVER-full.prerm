@@ -21,10 +21,8 @@ if [ "$1" != "upgrade" ]; then
 
 	for i in npmrc yarnrc ; do
 		[ -e "/etc/$i" ] || continue
-
-		if cmp -s "/etc/$i" "/@{NODEJS_PREFIX}/share/$i" ; then
-			rm -f "/etc/$i"
-		fi
+		cmp -s "/etc/$i" "/@{NODEJS_PREFIX}/share/$i" || continue
+		rm -fv "/etc/$i"
 	done
 fi
 

@@ -8,7 +8,7 @@ Forwarded: https://github.com/nodejs/node/issues/33816
 --- a/lib/net.js
 +++ b/lib/net.js
 @@ -1265,13 +1265,6 @@ function lookupAndConnect(self, options)
-     hints: options.hints || 0
+     hints: options.hints || 0,
    };
  
 -  if (!isWindows &&

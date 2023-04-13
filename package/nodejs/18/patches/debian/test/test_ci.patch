@@ -22,7 +22,7 @@ Last-Update: 2020-02-09
 
 --- a/Makefile
 +++ b/Makefile
-@@ -537,7 +537,7 @@ test-ci-native: | benchmark/napi/.builds
+@@ -540,7 +540,7 @@ test-ci-native: | benchmark/napi/.builds
  # This target should not use a native compiler at all
  # Related CI job: node-test-commit-arm-fanned
  test-ci-js: | clear-stalled
@@ -135,7 +135,7 @@ Last-Update: 2020-02-09
      timeout = self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
 --- a/test/common/index.js
 +++ b/test/common/index.js
-@@ -251,16 +251,12 @@ const pwdCommand = isWindows ?
+@@ -252,16 +252,12 @@ const pwdCommand = isWindows ?
  
  function platformTimeout(ms) {
    const multipliers = typeof ms === 'bigint' ?
