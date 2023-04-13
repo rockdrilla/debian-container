@@ -39,9 +39,9 @@ export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 # export GOPROXY='http://127.0.0.1:8081/repository/proxy_go,direct'
 # export GOSUMDB='sum.golang.org http://127.0.0.1:8081/repository/proxy_raw_go_sum'
 
-export DEB_SRC_BUILD_DIR=/usr/local/src
-export _SRC_DIR=/usr/local/include
-export _PKG_DIR=/usr/local/lib
+export DEB_SRC_BUILD_DIR=/build
+export _SRC_DIR=/deb.src
+export _PKG_DIR=/deb.pkg
 
 export BUILD_IMAGE_CONTEXT=package/golang
 

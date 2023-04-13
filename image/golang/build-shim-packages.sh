@@ -21,9 +21,9 @@ export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	_PKG_DIR
 "
 
-export DEB_SRC_BUILD_DIR=/usr/local/src
-export _SRC_DIR=/usr/local/include
-export _PKG_DIR=/usr/local/lib
+export DEB_SRC_BUILD_DIR=/build
+export _SRC_DIR=/deb.src
+export _PKG_DIR=/deb.pkg
 
 export BUILD_IMAGE_CONTEXT=package/golang
 
