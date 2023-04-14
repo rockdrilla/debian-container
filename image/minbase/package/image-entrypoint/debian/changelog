@@ -1,3 +1,10 @@
+container-image-entrypoint (20230414) stable; urgency=medium
+
+  * Respect CI environment.
+  * Provide a bit simplier environment alias.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Fri, 14 Apr 2023 12:12:00 +0300
+
 container-image-entrypoint (20230301) stable; urgency=medium
 
   * Extend SSL environment with SSL_CERT_DIR.

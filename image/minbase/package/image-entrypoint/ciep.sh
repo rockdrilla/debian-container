@@ -37,6 +37,35 @@ fi
 
 __CIEP_SOURCE="$0"
 
+# CI handling
+: "${CIEP_CI:=$CI}"
+export CIEP_CI
+
+case "${CIEP_CI}" in
+0|1) ;;
+[Ff][Aa][Ll][Ss][Ee]) CIEP_CI=0 ;;
+[Tt][Rr][Uu][Ee])     CIEP_CI=1 ;;
+*)
+	CIEP_CI=0
+
+	__ci=''
+	# try to detect various CI systems via env
+	__ci="${__ci}${BUILD_ID}${BUILD_NUMBER}${CI_APP_ID}"
+	__ci="${__ci}${CI_BUILD_ID}${CI_BUILD_NUMBER}${CI_NAME}"
+	__ci="${__ci}${CONTINUOUS_INTEGRATION}${RUN_ID}"
+
+	if [ -n "${__ci}" ] ; then
+		CIEP_CI=1
+	fi
+
+	unset __ci
+;;
+esac
+
+if [ "${CIEP_CI}" = 1 ] ; then
+	export CIEP_INIT=1 LANG=C.UTF-8 LC_ALL=C.UTF-8 TZ=Etc/UTC
+fi
+
 # PID1 handling
 # "CIEP_INIT={no|false|0|pid1_prog[ args]}"
 if [ "$$" = 1 ] ; then

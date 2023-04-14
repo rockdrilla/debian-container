@@ -40,8 +40,8 @@ RUN if [ -z "${CI}" ] ; then \
     apt-update ; \
     deb-src-export ${_SRC_DIR} /tmp/debian ; \
     set +e ; \
-    # "/ciep.sh env" ensures that container limits are taken in account
-    /ciep.sh env \
+    # "/ciep.env" ensures that container limits are taken in account
+    /ciep.env \
       deb-src-build ${_SRC_DIR}/container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
