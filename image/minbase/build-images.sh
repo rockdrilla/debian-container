@@ -69,7 +69,7 @@ done
 	BUILD_IMAGE_SCRIPT_POST=/bin/true \
 	scripts/build-image.sh image/minbase/Dockerfile.stage1 "${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
 
-	pkg_path="${rootdir}/build-artifacts/${stem}"
+	pkg_path="${rootdir}/artifacts/${stem}"
 	rm -rf "${pkg_path}"
 	mkdir -p "${pkg_path}"
 	find "$(build_artifacts_path "${stem}/pkg")/" -type f -name '*.deb' -execdir mv -vt "${pkg_path}" '{}' '+'
@@ -127,7 +127,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	podman image rm -f "${IMAGE_PATH}/${DISTRO}-min-stage3:${SUITE}"
 done
 
-bootstrap_suite_packages="${rootdir}/build-artifacts/container-packages/arch"
+bootstrap_suite_packages="${rootdir}/artifacts/container-packages/arch"
 
 # build final images
 for d_s_t in ${DISTRO_SUITE_TAGS} ; do

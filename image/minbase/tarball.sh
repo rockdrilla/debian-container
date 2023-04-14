@@ -114,7 +114,7 @@ mmdebstrap \
   ${have_preseed:+ --customize-hook='chroot "$1" mkdir -p /usr/local/preseed' } \
   ${have_preseed:+ --customize-hook="sync-in '${rootdir}/preseed' /usr/local/preseed" } \
   --customize-hook='chroot "$1" mkdir -p /usr/local/bootstrap' \
-  --customize-hook="sync-in '${rootdir}/build-artifacts/container-packages' /usr/local/bootstrap" \
+  --customize-hook="sync-in '${rootdir}/artifacts/container-packages' /usr/local/bootstrap" \
   --customize-hook="'${dir0}/setup/mmdebstrap-hook.sh' \"\$1\" ${distro} ${suite} ${uid} ${gid}" \
   --skip=cleanup/apt \
   --skip=cleanup/tmp \

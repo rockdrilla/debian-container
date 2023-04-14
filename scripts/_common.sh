@@ -20,7 +20,7 @@ stub_build() {
 }
 
 _build_artifacts_path() {
-	printf '%s' "${rootdir:?}/build-artifacts/${DISTRO:?}-${SUITE:?}-${1:?}"
+	printf '%s' "${rootdir:?}/artifacts/${DISTRO:?}-${SUITE:?}-${1:?}"
 }
 
 build_artifacts_path() {
