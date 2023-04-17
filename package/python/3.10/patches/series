@@ -8,7 +8,6 @@ debian/distutils-link.diff
 debian/distutils-sysconfig.diff
 debian/fix-py_compile.diff
 debian/langpack-gettext.diff
-debian/lib2to3-no-pickled-grammar.diff
 debian/locale-module.diff
 debian/multiarch.diff
 debian/ntpath-import.diff
@@ -24,3 +23,6 @@ container-python-compat-switch.patch
 hybrid-layout.patch
 lto-pgo-flags.patch
 pgo-extra-pass.patch
+ensurepip.patch
+
+pyperformance.patch

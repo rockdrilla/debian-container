@@ -1,0 +1,11 @@
+--- a/python-pyperformance/pyperformance/venv.py
++++ b/python-pyperformance/pyperformance/venv.py
+@@ -128,6 +128,8 @@ NECESSARY_ENV_VARS = {
+ NECESSARY_ENV_VARS_DEFAULT = [
+     "HOME",
+     "PATH",
++    "LD_LIBRARY_PATH",
++    "PIP_CONFIG_FILE",
+ ]
+ 
+ def _get_envvars(inherit=None, osname=None):

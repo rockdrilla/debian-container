@@ -1,20 +1,20 @@
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -520,7 +520,13 @@ build_all_generate_profile:
+@@ -520,6 +520,14 @@ build_all_generate_profile:
  
  run_profile_task:
  	@ # FIXME: can't run for a cross build
--	$(LLVM_PROF_FILE) $(RUNSHARED) ./$(BUILDPYTHON) $(PROFILE_TASK) || true
-+	$(LLVM_PROF_FILE) $(RUNSHARED) ./$(BUILDPYTHON) $(PROFILE_TASK) || true ; \
-+	[ "$${PGO_EXTRA_PASS}" = 1 ] || exit 0 ; \
-+	for i in 1 2 ; do \
-+	  PYTHONPATH='$(PGO_PYPERF_MODULES)' \
-+	  $(LLVM_PROF_FILE) $(RUNSHARED) ./$(BUILDPYTHON) -m pyperformance run --debug-single-value || true ; \
-+	  unset CONTAINER_PYTHON_COMPAT ; \
-+	done
++	if [ '$(PGO_EXTRA_PASS)' = 1 ] ; then \
++	  ./pyperformance.sh venv create --python "$${PWD}/$(BUILDPYTHON)" ; \
++	  for i in 1 2 ; do \
++	    ./pyperformance.sh run --debug-single-value --python "$${PWD}/$(BUILDPYTHON)" || true ; \
++	    unset CONTAINER_PYTHON_COMPAT ; \
++	  done ; \
++	  export CONTAINER_PYTHON_COMPAT=1 ; \
++	fi ; \
+ 	$(LLVM_PROF_FILE) $(RUNSHARED) ./$(BUILDPYTHON) $(PROFILE_TASK) || true
  
  build_all_merge_profile:
- 	$(LLVM_PROF_MERGER)
 --- a/configure.ac
 +++ b/configure.ac
 @@ -1341,7 +1341,7 @@ AC_ARG_VAR(PROFILE_TASK, Python args for

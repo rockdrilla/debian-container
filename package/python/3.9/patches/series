@@ -9,7 +9,6 @@ debian/disable-some-tests.diff
 debian/distutils-link.diff
 debian/distutils-sysconfig.diff
 debian/langpack-gettext.diff
-debian/lib2to3-no-pickled-grammar.diff
 debian/locale-module.diff
 debian/mpdecimal-2.5.1.diff
 debian/multiarch.diff
@@ -26,3 +25,6 @@ container-python-compat-switch.patch
 hybrid-layout.patch
 lto-pgo-flags.patch
 pgo-extra-pass.patch
+ensurepip.patch
+
+pyperformance.patch

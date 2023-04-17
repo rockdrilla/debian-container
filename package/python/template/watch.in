@@ -4,7 +4,7 @@ opts=\
 dversionmangle=s/.*\+// \
   https://www.python.org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
 
-opts=component=pyperformance,\
+opts=component=python-pyperformance,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
 downloadurlmangle=s/^.+\/(.+)\.zip$/https:\/\/github.com\/python\/pyperformance\/archive\/$1.tar.gz/ \
@@ -18,7 +18,7 @@ ignore
 # dversionmangle=s/.*\+// \
 #   http://127.0.0.1:8081/repository/proxy_raw_python_org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
 
-# opts=component=pyperformance,\
+# opts=component=python-pyperformance,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_com_python_pyperformance\/archive\/$1.tar.gz/ \

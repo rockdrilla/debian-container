@@ -406,25 +406,13 @@ define deb_python_install
 	< debian/pip.list.json \
 	> debian/pip.substvars
 
-	: # adjust ensurepip: pip
+	: # adjust ensurepip: package versions
 	ver_pip=$$(jq -r '.[] | select(.name=="pip") | .version' < debian/pip.list.json) ; \
-	cd debian/tmp/$(PYTHON_MODULES)/ensurepip ; \
-	sed -i -E \
-	  's/^_PIP_VERSION\s*=\s*.+/_PIP_VERSION = "'"$${ver_pip}"'"/' \
-	__init__.py ; \
-	cd _bundled ; \
-	find ./ -name 'pip-*.whl' -ls -delete ; \
-	$(limb_python) -m pip download "pip==$${ver_pip}"
-
-	: # adjust ensurepip: setuptools
 	ver_setuptools=$$(jq -r '.[] | select(.name=="setuptools") | .version' < debian/pip.list.json) ; \
-	cd debian/tmp/$(PYTHON_MODULES)/ensurepip ; \
 	sed -i -E \
-	  's/^_SETUPTOOLS_VERSION\s*=\s*.+/_SETUPTOOLS_VERSION = "'"$${ver_setuptools}"'"/' \
-	__init__.py ; \
-	cd _bundled ; \
-	find ./ -name 'setuptools-*.whl' -ls -delete ; \
-	$(limb_python) -m pip download "setuptools==$${ver_setuptools}"
+	  -e 's/^_PIP_VERSION\s*=\s*.+/_PIP_VERSION = "'"$${ver_pip}"'"/' \
+	  -e 's/^_SETUPTOOLS_VERSION\s*=\s*.+/_SETUPTOOLS_VERSION = "'"$${ver_setuptools}"'"/' \
+	debian/tmp/$(PYTHON_MODULES)/ensurepip/__init__.py
 
 	$(call remove_pycache, $(if $(strip $(1)),$(strip $(1)),$(CURDIR)/debian/tmp) )
 
@@ -451,13 +439,9 @@ define deb_python_install
 
 	$(call fix_hashbangs_r, debian/tmp )
 
-	rm -rf $(build_dir)
-
 endef
 
 shared_python = $(call x_python, $(INSTALL_SHARED)/$(PYTHON_PREFIX) , lib , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
-
-export PGO_PYPERF_MODULES = $(INSTALL_SHARED)/$(PYTHON_MODULES)/site-packages
 
 override_dh_auto_build:
 	$(call deb_python_configure, $(CONFIGURE_FLAGS_SHARED) )
@@ -465,6 +449,19 @@ override_dh_auto_build:
 
 	rm -rf debian/tmp $(INSTALL_SHARED)
 	$(call deb_python_install)
+
+	: # adjust ensurepip: download fresh wheels
+	wheel_dir='debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled' ; \
+	find "$${wheel_dir}/" -name '*.whl' -ls -delete ; \
+	jq -r '.[] | .name + " " + .version' < debian/pip.list.json \
+	| while read -r name version ; do \
+	  [ -n "$${name}" ] || continue ; \
+	  [ -n "$${version}" ] || continue ; \
+	  env -C "$${wheel_dir}" $(limb_python) -m pip download "$${name}==$${version}" ; \
+	done ; \
+	find "$${wheel_dir}/" -name '*.whl' -ls
+
+	: # preserve shared install
 	mv debian/tmp $(INSTALL_SHARED)
 
 	: # minor hack for shared python
@@ -475,22 +472,37 @@ override_dh_auto_build:
 	mv "$${src}" "$${dst}"
 
 ifeq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
-	$(shared_python) -m pip install $(CURDIR)/pyperformance
+	$(shared_python) -m pip install $(CURDIR)/python-pyperformance
 endif
+
+	$(call remove_pycache, $(CURDIR) )
+
+	: # propagate modified "ensurepip" to sources
+	rm -rf Lib/ensurepip ; \
+	tar -C $(INSTALL_SHARED)/$(PYTHON_MODULES) -cf - ensurepip \
+	| tar -C Lib -xf -
 
 	$(call deb_python_configure, $(CONFIGURE_FLAGS_BINARY) )
-	$(call deb_python_build)
 
 ifeq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
-	PYTHONPATH='$(PGO_PYPERF_MODULES)' \
-	$(test_python) -m pyperformance run --debug-single-value || true
+	$(shared_python) -m compileall -q $(INSTALL_SHARED)/
+
+	f='$(build_dir)/pyperformance.sh' ; \
+	: > "$$f" ; \
+	echo '#!/bin/sh' >> "$$f" ; \
+	echo 'exec $(shared_python) -m pyperformance "$$@"' >> "$$f" ; \
+	chmod 0755 "$$f"
 endif
+
+	$(call deb_python_build)
 
 override_dh_auto_test:
 	$(call deb_python_test)
 
 override_dh_auto_install:
 	$(call deb_python_install)
+
+	$(call remove_pycache, $(CURDIR) )
 
 	: # unpatch Python (consult hybrid-layout.patch)
 	grep -FRl -e DEB_BUILD_CONTAINER_PYTHON debian/tmp/ \
