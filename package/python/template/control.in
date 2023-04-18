@@ -35,8 +35,8 @@ Package: container-python-@{PYTHON_BASE_VERSION}
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         container-shim-python-@{PYTHON_BASE_VERSION},
          media-types | mime-support,
+Recommends: container-shim-python-@{PYTHON_BASE_VERSION},
 Suggests: binutils,
           container-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
 Provides: python@{PYTHON_BASE_VERSION}:any (= @{PYTHON_VERSION}),
@@ -50,9 +50,9 @@ Package: container-python-@{PYTHON_BASE_VERSION}-full
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-shim-python-@{PYTHON_BASE_VERSION}-full,
          container-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
-Recommends: container-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
+Recommends: container-shim-python-@{PYTHON_BASE_VERSION}-full,
+            container-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
 Suggests: ca-certificates,
 Provides: python@{PYTHON_BASE_VERSION}-venv:any (= @{PYTHON_VERSION}),
           python3-venv:any (= @{PYTHON_VERSION}),
@@ -71,11 +71,11 @@ Description: Python v@{PYTHON_BASE_VERSION} - full package
 Package: container-python-@{PYTHON_BASE_VERSION}-dev
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         container-shim-python-@{PYTHON_BASE_VERSION}-dev,
          container-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
          libexpat1-dev,
          zlib1g-dev,
-Recommends: libc6-dev | libc-dev,
+Recommends: container-shim-python-@{PYTHON_BASE_VERSION}-dev,
+            libc6-dev | libc-dev,
 Provides: python@{PYTHON_BASE_VERSION}-dev:any (= @{PYTHON_VERSION}),
           python3-dev:any (= @{PYTHON_VERSION}),
 Description: Python v@{PYTHON_BASE_VERSION} - development files
@@ -86,8 +86,8 @@ Description: Python v@{PYTHON_BASE_VERSION} - development files
 Package: container-python-@{PYTHON_BASE_VERSION}-misc
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         container-shim-python-@{PYTHON_BASE_VERSION}-misc,
          container-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
+Recommends: container-shim-python-@{PYTHON_BASE_VERSION}-misc,
 Description: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
  This package contains static library, less common libraries (IDLE,
  tkinter, and so on) and auxiliary files for Python v@{PYTHON_BASE_VERSION}.

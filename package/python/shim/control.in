@@ -13,6 +13,7 @@ Package: container-shim-python-@{PYTHON_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
+         container-python-@{PYTHON_BASE_VERSION},
 Provides: python@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
           libpython@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
           libpython@{PYTHON_BASE_VERSION}-minimal (= @{PYTHON_VERSION}),
@@ -56,6 +57,7 @@ Package: container-shim-python-@{PYTHON_BASE_VERSION}-full
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
+         container-python-@{PYTHON_BASE_VERSION}-full,
          container-shim-python-@{PYTHON_BASE_VERSION},
 Provides: python@{PYTHON_BASE_VERSION}-venv (= @{PYTHON_VERSION}),
           python3-venv (= @{PYTHON_VERSION}),
@@ -69,6 +71,7 @@ Package: container-shim-python-@{PYTHON_BASE_VERSION}-dev
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
+         container-python-@{PYTHON_BASE_VERSION}-dev,
          container-shim-python-@{PYTHON_BASE_VERSION}-full,
 Provides: python@{PYTHON_BASE_VERSION}-dev (= @{PYTHON_VERSION}),
           libpython@{PYTHON_BASE_VERSION}-dev (= @{PYTHON_VERSION}),
@@ -91,6 +94,7 @@ Package: container-shim-python-@{PYTHON_BASE_VERSION}-misc
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
+         container-python-@{PYTHON_BASE_VERSION}-misc,
 Provides: python@{PYTHON_BASE_VERSION}-tk (= @{PYTHON_VERSION}),
           idle-python@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
           python@{PYTHON_BASE_VERSION}-examples (= @{PYTHON_VERSION}),
