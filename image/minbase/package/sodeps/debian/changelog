@@ -1,3 +1,11 @@
+container-sodeps (20230424) stable; urgency=medium
+
+  * Provide two extra wrapper scripts (around sodeps):
+    - apt-wrap-sodeps - generic wrapper
+    - apt-wrap-python - python-related wrapper
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Mon, 24 Apr 2023 11:15:00 +0300
+
 container-sodeps (20230317) stable; urgency=medium
 
   * Initial release.

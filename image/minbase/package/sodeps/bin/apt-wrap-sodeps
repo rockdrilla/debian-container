@@ -1,0 +1,160 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} [options] {apt packages} {command}
+	# options:
+	#   user switching (for command):
+	#     -u USER[:GROUP]
+	#     --user USER[:GROUP]
+	#     --user=USER[:GROUP]
+	#   scan paths override:
+	#     -p DIR[:DIR ..]
+	#     --path DIR[:DIR ..]
+	#     --path=DIR[:DIR ..]
+	EOF
+}
+
+msg() { echo "# ${0##*/}: $*" >&2 ; }
+
+# internal methods
+case "$1" in
+--do)
+	# run command and do some postprocessing
+	shift
+
+	# environment sanity check
+	: "${APT_WRAP_KEEP:?}"
+
+	pathspec="$1" ; shift
+
+	set +e
+	"$@"
+	r=$?
+
+	# early exit
+	if [ $r != 0 ] ; then
+		: > "${APT_WRAP_KEEP}"
+		exit $r
+	fi
+
+	t=$(mktemp)
+
+	# move original keep list
+	tr -s '[:space:]' '\n' < "${APT_WRAP_KEEP}" > "$t"
+	: > "${APT_WRAP_KEEP}"
+
+	if [ -n "${pathspec}" ] ; then
+		printf '%s' "${pathspec}" | tr ':' '\0' \
+		| grep -zEv '^$' | sort -zuV \
+		| xargs -0 -r sodeps >> "$t" || r=$?
+	fi
+
+	# (not so) early exit
+	if [ $r != 0 ] ; then
+		rm -f "$t"
+		exit $r
+	fi
+
+	# restore keep list
+	sort -uV < "$t" > "${APT_WRAP_KEEP}"
+	rm -f "$t"
+
+	exit 0
+;;
+esac
+
+if [ $# = 0 ] ; then
+	usage
+	exit 0
+fi
+
+userspec=
+pathspec=
+
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		if [ -z "$i" ] ; then
+			msg "error: empty value for option"
+			usage
+			exit 1
+		fi
+
+		case "${want_value}" in
+		userspec) userspec="$i" ;;
+		pathspec) pathspec="$i" ;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	--user=*)
+		if [ -n "${userspec}" ] ; then
+			msg "error: user specifier is already set"
+			usage
+			exit 1
+		fi
+		userspec="${i#*=}"
+	;;
+	-u|--user)
+		if [ -n "${userspec}" ] ; then
+			msg "error: user specifier is already set"
+			usage
+			exit 1
+		fi
+		want_value=userspec
+	;;
+	--path=*)
+		if [ -n "${pathspec}" ] ; then
+			msg "error: path specifier is already set"
+			usage
+			exit 1
+		fi
+		pathspec="${i#*=}"
+	;;
+	-p|--path)
+		if [ -n "${pathspec}" ] ; then
+			msg "error: path specifier is already set"
+			usage
+			exit 1
+		fi
+		want_value=pathspec
+	;;
+	-*)
+		msg "error: unknown option $i"
+		usage
+		exit 1
+	;;
+	*) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+if [ $# -lt 2 ] ; then
+	usage
+	exit 1
+fi
+
+if [ -n "${userspec}" ] ; then
+	if ! run-as "${userspec}" true >&2 ; then
+		msg "error: user specifier is broken"
+		usage
+		exit 1
+	fi
+fi
+
+deps="$1" ; shift
+
+exec apt-wrap ${userspec:+ -u "${userspec}" } "${deps}" "$0" --do "${pathspec}" "$@"

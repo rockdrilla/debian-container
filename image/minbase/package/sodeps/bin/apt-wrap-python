@@ -1,0 +1,247 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} [options] {apt packages} {python-related command}
+	# options:
+	#   user switching (for python-related command):
+	#     -u USER[:GROUP]
+	#     --user USER[:GROUP]
+	#     --user=USER[:GROUP]
+	#   python version selector:
+	#     -V PYTHON_VERSION
+	#     --pyversion PYTHON_VERSION
+	#     --pyversion=PYTHON_VERSION
+	#   scan paths override:
+	#     -p DIR[:DIR ..]
+	#     --path DIR[:DIR ..]
+	#     --path=DIR[:DIR ..]
+	EOF
+}
+
+msg() { echo "# ${0##*/}: $*" >&2 ; }
+
+# internal methods
+case "$1" in
+--do)
+	# run command and do some postprocessing
+	shift
+
+	# environment sanity check
+	: "${APT_WRAP_KEEP:?}"
+
+	pyverspec="${1:?}"
+	pathspec="$2"
+	shift 2
+
+	old_PATH="${PATH}"
+	export PATH="/opt/python-${pyverspec}/bin:${PATH}"
+
+	set +e
+	"$@"
+	r=$?
+
+	export PATH="${old_PATH}"
+
+	# early exit
+	if [ $r != 0 ] ; then
+		: > "${APT_WRAP_KEEP}"
+		exit $r
+	fi
+
+	t=$(mktemp)
+
+	# move original keep list
+	tr -s '[:space:]' '\n' < "${APT_WRAP_KEEP}" > "$t"
+	: > "${APT_WRAP_KEEP}"
+
+	if [ -z "${pathspec}" ] ; then
+		if [ "$(id -u)" = 0 ] ; then
+			pathspec=$(python-${pyverspec} -c 'import site;print(":".join(site.getsitepackages()))')
+		else
+			pathspec=$(python-${pyverspec} -c 'import site;print(site.getusersitepackages())')
+		fi
+	fi
+
+	if [ -n "${pathspec}" ] ; then
+		printf '%s' "${pathspec}" | tr ':' '\0' \
+		| grep -zEv '^$' | sort -zuV \
+		| xargs -0 -r sodeps >> "$t" || r=$?
+	fi
+
+	# (not so) early exit
+	if [ $r != 0 ] ; then
+		rm -f "$t"
+		exit $r
+	fi
+
+	# restore keep list
+	sort -uV < "$t" > "${APT_WRAP_KEEP}"
+	rm -f "$t"
+
+	exit 0
+;;
+esac
+
+if [ $# = 0 ] ; then
+	usage
+	exit 0
+fi
+
+userspec=
+pyverspec=
+pathspec=
+
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		if [ -z "$i" ] ; then
+			msg "error: empty value for option"
+			usage
+			exit 1
+		fi
+
+		case "${want_value}" in
+		userspec)  userspec="$i" ;;
+		pyverspec) pyverspec="$i" ;;
+		pathspec)  pathspec="$i" ;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	--user=*)
+		if [ -n "${userspec}" ] ; then
+			msg "error: user specifier is already set"
+			usage
+			exit 1
+		fi
+		userspec="${i#*=}"
+	;;
+	-u|--user)
+		if [ -n "${userspec}" ] ; then
+			msg "error: user specifier is already set"
+			usage
+			exit 1
+		fi
+		want_value=userspec
+	;;
+	--pyversion=*)
+		if [ -n "${pyverspec}" ] ; then
+			msg "error: python version specifier is already set"
+			usage
+			exit 1
+		fi
+		pyverspec="${i#*=}"
+	;;
+	-V|--pyversion)
+		if [ -n "${pyverspec}" ] ; then
+			msg "error: python version specifier is already set"
+			usage
+			exit 1
+		fi
+		want_value=pyverspec
+	;;
+	--path=*)
+		if [ -n "${pathspec}" ] ; then
+			msg "error: path specifier is already set"
+			usage
+			exit 1
+		fi
+		pathspec="${i#*=}"
+	;;
+	-p|--path)
+		if [ -n "${pathspec}" ] ; then
+			msg "error: path specifier is already set"
+			usage
+			exit 1
+		fi
+		want_value=pathspec
+	;;
+	-*)
+		msg "error: unknown option $i"
+		usage
+		exit 1
+	;;
+	*) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+if [ $# -lt 2 ] ; then
+	usage
+	exit 1
+fi
+
+if [ -n "${userspec}" ] ; then
+	if ! run-as "${userspec}" true >&2 ; then
+		msg "error: user specifier is broken"
+		usage
+		exit 1
+	fi
+fi
+
+if [ -n "${pyverspec}" ] ; then
+	if ! printf '%s' "${pyverspec}" | grep -Eq '^[0-9]+\.[0-9]+$' ; then
+		msg 'error: python version specifier is broken (must be in form "\d+.\d+")'
+		exit 1
+	fi
+fi
+
+_apt_search() {
+	apt-cache search "$1" | mawk "/^$2 /{print \$1}" | sort -ruV | head -n 1
+}
+
+# apt cache is used anyway
+apt-update
+
+pypkg=
+if [ -n "${pyverspec}" ] ; then
+	pypkg=$(_apt_search "container-python-${pyverspec}-dev" 'container-python-[0-9.]+-dev')
+	if [ -z "${pypkg}" ] ; then
+		msg 'error: unable to find suitable python package'
+		exit 1
+	fi
+else
+	b=/usr/bin/python
+	if [ -e "$b" ] ; then
+		pypkg=$(readlink -ne "$b" | xargs -0 -r dpkg-which)
+	fi
+	if [ -z "${pypkg}" ] ; then
+		pypkg=$(_apt_search container-python 'container-python-[0-9.]+')
+	fi
+	if [ -z "${pypkg}" ] ; then
+		msg 'error: unable to find suitable python package'
+		exit 1
+	fi
+
+	pyverspec=$(printf '%s' "${pypkg}" | grep -oE '[0-9.]+')
+fi
+
+pypkg="container-python-${pyverspec}-dev"
+want_shim=$(_apt_search "python${pyverspec}" "python${pyverspec}")
+if [ -n "${want_shim}" ] ; then
+	pypkg="container-shim-python-${pyverspec}-dev"
+fi
+
+deps="${pypkg} build-essential debhelper fakeroot"
+case "${APT_WRAP_INSTALL_METHOD}" in
+satisfy)
+	deps=$(printf '%s, ' ${deps})
+;;
+esac
+deps="${deps} $1"
+shift
+
+exec apt-wrap ${userspec:+ -u "${userspec}" } "${deps}" "$0" --do "${pyverspec}" "${pathspec}" "$@"

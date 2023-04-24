@@ -4,6 +4,19 @@
 
 set -ef
 
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} [options] {apt packages} {command}
+	# options:
+	#   user switching (for command):
+	#     -u USER[:GROUP]
+	#     --user USER[:GROUP]
+	#     --user=USER[:GROUP]
+	EOF
+}
+
+msg() { echo "# ${0##*/}: $*" >&2 ; }
+
 join_lines() { sed -zE 's/[[:space:]]+/ /g;s/^ //;s/ $//' ; }
 
 _q=quiet
@@ -26,7 +39,7 @@ case "$1" in
 	: > "$w/new"
 
 	if [ -z "${deps}" ] ; then
-		echo 'nothing was selected as build-deps' >&2
+		msg 'warning: nothing was selected as build-deps'
 	else
 		export APT_METHOD="${APT_WRAP_INSTALL_METHOD:-install}"
 		case "${APT_METHOD}" in
@@ -47,7 +60,9 @@ case "$1" in
 		apt-list-installed > "$w/installed.1"
 		apt-list-manual    > "$w/manual.1"
 
-		grep -Fxv -f "$w/installed.0" < "$w/installed.1" > "$w/new" || :
+		set +e
+		grep -Fxv -f "$w/installed.0" < "$w/installed.1" > "$w/new"
+		set -e
 	fi
 
 	echo "$w"
@@ -67,14 +82,21 @@ case "$1" in
 		ok=1 ; break
 	done
 	if [ -z "${ok}" ] ; then
-		echo 'wrong state!' >&2
+		msg 'error: wrong state!'
 		exit 1
 	fi
 
 	x="$w/keep"
 	if [ -s "$x" ] ; then
-		grep -Fxv -f "$w/installed.0" "$x" > "$x.manual" || :
-		xargs -r ${_q} apt-mark manual < "$x.manual"
+		set +e
+		xargs -r -a "$x" \
+		  dpkg-query --show --showformat='${Package}:${Architecture}\n' \
+		> "$x.adjust"
+		grep -Fxv -f "$w/installed.0" "$x.adjust" > "$x"
+		set -e
+		rm -f "$x.adjust"
+		xargs -r -a "$x" \
+		  quiet apt-mark manual >&2
 	fi
 
 	apt-list-installed > "$w/installed.2"
@@ -102,26 +124,130 @@ case "$1" in
 
 	set -e
 
-	export APT_METHOD="${APT_WRAP_REMOVE_METHOD:-purge}"
-	xargs -r ${_q} apt-remove < "$w/pkg.remove" >&2
+	m="${APT_WRAP_REMOVE_METHOD:-purge}"
+	case "$m" in
+	purge|remove) ;;
+	*)
+		msg "warning: adjusting APT_WRAP_REMOVE_METHOD to 'purge'"
+		m=purge
+	;;
+	esac
+
+	r=1
+	while : ; do
+		xargs -r -a "$w/pkg.remove" \
+		  ${_q} dpkg --force-all "--$m" >&2 \
+		|| break
+
+		unset APT_METHOD
+		xargs -r -a "$w/keep" \
+		  apt-install >/dev/null 2>&1 \
+		|| ${_q} apt-install -f >&2 \
+		|| break
+
+		r=0 ; break
+	done
 
 	rm -rf "$w"
-	exit 0
+	exit $r
 ;;
 esac
 
-deps="$1"
-shift
+if [ $# = 0 ] ; then
+	usage
+	exit 0
+fi
 
-w=$("$0" --begin "${deps}")
+userspec=
+
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		if [ -z "$i" ] ; then
+			msg "error: empty value for option"
+			usage
+			exit 1
+		fi
+
+		case "${want_value}" in
+		userspec) userspec="$i" ;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	--user=*)
+		if [ -n "${userspec}" ] ; then
+			msg "error: user specifier is already set"
+			usage
+			exit 1
+		fi
+		userspec="${i#*=}"
+	;;
+	-u|--user)
+		if [ -n "${userspec}" ] ; then
+			msg "error: user specifier is already set"
+			usage
+			exit 1
+		fi
+		want_value=userspec
+	;;
+	-*)
+		msg "error: unknown option $i"
+		usage
+		exit 1
+	;;
+	*) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+if [ $# -lt 2 ] ; then
+	usage
+	exit 1
+fi
+
+if [ -n "${userspec}" ] ; then
+	if ! run-as "${userspec}" true >&2 ; then
+		msg "error: user specifier is broken"
+		usage
+		exit 1
+	fi
+fi
+
+deps="$1" ; shift
+w=$("$0" --begin "${deps}") || exit
 
 export APT_WRAP_KEEP="$w/keep"
 export APT_WRAP_NEW="$w/new"
 
+if [ -n "${userspec}" ] ; then
+	g=$(run-as "${userspec}" id -g)
+	chgrp "$g" "$w" "$w/new" "$w/keep"
+	chmod g+rx "$w"
+	chmod g+r  "$w/new"
+	chmod g+rw "$w/keep"
+fi
+
 set +e
-"$@"
+[ -n "${_q}" ] || echo >&2
+${userspec:+ run-as "${userspec}" } "$@"
 r=$?
+[ -n "${_q}" ] || echo >&2
 
-"$0" --end "$w"
+# early exit
+if [ $r != 0 ] ; then
+	: > "$w/keep"
+	"$0" --end "$w"
+	exit $r
+fi
 
+"$0" --end "$w" || r=$?
 exit $r
