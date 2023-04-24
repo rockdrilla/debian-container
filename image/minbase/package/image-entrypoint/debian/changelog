@@ -1,3 +1,10 @@
+container-image-entrypoint (20230425) stable; urgency=medium
+
+  * Tune MALLOC_ARENA_MAX.
+  * Rename FORCE_GOMAXPROCS to GOMAXPROCS_FORCE.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Tue, 25 Apr 2023 01:52:00 +0300
+
 container-image-entrypoint (20230414) stable; urgency=medium
 
   * Respect CI environment.

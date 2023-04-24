@@ -1,0 +1,12 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+if [ -n "${NPROC}" ] ; then
+    __arenas=$((NPROC * 2))
+else
+    __arenas=2
+fi
+: "${MALLOC_ARENA_MAX:=${__arenas}}"
+unset __arenas
+export MALLOC_ARENA_MAX

@@ -3,21 +3,21 @@
 # (c) 2023, Konstantin Demin
 
 while : ; do
-    if [ -n "${FORCE_GOMAXPROCS}" ] ; then
-        log "FORCE_GOMAXPROCS is in effect: GOMAXPROCS=${FORCE_GOMAXPROCS}"
-        export GOMAXPROCS="${FORCE_GOMAXPROCS}"
+    if [ -n "${GOMAXPROCS_FORCE}" ] ; then
+        log "GOMAXPROCS_FORCE is in effect: GOMAXPROCS=${GOMAXPROCS_FORCE}"
+        export GOMAXPROCS="${GOMAXPROCS_FORCE}"
         break
     else
-        unset FORCE_GOMAXPROCS
+        unset GOMAXPROCS_FORCE
     fi
 
     if [ -n "${GOMAXPROCS}" ] ; then
         # use GOMAXPROCS as NPROC soft limit for nproc
-        __GOMAXPROCS=$(NPROC="-${GOMAXPROCS}" nproc || :)
-        if [ -n "${__GOMAXPROCS}" ] ; then
-            [ "${GOMAXPROCS}" != "${__GOMAXPROCS}" ] || break
-            log "adjusting GOMAXPROCS to ${__GOMAXPROCS}"
-            export GOMAXPROCS="${__GOMAXPROCS}"
+        __proc=$(NPROC="-${GOMAXPROCS}" nproc || :)
+        if [ -n "${__proc}" ] ; then
+            [ "${GOMAXPROCS}" != "${__proc}" ] || break
+            log "adjusting GOMAXPROCS to ${__proc}"
+            export GOMAXPROCS="${__proc}"
             break
         fi
     else
@@ -27,4 +27,4 @@ while : ; do
     [ -z "${NPROC}" ] || export GOMAXPROCS="${NPROC}"
     break
 done
-unset __GOMAXPROCS
+unset __proc
