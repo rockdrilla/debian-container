@@ -9,34 +9,72 @@
 +        'platlib': '$platbase/lib/python$py_version_short/site-packages',
 +        'headers': '$base/include/python$py_version_short$abiflags/$dist_name',
 +        'scripts': '/usr/local/bin',
-+        'data'   : '/usr/local',
++        'data'   : '{base}',
 +        },
      'unix_home': {
          'purelib': '$base/lib/python',
          'platlib': '$base/$platlibdir/python',
-@@ -414,6 +421,7 @@ class install(Command):
-             self.install_base = self.install_platbase = self.home
-             self.select_scheme("unix_home")
-         else:
-+            is_virtual_environment = (self.prefix is not None) or ('VIRTUAL_ENV' in os.environ) or ('PYTHONUSERBASE' in os.environ) or ('real_prefix' in sys.__dict__) or (sys.base_prefix != sys.prefix) or ('DEB_BUILD_CONTAINER_PYTHON' in os.environ)
-             if self.prefix is None:
-                 if self.exec_prefix is not None:
-                     raise DistutilsOptionError(
-@@ -428,7 +436,13 @@ class install(Command):
+@@ -428,7 +435,10 @@ class install(Command):
  
              self.install_base = self.prefix
              self.install_platbase = self.exec_prefix
 -            self.select_scheme("unix_prefix")
-+            if is_virtual_environment:
-+                self.select_scheme("unix_prefix")
-+            else:
-+                if os.path.normpath(self.prefix) == '/usr/local':
-+                    self.prefix = self.exec_prefix = '/usr'
-+                    self.install_base = self.install_platbase = '/usr'
++            if 'CONTAINER_PYTHON_GLOBALBIN' in os.environ:
 +                self.select_scheme("unix_local")
++            else:
++                self.select_scheme("unix_prefix")
  
      def finalize_other(self):
          """Finalizes options for non-posix platforms"""
+--- a/Lib/sysconfig.py
++++ b/Lib/sysconfig.py
+@@ -36,6 +36,16 @@ _INSTALL_SCHEMES = {
+         'scripts': '{base}/bin',
+         'data': '{base}',
+         },
++    'posix_local': {
++        'stdlib': '{installed_base}/lib/python{py_version_short}',
++        'platstdlib': '{platbase}/lib/python{py_version_short}',
++        'purelib': '{base}/lib/python{py_version_short}/site-packages',
++        'platlib': '{platbase}/lib/python{py_version_short}/site-packages',
++        'include': '{installed_base}/include/python{py_version_short}{abiflags}',
++        'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
++        'scripts': '/usr/local/bin',
++        'data': '{base}',
++        },
+     'posix_home': {
+         'stdlib': '{installed_base}/lib/python',
+         'platstdlib': '{base}/lib/python',
+@@ -146,7 +156,7 @@ def is_python_build(check_home=False):
+ _PYTHON_BUILD = is_python_build(True)
+ 
+ if _PYTHON_BUILD:
+-    for scheme in ('posix_prefix', 'posix_home'):
++    for scheme in ('posix_prefix', 'posix_home', 'posix_local'):
+         _INSTALL_SCHEMES[scheme]['include'] = '{srcdir}/Include'
+         _INSTALL_SCHEMES[scheme]['platinclude'] = '{projectbase}/.'
+ 
+@@ -184,7 +194,10 @@ def _expand_vars(scheme, vars):
+ def _get_default_scheme():
+     if os.name == 'posix':
+         # the default scheme for posix is posix_prefix
+-        return 'posix_prefix'
++        if 'CONTAINER_PYTHON_GLOBALBIN' in os.environ:
++            return 'posix_local'
++        else:
++            return 'posix_prefix'
+     return os.name
+ 
+ 
+@@ -489,7 +502,7 @@ def get_config_h_filename():
+         else:
+             inc_dir = _sys_home or _PROJECT_BASE
+     else:
+-        inc_dir = get_path('platinclude')
++        inc_dir = get_path('platinclude', 'posix_local')
+     return os.path.join(inc_dir, 'pyconfig.h')
+ 
+ 
 --- a/Lib/pydoc.py
 +++ b/Lib/pydoc.py
 @@ -505,6 +505,7 @@ class Doc:
@@ -72,56 +110,6 @@
 +            sitepackages.append(os.path.join('/usr/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
          else:
              sitepackages.append(prefix)
- 
---- a/Lib/sysconfig.py
-+++ b/Lib/sysconfig.py
-@@ -36,6 +36,16 @@ _INSTALL_SCHEMES = {
-         'scripts': '{base}/bin',
-         'data': '{base}',
-         },
-+    'posix_local': {
-+        'stdlib': '{installed_base}/lib/python{py_version_short}',
-+        'platstdlib': '{platbase}/lib/python{py_version_short}',
-+        'purelib': '{base}/lib/python{py_version_short}/site-packages',
-+        'platlib': '{platbase}/lib/python{py_version_short}/site-packages',
-+        'include': '{installed_base}/include/python{py_version_short}{abiflags}',
-+        'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
-+        'scripts': '/usr/local/bin',
-+        'data': '/usr/local',
-+        },
-     'posix_home': {
-         'stdlib': '{installed_base}/lib/python',
-         'platstdlib': '{base}/lib/python',
-@@ -146,7 +156,7 @@ def is_python_build(check_home=False):
- _PYTHON_BUILD = is_python_build(True)
- 
- if _PYTHON_BUILD:
--    for scheme in ('posix_prefix', 'posix_home'):
-+    for scheme in ('posix_prefix', 'posix_home', 'posix_local'):
-         _INSTALL_SCHEMES[scheme]['include'] = '{srcdir}/Include'
-         _INSTALL_SCHEMES[scheme]['platinclude'] = '{projectbase}/.'
- 
-@@ -184,7 +194,11 @@ def _expand_vars(scheme, vars):
- def _get_default_scheme():
-     if os.name == 'posix':
-         # the default scheme for posix is posix_prefix
--        return 'posix_prefix'
-+        is_virtual_environment = ('VIRTUAL_ENV' in os.environ) or ('PYTHONUSERBASE' in os.environ) or ('real_prefix' in sys.__dict__) or (sys.base_prefix != sys.prefix) or ('DEB_BUILD_CONTAINER_PYTHON' in os.environ)
-+        if is_virtual_environment:
-+            return 'posix_prefix'
-+        else:
-+            return 'posix_local'
-     return os.name
- 
- 
-@@ -489,7 +503,7 @@ def get_config_h_filename():
-         else:
-             inc_dir = _sys_home or _PROJECT_BASE
-     else:
--        inc_dir = get_path('platinclude')
-+        inc_dir = get_path('platinclude', 'posix_local')
-     return os.path.join(inc_dir, 'pyconfig.h')
- 
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py

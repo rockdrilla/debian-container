@@ -34,8 +34,6 @@ PYTHON_PREFIX = opt/python-$(PYTHON_BASE_VERSION)
 PYTHON_BINARY = usr/bin/python-$(PYTHON_BASE_VERSION)
 PYTHON_MODULES = $(PYTHON_PREFIX)/lib/python$(PYTHON_BASE_VERSION)
 
-export DEB_BUILD_CONTAINER_PYTHON=1
-
 include debian/rules.ver
 
 ifneq ($(DEB_HOST_ARCH_OS),linux)
@@ -503,10 +501,6 @@ override_dh_auto_install:
 	$(call deb_python_install)
 
 	$(call remove_pycache, $(CURDIR) )
-
-	: # unpatch Python (consult hybrid-layout.patch)
-	grep -FRl -e DEB_BUILD_CONTAINER_PYTHON debian/tmp/ \
-	| xargs -t -r sed -i "s, or ('DEB_BUILD_CONTAINER_PYTHON' in os.environ),,"
 
 	: # remove versioned symlinks
 	find debian/tmp/ -path '*/bin/*' -type l -exec rm -vf '{}' '+'
