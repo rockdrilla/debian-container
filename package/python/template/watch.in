@@ -8,7 +8,7 @@ opts=component=python-pyperformance,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
 downloadurlmangle=s/^.+\/(.+)\.zip$/https:\/\/github.com\/python\/pyperformance\/archive\/$1.tar.gz/ \
-  https://github.com/python/pyperformance/tree/@{PYPERFORMANCE_GIT_TAG}/ \
+  https://github.com/python/pyperformance/tree/@{PYPERFORMANCE_GIT_REF}/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
@@ -22,6 +22,6 @@ ignore
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_com_python_pyperformance\/archive\/$1.tar.gz/ \
-#   http://127.0.0.1:8081/repository/proxy_raw_github_com_python_pyperformance/tree/@{PYPERFORMANCE_GIT_TAG}/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_com_python_pyperformance/tree/@{PYPERFORMANCE_GIT_REF}/ \
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
