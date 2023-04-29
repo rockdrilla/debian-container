@@ -15,9 +15,6 @@ export PATH="${rootdir}/scripts:${PATH}"
 
 . "${rootdir}/scripts/_common.sh"
 
-stage0_image="${IMAGE_PATH}/${DISTRO}-min-stage0:${SUITE}"
-stage1_image="${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
-
 # stage 0: build with Debian testing (!)
 for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
@@ -33,6 +30,9 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
 	# for latter usage
 	export DISTRO SUITE
+
+	stage0_image="${IMAGE_PATH}/${DISTRO}-min-stage0:${SUITE}"
+	stage1_image="${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
 
 	image/minbase/image.stage0.sh ${DISTRO} ${SUITE} "${stage0_image}"
 done
