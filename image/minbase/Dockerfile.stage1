@@ -10,9 +10,9 @@ FROM ${IMAGE_PATH}/${BUILD_IMAGE} as build
 SHELL [ "/bin/sh", "-ec" ]
 
 # these directories should be mounted as RW volumes
-ENV DEB_SRC_BUILD_DIR=/srv
-ENV _SRC_DIR=/media
-ENV _PKG_DIR=/mnt
+ARG DEB_SRC_BUILD_DIR
+ARG _SRC_DIR
+ARG _PKG_DIR
 
 ARG DEB_SRC_BUILD_PURGE
 ARG DEB_BUILD_OPTIONS

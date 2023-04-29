@@ -64,9 +64,6 @@ fix_ownership() {
 [ "$4" = 0 ] || fix_ownership "-uid $4|chown -h 0"
 [ "$5" = 0 ] || fix_ownership "-gid $5|chgrp -h 0"
 
-# fix script permissions (if broken)
-find /usr/local/bin/ -type f -exec chmod 0755 {} +
-
 # strip apt keyrings from sources.list:
 sed -i -E 's/ \[[^]]+]//' /etc/apt/sources.list
 

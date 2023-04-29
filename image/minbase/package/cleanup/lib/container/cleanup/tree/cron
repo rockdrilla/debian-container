@@ -9,6 +9,6 @@ set -ef
 rm="rm -f${VERBOSE:+v}"
 [ -z "${DEBUG}" ] || set -xv
 
-xglob /etc - /usr/local/etc/container/cleanup/cron-etc -- ${rm} <<-'EOF'
+xglob /etc - "${CLEANUP_CONF_DIR:?}/cron-etc" -- ${rm} <<-'EOF'
 	match=cron*/.placeholder
 EOF

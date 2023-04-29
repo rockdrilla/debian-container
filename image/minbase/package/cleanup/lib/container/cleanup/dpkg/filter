@@ -9,8 +9,15 @@ set -f
 
 [ -z "${DEBUG}" ] || set -xv
 
+conf_dir=/etc/container/dpkg-filter
+# bootstrap compat
+if [ -d "/usr/local${conf_dir}" ] ; then conf_dir="/usr/local${conf_dir}" ; fi
+
+[ -d "${conf_dir}" ] || exit 0
+
 # NB: executable files in this directory are considered to be "skipped"
-find -L /usr/local/etc/container/dpkg-filter/ -type f ! -executable \
+env -C "${conf_dir}" \
+find ./ -follow -type f ! -executable \
   -exec dpkg-filter '{}' '+'
 
 exit 0

@@ -9,5 +9,5 @@ set -f
 rm="rm -f${VERBOSE:+v}"
 [ -z "${DEBUG}" ] || set -xv
 
-xglob /var /usr/local/etc/container/cleanup/cron-var -- ${rm} </dev/null
+xglob /var "${CLEANUP_CONF_DIR:?}/cron-var" -- ${rm} </dev/null
 exit 0

@@ -24,11 +24,6 @@ override_dh_auto_test:
 
 execute_before_dh_install:
 	find $(CURDIR) -name .keep -type f -delete
-	find bin etc lib -type f -exec grep -FZl /usr/local '{}' '+' \
-	| xargs -0 -r sed -i \
-	  -e 's,/usr/local/etc,/etc,g' \
-	  -e 's,/usr/local/lib,/lib,g' \
-	;
 
 .PHONY: build
 build:

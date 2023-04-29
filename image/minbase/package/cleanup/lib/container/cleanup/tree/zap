@@ -8,7 +8,7 @@ set -ef
 
 [ -z "${DEBUG}" ] || set -xv
 
-xglob / - /usr/local/etc/container/cleanup/zap-tree -- zap-tree <<-'EOF'
+xglob / - "${CLEANUP_CONF_DIR:?}/zap-tree" -- zap-tree <<-'EOF'
 	match=/usr/share/*/
 	match=/usr/local/share/*/
 	skip=/usr/local/share/ca-certificates/

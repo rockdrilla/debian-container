@@ -48,9 +48,9 @@ done
 		_PKG_DIR
 	"
 
-	export DEB_SRC_BUILD_DIR=/srv
-	export _SRC_DIR=/media
-	export _PKG_DIR=/mnt
+	export DEB_SRC_BUILD_DIR=/build
+	export _SRC_DIR=/deb.src
+	export _PKG_DIR=/deb.pkg
 
 	stem="container-packages"
 	rm -rf "$(build_artifacts_path "${stem}")"
@@ -108,9 +108,9 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 			_PKG_DIR
 		"
 
-		export DEB_SRC_BUILD_DIR=/srv
-		export _SRC_DIR=/media
-		export _PKG_DIR=/mnt
+		export DEB_SRC_BUILD_DIR=/build
+		export _SRC_DIR=/deb.src
+		export _PKG_DIR=/deb.pkg
 
 		stem="container-packages-arch"
 		rm -rf "$(build_artifacts_path "${stem}")"

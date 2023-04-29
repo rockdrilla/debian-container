@@ -9,7 +9,7 @@ set -ef
 rm="rm -f${VERBOSE:+v}"
 [ -z "${DEBUG}" ] || set -xv
 
-xglob /var/log - /usr/local/etc/container/cleanup/logs -- ${rm} <<-'EOF'
+xglob /var/log - "${CLEANUP_CONF_DIR:?}/logs" -- ${rm} <<-'EOF'
 	match=**
 	skip=btmp
 	skip=wtmp

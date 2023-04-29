@@ -16,8 +16,6 @@ rm="rm -f${VERBOSE:+v}"
 rule_stanza='^(delete|keep)=(.+)$'
 reformat_xglob='s/^delete/match/;s/^keep/skip/'
 
-# : "${DPKG_ADMINDIR:=/var/lib/dpkg}"
-
 # work directory
 w=$(mktemp -d) ; : "${w:?}"
 

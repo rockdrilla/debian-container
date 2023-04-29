@@ -9,6 +9,6 @@ set -f
 rm="rm -rf${VERBOSE:+v}"
 [ -z "${DEBUG}" ] || set -xv
 
-xglob / - /usr/local/etc/container/cleanup/apt -- ${rm} <<-'EOF'
+xglob / - "${CLEANUP_CONF_DIR:?}/apt" -- ${rm} <<-'EOF'
 	match=/etc/apt/apt.conf.d/docker*
 EOF
