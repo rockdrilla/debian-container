@@ -15,6 +15,9 @@ export PATH="${rootdir}/scripts:${PATH}"
 
 . "${rootdir}/scripts/_common.sh"
 
+stage0_image="${IMAGE_PATH}/${DISTRO}-min-stage0:${SUITE}"
+stage1_image="${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
+
 # stage 0: build with Debian testing (!)
 for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
@@ -31,7 +34,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	# for latter usage
 	export DISTRO SUITE
 
-	image/minbase/image.stage0.sh ${DISTRO} ${SUITE} "${IMAGE_PATH}/${DISTRO}-min-stage0:${SUITE}"
+	image/minbase/image.stage0.sh ${DISTRO} ${SUITE} "${stage0_image}"
 done
 
 # stage 1: build "arch:all" packages with Debian testing (!)
@@ -67,7 +70,7 @@ done
 
 	# (our CI uploads freshly built packages via ${BUILD_IMAGE_SCRIPT_POST})
 	BUILD_IMAGE_SCRIPT_POST=/bin/true \
-	scripts/build-image.sh image/minbase/Dockerfile.stage1 "${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
+	scripts/build-image.sh image/minbase/Dockerfile.stage1 "${stage1_image}"
 
 	pkg_path="${rootdir}/artifacts/${stem}"
 	rm -rf "${pkg_path}"
@@ -76,8 +79,8 @@ done
 ) || exit 1
 
 # remove intermediate images
-podman image rm -f "${IMAGE_PATH}/${DISTRO}-min-stage0:${SUITE}"
-podman image rm -f "${IMAGE_PATH}/${DISTRO}-min-stage1:${SUITE}"
+podman image rm -f "${stage0_image}"
+podman image rm -f "${stage1_image}"
 
 # suppress building dbgsym packages
 export DEB_BUILD_OPTIONS='noautodbgsym'
@@ -92,9 +95,19 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	export DISTRO SUITE
 
 	# stage 2: build images suitable for building arch-any packages
-	image/minbase/image.sh ${DISTRO} ${SUITE} "${IMAGE_PATH}/${DISTRO}-min-stage2:${SUITE}"
+	buildd_image="${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}"
+	stage2_image="${IMAGE_PATH}/${DISTRO}-min-stage2:${SUITE}"
+	while [ "${MINBASE_BOOTSTRAP_REUSE:-1}" = 1 ] ; do
+		podman pull "${buildd_image}" || break
+		podman tag "${buildd_image}" "${stage2_image}"
+		break
+	done
+
+	podman inspect "${stage2_image}" >/dev/null || \
+	image/minbase/image.sh ${DISTRO} ${SUITE} "${stage2_image}"
 
 	# stage 3: build "arch:any" packages
+	stage3_image="${IMAGE_PATH}/${DISTRO}-min-stage3:${SUITE}"
 	(
 		export BUILD_IMAGE_PUSH=0
 		export BUILD_IMAGE_CONTEXT="${rootdir}"
@@ -119,12 +132,13 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 			$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 		"
 
-		scripts/build-image.sh image/minbase/Dockerfile.stage3 "${IMAGE_PATH}/${DISTRO}-min-stage3:${SUITE}"
+		scripts/build-image.sh image/minbase/Dockerfile.stage3 "${stage3_image}"
 	) || exit 1
 
 	# remove intermediate images
-	podman image rm -f "${IMAGE_PATH}/${DISTRO}-min-stage2:${SUITE}"
-	podman image rm -f "${IMAGE_PATH}/${DISTRO}-min-stage3:${SUITE}"
+	podman images --format='{{.ID}}' --filter "reference=${stage2_image}" \
+	| sort -uV | xargs -r podman image rm -f
+	podman image rm -f "${stage3_image}"
 done
 
 bootstrap_suite_packages="${rootdir}/artifacts/container-packages/arch"
