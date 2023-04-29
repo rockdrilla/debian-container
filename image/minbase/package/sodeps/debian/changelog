@@ -1,3 +1,10 @@
+container-sodeps (20230429) stable; urgency=medium
+
+  * Provide extra wrapper script (around sodeps):
+    - apt-wrap-nodejs - nodejs-related wrapper
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Sat, 29 Apr 2023 12:33:00 +0300
+
 container-sodeps (20230424) stable; urgency=medium
 
   * Provide two extra wrapper scripts (around sodeps):
