@@ -41,6 +41,8 @@ case "$1" in
 	old_PATH="${PATH}"
 	export PATH="/opt/python-${pyverspec}/bin:${PATH}"
 
+	[ "$(id -u)" = 0 ] || unset CONTAINER_PYTHON_GLOBALBIN
+
 	set +e
 	"$@"
 	r=$?
@@ -60,11 +62,7 @@ case "$1" in
 	: > "${APT_WRAP_KEEP}"
 
 	if [ -z "${pathspec}" ] ; then
-		if [ "$(id -u)" = 0 ] ; then
-			pathspec=$(python-${pyverspec} -c 'import site;print(":".join(site.getsitepackages()))')
-		else
-			pathspec=$(python-${pyverspec} -c 'import site;print(site.getusersitepackages())')
-		fi
+		pathspec=$(python-${pyverspec} -c 'import site;print(":".join([site.getusersitepackages()] + site.getsitepackages()))')
 	fi
 
 	if [ -n "${pathspec}" ] ; then
@@ -227,6 +225,11 @@ else
 	fi
 
 	pyverspec=$(printf '%s' "${pypkg}" | grep -oE '[0-9.]+')
+fi
+
+if [ -z "${pyverspec}" ] ; then
+	msg 'error: unable to find suitable python package'
+	exit 1
 fi
 
 pypkg="container-python-${pyverspec}-dev"
