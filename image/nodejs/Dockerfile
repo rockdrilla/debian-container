@@ -26,9 +26,9 @@ ARG NODEJS_MAJOR_VERSION
 
 ARG DEB_BUILD_OPTIONS
 
-# build context should be set to /package/nodejs/
-COPY /template/ /tmp/debian/
-COPY /${NODEJS_MAJOR_VERSION}/ /tmp/debian/
+COPY /package/.template/                       /tmp/debian/
+COPY /package/nodejs/template/                 /tmp/debian/
+COPY /package/nodejs/${NODEJS_MAJOR_VERSION}/  /tmp/debian/
 
 RUN if [ -z "${CI}" ] ; then \
       if find ${_PKG_DIR}/ -maxdepth 1 -name "container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \

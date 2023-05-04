@@ -9,16 +9,12 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
-export DEB_BUILD_MAINT_OPTIONS := hardening=+all
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
 
 # Ubuntu mangles png files by default, which can break some files.
 export NO_PNG_PKG_MANGLE := 1
 
 export SOURCE_DATE_EPOCH
-
-ifneq ($(DEB_HOST_ARCH_OS),linux)
-  $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
-endif
 
 include debian/rules.pkg-info
 
@@ -50,6 +46,12 @@ include debian/rules.gcc-flags
 include debian/rules.gcc-lto
 # TODO: PGO/benchmark is broken AF
 # include debian/rules.gcc-pgo
+
+# strip "-O2" default optimization flag:
+# use "-O3" as upstream default or "-O1" for "noopt" builds
+CFLAGS   := $(filter-out -O2,$(CFLAGS))
+CXXFLAGS := $(filter-out -O2,$(CXXFLAGS))
+LDFLAGS  := $(filter-out -O2,$(LDFLAGS))
 
 include debian/rules.icu
 include debian/rules.libc-ares
@@ -352,4 +354,9 @@ override_dh_shlibdeps:
 override_dh_gencontrol:
 	dh_gencontrol -- -Tdebian/jspkg.substvars -Tdebian/substvars
 
-include debian/rules.selftemplate
+# -- package templating - here goes dragons! --
+
+_deb_control_templates = $(wildcard debian/*NJSVER*)
+_deb_rename =$(subst NJSVER,$(NODEJS_MAJOR_VERSION),$(strip $(1)))
+
+include debian/rules.self-template

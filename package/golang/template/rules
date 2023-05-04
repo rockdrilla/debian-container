@@ -9,6 +9,8 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong optimize=-lto
+
 # Ubuntu mangles png files by default, which can break some files.
 export NO_PNG_PKG_MANGLE := 1
 
@@ -29,15 +31,9 @@ GOLANG_BASE_VERSION = $(GOLANG_MAJOR_VERSION).$(GOLANG_MINOR_VERSION)
 
 DEB_GOLANG_PRIO = $(shell printf '%d%03d0' $(GOLANG_MAJOR_VERSION) $(GOLANG_MINOR_VERSION))
 
-ifneq ($(DEB_HOST_ARCH_OS),linux)
-  $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
-endif
-
 NPROC_MAKE := $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 NPROC_MAKE := $(if $(NPROC_MAKE),$(NPROC_MAKE),$(shell nproc))
 NPROC_TEST := $(shell echo "$$(( ($(NPROC_MAKE) + 1)/2 ))")
-
-export DEB_BUILD_MAINT_OPTIONS := hardening=+all optimize=-lto
 
 with_bootstrap := $(if $(filter nobootstrap,$(DEB_BUILD_OPTIONS)),no,yes)
 
@@ -170,7 +166,7 @@ execute_before_dh_install:
 	: # ensure caches are empty
 	rm -rf $(GOPATH) $(GOCACHE)
 
-include debian/rules.install
+include debian/rules.install-extras
 
 gosrc_path = debian/container-golang-$(GOLANG_BASE_VERSION)-src$(GOROOT_FINAL)
 gomisc_path = debian/container-golang-$(GOLANG_BASE_VERSION)-misc$(GOROOT_FINAL)
@@ -202,17 +198,22 @@ execute_after_dh_install:
 	find $(gosrc_path)/ -regextype egrep -regex '.+\.(sh|bash)$$' -type f -exec chmod a+x '{}' '+'
 
 override_dh_strip:
-	dh_strip_nondeterminism $(addprefix --exclude=, .exe testdata )
+	dh_strip_nondeterminism $(addprefix --exclude=,.exe testdata)
 
 override_dh_dwz:
 
 override_dh_strip_nondeterminism:
-	dh_strip_nondeterminism $(addprefix --exclude=, .exe .png testdata )
+	dh_strip_nondeterminism $(addprefix --exclude=,.exe .png testdata)
 
 override_dh_shlibdeps:
-	dh_shlibdeps $(addprefix --exclude=,  testdata test )
+	dh_shlibdeps $(addprefix --exclude=,testdata test)
 
 override_dh_makeshlibs:
-	dh_makeshlibs $(addprefix --exclude=,  testdata test )
+	dh_makeshlibs $(addprefix --exclude=,testdata test)
 
-include debian/rules.selftemplate
+# -- package templating - here goes dragons! --
+
+_deb_control_templates = $(wildcard debian/*GOVER*)
+_deb_rename =$(subst GOVER,$(GOLANG_BASE_VERSION),$(strip $(1)))
+
+include debian/rules.self-template

@@ -40,4 +40,9 @@ override_dh_auto_test:
 .PHONY: build
 build:
 
-include debian/rules.selftemplate
+# -- package templating - here goes dragons! --
+
+_deb_control_templates = $(wildcard debian/*PYVER*)
+_deb_rename =$(subst PYVER,$(PYTHON_BASE_VERSION),$(strip $(1)))
+
+include debian/rules.self-template

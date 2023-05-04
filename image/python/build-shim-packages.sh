@@ -25,7 +25,7 @@ export DEB_SRC_BUILD_DIR=/build
 export _SRC_DIR=/deb.src
 export _PKG_DIR=/deb.pkg
 
-export BUILD_IMAGE_CONTEXT=package/python
+export BUILD_IMAGE_CONTEXT=.
 
 build_single() {
 	[ -n "$1" ] || return 0
@@ -46,7 +46,7 @@ build_single() {
 	stem_path=$(build_artifacts_path "${stem}")
 	find "${stem_path}/src/" "${stem_path}/pkg/" -name "container-shim-python-${PYTHON_BASE_VERSION}*" -delete
 
-	build_image="${IMAGE_PATH}/python-build:${PYTHON_VERSION}-${SUITE}"
+	build_image="${IMAGE_PATH}/python-shim-build:${PYTHON_VERSION}-${SUITE}"
 
 	set -e
 

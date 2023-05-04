@@ -43,7 +43,7 @@ export DEB_SRC_BUILD_DIR=/build
 export _SRC_DIR=/deb.src
 export _PKG_DIR=/deb.pkg
 
-export BUILD_IMAGE_CONTEXT=package/golang
+export BUILD_IMAGE_CONTEXT=.
 
 build_single() {
 	[ -n "$1" ] || return 0

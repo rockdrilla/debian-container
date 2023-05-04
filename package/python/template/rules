@@ -9,6 +9,8 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
+
 # Ubuntu mangles png files by default, which can break some files.
 export NO_PNG_PKG_MANGLE := 1
 
@@ -36,10 +38,6 @@ PYTHON_MODULES = $(PYTHON_PREFIX)/lib/python$(PYTHON_BASE_VERSION)
 
 include debian/rules.ver
 
-ifneq ($(DEB_HOST_ARCH_OS),linux)
-  $(warning unhandled operating system name: $(DEB_HOST_ARCH_OS))
-endif
-
 distribution = $(if $(filter Ubuntu,$(DEB_VENDOR) $(DEB_PARENT_VENDOR)),Ubuntu,Debian)
 distrelease  = $(shell sed -En '/^VERSION_CODENAME=(.+)$$/s//\1/p' /etc/os-release)
 
@@ -57,6 +55,12 @@ include debian/rules.gcc-latest-ver
 include debian/rules.gcc-flags
 include debian/rules.gcc-lto
 include debian/rules.gcc-pgo
+
+ifeq ($(with_pgo),yes)
+  ifeq (,$(filter pgo_standard,$(DEB_BUILD_OPTIONS)))
+    export PGO_EXTRA_PASS = 1
+  endif
+endif
 
 build_dir = $(CURDIR)/debian.build
 INSTALL_SHARED = $(CURDIR)/debian/tmp.shared
@@ -575,4 +579,9 @@ execute_before_dh_builddeb:
 	fi >&2 ; \
 	rm -f debian/build.reproducible
 
-include debian/rules.selftemplate
+# -- package templating - here goes dragons! --
+
+_deb_control_templates = $(wildcard debian/*PYVER*)
+_deb_rename =$(subst PYVER,$(PYTHON_BASE_VERSION),$(strip $(1)))
+
+include debian/rules.self-template

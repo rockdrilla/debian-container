@@ -30,9 +30,9 @@ ARG GOPROXY
 ARG GOSUMDB
 ARG GOPRIVATE
 
-# build context should be set to /package/golang/
-COPY /template/ /tmp/debian/
-COPY /${GOLANG_BASE_VERSION}/ /tmp/debian/
+COPY /package/.template/                      /tmp/debian/
+COPY /package/golang/template/                /tmp/debian/
+COPY /package/golang/${GOLANG_BASE_VERSION}/  /tmp/debian/
 
 RUN if [ -z "${CI}" ] ; then \
       if find ${_PKG_DIR}/ -maxdepth 1 -name "container-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*_*.buildinfo" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
@@ -74,8 +74,8 @@ ARG SUITE
 ARG GOLANG_VERSION
 ARG GOLANG_BASE_VERSION
 
-# build context should be set to /package/golang/
-COPY /shim/ /tmp/debian/
+COPY /package/.template/    /tmp/debian/
+COPY /package/golang/shim/  /tmp/debian/
 
 RUN deb-src-export ${_SRC_DIR} /tmp/debian ; \
     set +e ; \
