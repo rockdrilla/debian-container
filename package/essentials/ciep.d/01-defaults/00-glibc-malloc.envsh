@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2023, Konstantin Demin
 
+__arenas=2
 if [ -n "${NPROC}" ] ; then
-    __arenas=$((NPROC * 2))
-else
-    __arenas=2
+    [ "${__arenas}" -ge "${NPROC}" ] || __arenas=${NPROC}
 fi
 : "${MALLOC_ARENA_MAX:=${__arenas}}"
 unset __arenas
