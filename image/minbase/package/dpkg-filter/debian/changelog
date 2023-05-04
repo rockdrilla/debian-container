@@ -1,5 +1,0 @@
-container-dpkg-filter (20230201) stable; urgency=medium
-
-  * Initial release.
-
- -- Konstantin Demin <rockdrilla@gmail.com>  Wed, 01 Feb 2023 11:04:00 +0300

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+install | upgrade)
+	for b in /usr/bin/nproc /bin/nproc ; do
+		[ -e "$b" ] || continue
+		if [ -h "$b" ] ; then continue ; fi
+		dpkg-divert --package '#PACKAGE#' --divert "$b.real" --rename "$b"
+		ln -sv /bin/nproc.container "$b"
+	done ; unset b
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

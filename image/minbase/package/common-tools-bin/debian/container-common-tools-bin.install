@@ -1,2 +1,0 @@
-bin/
-lib/*.so /lib/${DEB_HOST_MULTIARCH}/

@@ -1,0 +1,154 @@
+Source: container-essentials
+Section: metapackages
+Priority: optional
+Maintainer: Konstantin Demin <rockdrilla@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+Build-Depends-Arch: g++-@{gcc_latest},
+Rules-Requires-Root: no
+Standards-Version: 4.6.2
+Homepage: https://github.com/rockdrilla/debian-container
+Vcs-Git: https://github.com/rockdrilla/debian-container.git
+Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/essentials
+
+Package: container-essentials
+Architecture: any
+Pre-Depends: ${shlibs:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         container-cleanup,
+         container-common-tools,
+         container-common-tools-bin,
+         container-dpkg-filter,
+         container-exe-filter,
+         container-image-entrypoint,
+         container-persistent-ca-bundle,
+         container-persistent-ca-bundle-java,
+         container-sodeps,
+Recommends: container-dev-tools,
+Description: container - essentials (meta-package)
+ This package installs all container-related packages.
+
+Package: container-bootstrap
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+         container-cleanup,
+Enhances: container-cleanup,
+Description: container - bootstrap settings
+ This package performs generic container configuration and only useful
+ for bootstrapping.
+
+Package: container-persistent-ca-bundle
+Architecture: all
+Multi-Arch: allowed
+Enhances: ca-certificates,
+Description: container persistence - CA bundle
+ This package maintains persistence of CA certificate bundle, namely:
+ .
+ - /etc/ssl/certs/ca-certificates.crt
+ .
+ Normally, this package tracks this file via deb-triggers(5).
+ Hovewer, the one may run `update-container-persistent-ca-bundle'
+ to ensure that stored CA bundles are in sync, or
+ `restore-container-persistent-ca-bundle' to restore previous state
+ of CA bundles.
+
+Package: container-persistent-ca-bundle-java
+Architecture: all
+Multi-Arch: allowed
+Enhances: ca-certificates-java,
+Description: container persistence - Java CA bundle
+ This package maintains persistence of Java CA certificate bundle, namely:
+ .
+ - /etc/ssl/certs/java/cacerts
+ .
+ Normally, this package tracks this file via deb-triggers(5).
+ Hovewer, the one may run `update-container-persistent-ca-bundle-java'
+ to ensure that stored CA bundles are in sync, or
+ `restore-container-persistent-ca-bundle-java' to restore previous state
+ of CA bundles.
+
+Package: container-common-tools
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+Recommends: container-common-tools-bin,
+            apt,
+Suggests: curl,
+          gnupg,
+Description: container - common tools
+ This package contains common scripts and tools for containers.
+
+Package: container-common-tools-bin
+Architecture: any
+Pre-Depends: ${shlibs:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+Enhances: container-common-tools,
+Description: container - common tools (binaries and shared libraries)
+ This package contains extra binaries and shared libraries for containers.
+
+Package: container-cleanup
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+         container-dpkg-filter,
+Description: container - cleanup scripts
+ This package contains cleanup facility for containers.
+
+Package: container-dev-tools
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+Suggests: build-essential,
+          debhelper,
+          devscripts,
+          eatmydata,
+          fakeroot,
+          gcc,
+          git,
+          gnupg,
+Description: container - dev tools
+ This package contains development scripts and tools for containers.
+
+Package: container-dpkg-filter
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+Description: container - dpkg-filter
+ This package contains "after dpkg" file system filter for containers.
+ .
+ This is more robust solution than "path-include" / "path-exclude"
+ stanzas in dpkg configuration.
+
+Package: container-exe-filter
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+         container-cleanup,
+Enhances: container-cleanup,
+Description: container - "exe" filter
+ This package maintains "potentially unwanted list" (or "blocklist")
+ of executables in common paths for "container-cleanup" package.
+
+Package: container-image-entrypoint
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools,
+         dumb-init,
+Recommends: container-common-tools-bin,
+Description: container - image entrypoint
+ This package contains extensible image entrypoint script for containers.
+
+Package: container-sodeps
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+         container-common-tools-bin,
+Description: container - ELF dependency investigation
+ This package contains "sodeps" script which does mostly the same thing as
+ "dh_shlibdeps"/"dpkg-shlibdeps".

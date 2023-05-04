@@ -103,7 +103,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 		break
 	done
 
-	podman inspect "${stage2_image}" >/dev/null || \
+	podman inspect "${stage2_image}" >/dev/null 2>&1 || \
 	image/minbase/image.sh ${DISTRO} ${SUITE} "${stage2_image}"
 
 	# stage 3: build "arch:any" packages

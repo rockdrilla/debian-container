@@ -1,0 +1,139 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2022-2023, Konstantin Demin
+
+set -ef
+
+have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+
+case "$1" in
+--stage1)
+	shift
+
+	dsc="${1:?}"
+	dest_dir="${2:?}"
+	shift 2
+
+	build_dir=$(mktemp -d ${DEB_SRC_BUILD_DIR:+ -p "${DEB_SRC_BUILD_DIR}" } build.XXXXXXXXXX)
+	: "${build_dir:?}"
+
+	bd_fields='Build-Depends Build-Depends-Arch Build-Depends-Indep'
+	deps=$( { for f in ${bd_fields} ; do deb822-get-field "$f" "${dsc}" ; done ; } | sed -zE 's/\n/, /g;s/,+/,/g;s/^,//;s/,$//' )
+
+	set +e
+
+	build_dir_userspec=$(env stat -c '%u:%g' "${build_dir}")
+
+	export APT_WRAP_INSTALL_METHOD='satisfy'
+	apt-wrap \
+	  "${deps}" \
+	  "$0" --stage2 "${build_dir}" "${dsc}" "$@"
+	r=$?
+
+	case "${DEB_SRC_BUILD_PURGE:-success}" in
+	success|2|always|1|never|0) ;;
+	*)
+		echo " ${0##*/}: unknown value DEB_SRC_BUILD_PURGE, using 'always', provided: ${DEB_SRC_BUILD_PURGE}" >&2
+		DEB_SRC_BUILD_PURGE=always
+	;;
+	esac
+
+	find "${build_dir}" -maxdepth 1 -type f -exec chown "${build_dir_userspec}" '{}' '+'
+	find "${build_dir}" -maxdepth 1 -type f -exec mv -vf -t "${dest_dir}" '{}' '+'
+
+	case "${DEB_SRC_BUILD_PURGE:-success}" in
+	success|2)
+		[ $r = 0 ] || chown -Rh "${build_dir_userspec}" "${build_dir}"
+	;;
+	never|0)
+		chown -Rh "${build_dir_userspec}" "${build_dir}"
+	;;
+	esac
+
+	case "${DEB_SRC_BUILD_PURGE:-success}" in
+	success|2)
+		[ $r = 0 ] && rm -rf "${build_dir}"
+	;;
+	always|1)
+		rm -rf "${build_dir}"
+	;;
+	esac
+
+	exit $r
+;;
+--stage2)
+	shift
+
+	build_dir="${1:?}"
+	dsc=$(readlink -e "${2:?}")
+	shift 2
+
+	pkg_name=$(deb822-get-field Source "${dsc}")
+	[ -n "${pkg_name}" ]
+	pkg_ver=$(deb822-get-field Version "${dsc}")
+	[ -n "${pkg_ver}" ]
+
+	pkg_ver_list=$(deb-ver-parse "${pkg_ver}")
+	[ -n "${pkg_ver_list}" ]
+
+	unset ver_epoch ver_upstream ver_revision
+	IFS='|' read -r ver_epoch ver_upstream ver_revision <<-EOF
+	${pkg_ver_list}
+	EOF
+
+	scr_dir="${pkg_name}-${ver_upstream}"
+	[ -n "${ver_upstream}" ] || scr_dir="${pkg_name}-${ver_revision}"
+
+	cd "${build_dir}"
+
+	rm -rf "${scr_dir}"
+	dpkg-source -x "${dsc}"
+
+	# cleanup after dpkg-source
+	find ./ -mindepth 1 -maxdepth 1 -name "${pkg_name}_*.orig*" -delete
+
+	runas=
+	if have_cmd run-as ; then
+		runas=$(deb822-get-field Rules-Requires-Root "${scr_dir}/debian/control")
+		if [ "${runas}" = no ] ; then
+			userspec="${DEB_SRC_BUILD_USERSPEC:-nobody:nogroup}"
+			runas="$(command -v run-as) ${userspec}"
+			chown -Rh "${userspec}" "${build_dir}"
+		else
+			runas=
+		fi
+	fi
+
+	cd "${scr_dir}"
+
+	xsedx=$(env printf '\027')
+	remove_path() {
+		PATH=$(printf '%s' "${PATH}" | sed -E "s${xsedx}(^|:)$1/?(\$|:)${xsedx}\\1${xsedx}g;s/:+/:/g;s/:\$//")
+		export PATH
+	}
+
+	# source packages must not depend on /usr/local
+	remove_path /usr/local/bin
+	remove_path /usr/local/sbin
+	echo "# PATH=${PATH}" >&2
+
+	${runas} \
+	eatmydata \
+	dpkg-buildpackage \
+	  --no-post-clean \
+	  --unsigned-source \
+	  --unsigned-buildinfo \
+	  --unsigned-changes \
+	  --no-sign \
+	"${@:---build=all,any}"
+
+	exit
+;;
+esac
+
+missing_deps=
+for i in build-essential debhelper eatmydata fakeroot ; do
+	apt-list-installed | grep -qE "^$i:" || missing_deps="${missing_deps} $i"
+done
+
+exec ${missing_deps:+ apt-wrap "${missing_deps}" } "$0" --stage1 "$@"

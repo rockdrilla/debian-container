@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+purge)
+	rm -vrf /lib/container/dpkg-filter
+	exit 0
+;;
+esac
+
+#DEBHELPER#

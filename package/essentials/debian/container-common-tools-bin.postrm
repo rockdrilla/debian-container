@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+remove)
+	for b in /usr/bin/nproc /bin/nproc ; do
+		[ -e "$b.real" ] || continue
+		rm -fv "$b"
+		dpkg-divert --package '#PACKAGE#' --rename --remove "$b"
+	done ; unset b
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

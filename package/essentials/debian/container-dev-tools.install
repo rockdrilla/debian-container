@@ -1,0 +1,6 @@
+bin/deb-go-env
+bin/deb-src-build
+bin/deb-src-export
+bin/deb-ver-parse
+bin/deb822-get-field
+bin/dpkg-source-raw

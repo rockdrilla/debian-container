@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+purge)
+	rm -vrf /etc/container/cleanup /etc/container/dpkg-filter /lib/container/cleanup
+    exit 0
+;;
+esac
+
+#DEBHELPER#

@@ -15,14 +15,14 @@ c="/tmp/${0##*/}"
 if [ "$0" != "$c" ] ; then
 	dir0=$(dirname "$0")
 	rootdir=$(readlink -e "${dir0}/../../..")
-	pkg_dir="${rootdir}/image/minbase/package"
+	pkg_dir="${rootdir}/package/essentials"
 
 	echo "# rootdir: ${rootdir}" >&2
 	echo "# pkg_dir: ${pkg_dir}" >&2
 
 	# naive copy of container essential packages inside chroot
-	# e.g.: image/minbase/package/common-tools/bin -> /usr/local/bin
-	find "${pkg_dir}/" -mindepth 2 -maxdepth 2 -type d \
+	# e.g.: package/essentials/common-tools/bin -> /usr/local/bin
+	find "${pkg_dir}/" -mindepth 1 -maxdepth 1 -type d \
 	| grep -E '/(bin|etc|lib|sbin|share)$' \
 	| while read -r dir ; do
 		cp -vaR "${dir}/" "$1/usr/local/"

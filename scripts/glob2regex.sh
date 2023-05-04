@@ -1,1 +1,1 @@
-../image/minbase/package/common-tools/bin/glob2regex
+../package/essentials/bin/glob2regex

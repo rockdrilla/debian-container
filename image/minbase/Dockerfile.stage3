@@ -6,7 +6,7 @@ ARG BUILD_IMAGE=${DISTRO}-min-stage2:${SUITE}
 
 # ---
 
-FROM ${IMAGE_PATH}/${BUILD_IMAGE} as build
+FROM ${IMAGE_PATH}/${BUILD_IMAGE}
 SHELL [ "/bin/sh", "-ec" ]
 
 # these directories should be mounted as RW volumes
@@ -21,37 +21,10 @@ ENV BUILD_DEPS='build-essential debhelper eatmydata fakeroot' \
     DEB_SRC_EXPORT_GIT=0 \
     DEB_SRC_EXPORT_GNUPG=0
 
-# install almost all build dependencies to speed up batch package build
-RUN quiet apt-install ${BUILD_DEPS}
+COPY /package/.template/  /tmp/package/debian/
+COPY /package/essentials/ /tmp/package/
 
-COPY /image/minbase/package/ /tmp/package/
-
-RUN for dir in $(find /tmp/package/ -mindepth 1 -maxdepth 1 -type d | sort -V) ; do \
-        stem="${dir##*/}" ; \
-        echo "${dir}" ; \
-        echo ; \
-        # build only arch:any packages
-        pkg_bin_arch=$(deb822-get-field Architecture ${dir}/debian/control* | tr -s '[:space:]' '\n' | sed -E '/^all$/d' | sort -uV) ; \
-        if [ -z "${pkg_bin_arch}" ] ; then \
-            echo "${stem}: skipping, has only 'arch:all' packages" ; \
-            echo ; \
-            continue ; \
-        fi ; \
-        cd "${dir}" ; \
-        mkdir -p "${_SRC_DIR}/${stem}" ; \
-        deb-src-export "${_SRC_DIR}/${stem}" ; \
-        cd "${_SRC_DIR}/${stem}" ; \
-        deb-src-build ./*.dsc ${_PKG_DIR} ; \
-        echo ; \
-    done ; \
-    quiet apt-remove ${BUILD_DEPS} ; \
-    quiet apt-autoremove ; \
-    cleanup ; \
-    touch /tmp/placeholder
-
-# ---
-
-FROM ${IMAGE_PATH}/${BUILD_IMAGE}
-
-# linkage with build layer
-COPY --from=build  /tmp/placeholder  /tmp/
+RUN quiet apt-install ${BUILD_DEPS} ; \
+    env -C /tmp/package deb-src-export ${_SRC_DIR} ; \
+    deb-src-build ${_SRC_DIR}/*.dsc ${_PKG_DIR} --build=any ; \
+    cleanup

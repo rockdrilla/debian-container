@@ -1,0 +1,6 @@
+bin/is-elf
+bin/ufind
+bin/xvp
+bin/nproc.container
+bin/nprocfix
+lib/*.so /lib/${DEB_HOST_MULTIARCH}/
