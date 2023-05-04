@@ -18,6 +18,6 @@ if [ -d "/usr/local${conf_dir}" ] ; then conf_dir="/usr/local${conf_dir}" ; fi
 # NB: executable files in this directory are considered to be "skipped"
 env -C "${conf_dir}" \
 find ./ -follow -type f ! -executable \
-  -exec dpkg-filter '{}' '+'
+  -exec fs-filter ${VERBOSE:+-v} '{}' '+'
 
 exit 0

@@ -4,7 +4,7 @@ set -e
 
 case "$1" in
 purge)
-	rm -vrf /lib/container/dpkg-filter
+	rm -vrf /lib/container/fs-filter
 	exit 0
 ;;
 esac

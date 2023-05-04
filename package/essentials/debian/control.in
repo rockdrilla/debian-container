@@ -17,7 +17,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
          container-cleanup,
          container-common-tools,
          container-common-tools-bin,
-         container-dpkg-filter,
+         container-fs-filter,
          container-exe-filter,
          container-image-entrypoint,
          container-persistent-ca-bundle,
@@ -92,7 +92,7 @@ Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          container-common-tools,
-         container-dpkg-filter,
+         container-fs-filter,
 Description: container - cleanup scripts
  This package contains cleanup facility for containers.
 
@@ -112,13 +112,13 @@ Suggests: build-essential,
 Description: container - dev tools
  This package contains development scripts and tools for containers.
 
-Package: container-dpkg-filter
+Package: container-fs-filter
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          container-common-tools,
-Description: container - dpkg-filter
- This package contains "after dpkg" file system filter for containers.
+Description: container - fs-filter
+ This package contains generic file system filter script for containers.
  .
  This is more robust solution than "path-include" / "path-exclude"
  stanzas in dpkg configuration.

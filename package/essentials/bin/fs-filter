@@ -1,0 +1,140 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -f
+
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} [options] <config> [..<config>]
+	# options:
+	#   root directory (for stanzas with relative paths):
+	#     -p DIR | --path DIR | --path=DIR
+	#   handle directories as well as files:
+	#     -r | --recurse
+	#   verbose removal:
+	#     -v | --verbose
+	EOF
+}
+
+msg() { echo "# ${0##*/}: $*" >&2 ; }
+
+if [ $# = 0 ] ; then
+	usage
+	exit 0
+fi
+
+rootspec=
+rmdirflag=
+verboseflag=
+
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		if [ -z "$i" ] ; then
+			msg "error: empty value for option"
+			usage
+			exit 1
+		fi
+
+		case "${want_value}" in
+		rootspec)  rootspec="$i" ;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	--path=*)
+		if [ -n "${rootspec}" ] ; then
+			msg "error: root directory specifier is already set"
+			usage
+			exit 1
+		fi
+		rootspec="${i#*=}"
+	;;
+	-p|--path)
+		if [ -n "${rootspec}" ] ; then
+			msg "error: root directory specifier is already set"
+			usage
+			exit 1
+		fi
+		want_value=rootspec
+	;;
+	-r|--recurse)
+		if [ -n "${rmdirflag}" ] ; then
+			msg "error: recurse flag is already set"
+			usage
+			exit 1
+		fi
+		rmdirflag=1
+	;;
+	-v|--verbose)
+		if [ -n "${verboseflag}" ] ; then
+			msg "error: verbose flag is already set"
+			usage
+			exit 1
+		fi
+		verboseflag=1
+	;;
+	-*)
+		msg "error: unknown option $i"
+		usage
+		exit 1
+	;;
+	*) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+if [ $# -lt 1 ] ; then
+	usage
+	exit 1
+fi
+
+[ -n "${rootspec}" ] || rootspec=/
+
+rm="rm -f${rmdirflag:+r}${verboseflag:+v}"
+
+rule_stanza='^(delete|keep)=(.+)$'
+reformat_xglob='s/^delete/match/;s/^keep/skip/'
+
+# work directory
+w=$(mktemp -d) ; : "${w:?}"
+
+_cleanup() {
+	cd /
+	rm -rf -- "$w"
+}
+
+grep -hE "${rule_stanza}" "$@" </dev/null \
+| sort -uV > "$w/rules"
+
+# nothing to match at all
+if ! [ -s "$w/rules" ] ; then
+	_cleanup
+	exit 0
+fi
+
+sed -E "${reformat_xglob}" "$w/rules" > "$w/rules.xglob"
+xglob "${rootspec}" "$w/rules.xglob" -- printf '%s\0' > "$w/list"
+
+# nothing to filter at all
+if ! [ -s "$w/list" ] ; then
+	_cleanup
+	exit 0
+fi
+
+# remove files immediately
+xargs -r -0 ${rm} < "$w/list"
+
+# TODO: deal with diversions?
+
+_cleanup
+exit 0
