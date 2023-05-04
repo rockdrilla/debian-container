@@ -6,9 +6,10 @@ set -ef
 
 want_y=1
 for i ; do
-    case "$i" in
-    -y* | -q*y*) want_y= ;;
-    esac
+	case "$i" in
+	-y* | -q*y*) want_y= ;;
+	esac
+	[ -n "${want_y}" ] || break
 done
 
 exec apt-env apt-get ${want_y:+ -y } ${APT_OPTS} autoremove
