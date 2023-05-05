@@ -21,7 +21,7 @@ divert() {
 
 setup() {
 
-	VERSION_CODENAME=$( ( . /etc/os-release || : ; printf '%s' "${VERSION_CODENAME}" ; ) )
+	VERSION_CODENAME=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
 	case "${VERSION_CODENAME}" in
 	# enable backports for these releases:
 	# bullseye - Debian 11

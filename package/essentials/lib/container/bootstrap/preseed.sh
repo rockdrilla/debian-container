@@ -28,15 +28,17 @@ setup() {
 		set +e
 
 		# unroll templates (if any)
-		distro=$( ( . /etc/os-release || : ; printf '%s' "${ID}" ; ) )
-		suite=$( ( . /etc/os-release || : ; printf '%s' "${VERSION_CODENAME}" ; ) )
+		distro=$(sed -En '/^ID=(.+)$/s//\1/p' /etc/os-release)
+		suite=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
 
 		find "$t/" -type f -exec grep -FIZl '@{' '{}' '+' \
 		| xargs -0 -r sed -i -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g"
 
 		# CA certificates
 		s="$t/crt"
-		if find_fast "$s/" -type f ; then
+		while [ -d "$s" ] ; do
+			find_fast "$s/" -type f || break
+
 			d='/usr/local/share/ca-certificates'
 			mkdir -p "$d"
 
@@ -57,12 +59,14 @@ setup() {
 			if have_cmd update-ca-certificates ; then
 				update-ca-certificates
 			fi
-		fi
+		break ; done
 		rm -rf "$s"
 
 		# apt configuration
 		s="$t/apt"
-		if find_fast "$s/" -type f ; then
+		while [ -d "$s" ] ; do
+			find_fast "$s/" -type f || break
+
 			# sources
 			find "$s/" -name '*.list' -type f \
 			  -execdir mv -t /etc/apt/sources.list.d '{}' ';'
@@ -78,14 +82,16 @@ setup() {
 			# apt pinning
 			find "$s/" -name '*.pin' -type f \
 			  -execdir mv -t /etc/apt/preferences.d '{}' ';'
-		fi
+		break ; done
 		rm -rf "$s"
 
 		# other files - extracted in root (!)
 		s="$t/files"
-		if find_fast "$s/" -mindepth 1 ; then
+		while [ -d "$s" ] ; do
+			find_fast "$s/" -type f || break
+
 			tar -C "$s" -cf - . | tar -C / -xf -
-		fi
+		break ; done
 		rm -rf "$s"
 
 		rm -rf "$t"
