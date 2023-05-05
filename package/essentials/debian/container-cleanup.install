@@ -1,5 +1,4 @@
 bin/cleanup
-bin/debconf-trim-i18n
 etc/container/cleanup/
 etc/container/dpkg-filter/
 lib/container/cleanup/

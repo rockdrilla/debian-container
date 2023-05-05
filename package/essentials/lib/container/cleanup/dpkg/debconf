@@ -10,10 +10,12 @@ set -f
 rm="rm -f${VERBOSE:+v}"
 [ -z "${DEBUG}" ] || set -xv
 
-debconf-trim-i18n /var/cache/debconf/templates.dat
+trim="$(dirname "$0")/debconf-trim-i18n"
+
+"${trim}" /var/cache/debconf/templates.dat
 
 find "${DPKG_ADMINDIR:-/var/lib/dpkg}/info/" -name '*.templates' \
-  -exec debconf-trim-i18n '{}' '+'
+  -exec "${trim}" '{}' '+'
 
 xglob /var/cache/debconf -- ${rm} <<-EOF
 	match=*-old
