@@ -45,4 +45,7 @@ done
 # list broken symlinks (if any)
 [ -z "${VERBOSE}" ] || list-broken-symlinks
 
+# list files with setuid/setgid (if any)
+list-rootful-files
+
 du -xsh /

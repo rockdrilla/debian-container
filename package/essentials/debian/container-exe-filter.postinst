@@ -17,7 +17,7 @@ inline_cfg() {
 	  addpart agetty badblocks blkdiscard blkid blkzone blockdev chcpu chmem \
 	  ctrlaltdel debugfs delpart dmesg dumpe2fs e2freefrag e2fsck e2image \
 	  e2label e2mmpstatus e2scrub e2undo e4crypt e4defrag fdformat fincore \
-	  findfs findmnt fsck fsfreeze fstrim getty hwclock isosize last lastb \
+	  findfs fsck fsfreeze fstrim getty hwclock isosize last lastb \
 	  ldattach lsblk lslogins mcookie mesg mke2fs mkfs mklost+found mkswap \
 	  mount partx pivot_root raw readprofile resize2fs resizepart \
 	  rtcwake su sulogin swaplabel swapoff swapon switch_root tune2fs utmpdump \

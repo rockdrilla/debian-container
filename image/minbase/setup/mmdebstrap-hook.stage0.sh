@@ -122,6 +122,22 @@ update-ca-certificates --fresh
 apt-remove ca-certificates-java
 apt-autoremove
 
+# drop setuid/setgid
+while read -r f ; do
+	[ -n "$f" ] || continue
+
+	u=$(env stat -c '%u' "$f")
+	g=$(env stat -c '%g' "$f")
+
+	m='0'$(env stat -c '%a' "$f")
+	m=$(( m & ~07000 ))
+	m='0'$(printf '%o' $m)
+
+	dpkg-statoverride --update --add "#$u" "#$g" "$m" "$f"
+done <<-EOF
+$(find / -xdev -perm /07000 -type f | sort -uV)
+EOF
+
 # set timezone
 # NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
 # ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733

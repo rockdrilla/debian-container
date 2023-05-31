@@ -19,6 +19,7 @@ bin/glob2regex
 bin/gpg-batch
 bin/gpg-sign-file
 bin/list-broken-symlinks
+bin/list-rootful-files
 bin/list-stalled-configs
 bin/overlay-dir-list
 bin/quiet

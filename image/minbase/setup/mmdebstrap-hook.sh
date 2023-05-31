@@ -182,6 +182,22 @@ rm -vrf "${preseed}"
 # cleanup installed packages
 apt-autoremove
 
+# drop setuid/setgid
+while read -r f ; do
+	[ -n "$f" ] || continue
+
+	u=$(env stat -c '%u' "$f")
+	g=$(env stat -c '%g' "$f")
+
+	m='0'$(env stat -c '%a' "$f")
+	m=$(( m & ~07000 ))
+	m='0'$(printf '%o' $m)
+
+	dpkg-statoverride --update --add "#$u" "#$g" "$m" "$f"
+done <<-EOF
+$(find / -xdev -perm /07000 -type f | sort -uV)
+EOF
+
 # reproducibility
 echo "$2-$3" > /etc/hostname
 : > /etc/resolv.conf
