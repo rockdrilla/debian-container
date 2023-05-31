@@ -4,22 +4,26 @@
 
 set -ef
 
+me="${0##*/}"
 usage() {
 	cat >&2 <<-EOF
-	# usage: ${0##*/} [options] {apt packages} {command}
+	# usage: ${me} [options] <apt package list> <command> [arguments]
 	# options:
-	#   user switching (for command):
-	#     -u USER[:GROUP]
-	#     --user USER[:GROUP]
-	#     --user=USER[:GROUP]
-	#   scan paths override:
-	#     -p DIR[:DIR ..]
-	#     --path DIR[:DIR ..]
-	#     --path=DIR[:DIR ..]
+	#  -p <dir>[:<dir> ..], --path <dir>[:<dir> ..], --path=<dir>[:<dir> ..]
+	#    scan paths override
+	#  -u <user>[:<group>], --user <user>[:<group>], --user=<user>[:<group>]
+	#    user switching (for command)
 	EOF
+	exit "${1:-0}"
 }
+[ $# != 0 ] || usage
 
-msg() { echo "# ${0##*/}: $*" >&2 ; }
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
 
 # internal methods
 case "$1" in
@@ -68,27 +72,36 @@ case "$1" in
 ;;
 esac
 
-if [ $# = 0 ] ; then
-	usage
-	exit 0
-fi
+verify_user() {
+	if run-as "$1" true >&2 ; then return 0 ; fi
+	msg 'error: user specifier is broken'
+	usage 1
+}
 
-userspec=
-pathspec=
+# very naive: just check value presence
+verify_path() {
+	[ -z "$1" ] || return 0
+	msgf 'error: wrong path specifier: %q' "$1"
+	usage 1
+}
 
+o_path=
+o_user=
+
+# process options
 want_value=
 n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
-		if [ -z "$i" ] ; then
-			msg "error: empty value for option"
-			usage
-			exit 1
-		fi
-
 		case "${want_value}" in
-		userspec) userspec="$i" ;;
-		pathspec) pathspec="$i" ;;
+		path)
+			o_path="$i"
+			verify_path "${o_path}"
+		;;
+		user)
+			o_user="$i"
+			verify_user "${o_user}"
+		;;
 		esac
 
 		want_value=
@@ -97,42 +110,35 @@ for i ; do
 	fi
 
 	case "$i" in
-	--user=*)
-		if [ -n "${userspec}" ] ; then
-			msg "error: user specifier is already set"
-			usage
-			exit 1
+	-p | --path | --path=* )
+		if [ -n "${o_path}" ] ; then
+			msg 'error: root directory already set'
+			usage 1
 		fi
-		userspec="${i#*=}"
+		case "$i" in
+		*=* )
+			o_path="${i#*=}"
+			verify_path "${o_path}"
+		;;
+		* ) want_value=path ;;
+		esac
 	;;
-	-u|--user)
-		if [ -n "${userspec}" ] ; then
-			msg "error: user specifier is already set"
-			usage
-			exit 1
+	-u | --user | --user=* )
+		if [ -n "${o_user}" ] ; then
+			msg 'error: user specifier already set'
+			usage 1
 		fi
-		want_value=userspec
-	;;
-	--path=*)
-		if [ -n "${pathspec}" ] ; then
-			msg "error: path specifier is already set"
-			usage
-			exit 1
-		fi
-		pathspec="${i#*=}"
-	;;
-	-p|--path)
-		if [ -n "${pathspec}" ] ; then
-			msg "error: path specifier is already set"
-			usage
-			exit 1
-		fi
-		want_value=pathspec
+		case "$i" in
+		*=*)
+			o_user="${i#*=}"
+			verify_user "${o_user}"
+		;;
+		* ) want_value=user ;;
+		esac
 	;;
 	-*)
-		msg "error: unknown option $i"
-		usage
-		exit 1
+		msgf 'unknown option: %q' "$i"
+		usage 1
 	;;
 	*) break ;;
 	esac
@@ -142,19 +148,8 @@ done
 
 [ ${n_opt} = 0 ] || shift ${n_opt}
 
-if [ $# -lt 2 ] ; then
-	usage
-	exit 1
-fi
-
-if [ -n "${userspec}" ] ; then
-	if ! run-as "${userspec}" true >&2 ; then
-		msg "error: user specifier is broken"
-		usage
-		exit 1
-	fi
-fi
+[ $# -ge 2 ] || usage 1
 
 deps="$1" ; shift
 
-exec apt-wrap ${userspec:+ -u "${userspec}" } "${deps}" "$0" --do "${pathspec}" "$@"
+exec apt-wrap ${o_user:+ -u "${o_user}" } "${deps}" "$0" --do "${o_path}" "$@"

@@ -30,7 +30,7 @@ _apt_update() {
 
 _dpkg_avail_hack() {
 	set +e
-	VERSION_CODENAME=$( ( . /etc/os-release || : ; printf '%s' "${VERSION_CODENAME}" ; ) )
+	VERSION_CODENAME=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
 	set -e
 	f="${DPKG_ADMINDIR:-/var/lib/dpkg}/available"
 	# if ${VERSION_CODENAME} is empty then we're on Debian sid or so :)

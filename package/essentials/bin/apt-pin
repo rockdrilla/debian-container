@@ -5,42 +5,37 @@
 set -f
 
 me="${0##*/}"
-log() { echo ${1:+"# ${me}: $*"} >&2 ; }
-logf() {
+usage() {
+	cat >&2 <<-EOF
+	# usage:
+	#   add:     ${me} <name> <priority> <selector> <package> [<package> ..]
+	#   remove:  ${me} <name> {rm|remove}
+	#   status:  ${me} <name> status
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
 	_____fmt="$1" ; shift
 	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
 	unset _____fmt
 }
 
-usage() {
-	cat >&2 <<-EOF
-	# usage:
-	#   add:     ${me} <name> <priority> <selector> <package> [..<package>]
-	#   remove:  ${me} <name> (rm|remove)
-	#   status:  ${me} <name> status
-	EOF
-}
 status() {
 	status=$( [ -s "${pin_file}" ] && echo present || echo 'missing or empty')
-	log "# ${me}: ${name} is ${status}"
+	msg "${name} is ${status}"
 	[ -s "${pin_file}" ]
 }
 
-# verify required parameters
-if [ $# -lt 1 ] ; then
-	usage
-	exit 0
-fi
-
 wrong_pin_name() {
 	if [ -n "$2" ] ; then
-		logf 'wrong pin name: %q -> %q' "$1" "$2"
+		msgf 'wrong pin name: %q -> %q' "$1" "$2"
 	else
-		logf 'wrong pin name: %q' "$1"
+		msgf 'wrong pin name: %q' "$1"
 	fi
-	log
-	usage
-	exit 1
+	usage 1
 }
 
 # verify name
@@ -73,13 +68,7 @@ if [ -h "${pin_file}" ] ; then
 	wrong_pin_name "$1" "${pin_file}"
 fi
 
-if [ -z "$2" ] ; then
-	usage
-	log
-
-	status
-	exit 0
-fi
+[ $# -ge 2 ] || usage 1
 
 # verify priority/action
 prio=$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')
@@ -99,21 +88,21 @@ get-path)
 ;;
 esac
 if ! printf '%s' "${prio}" | grep -zqE '^(0|-?[1-9][0-9]*)$' ; then
-	logf 'wrong pin priority/action: %q' "$2"
-	log
-	usage
-	exit 1
+	msgf 'wrong pin priority/action: %q' "$2"
+	usage 1
 fi
 
 # verify pin selector
 shift 2
 if [ -z "$1" ] ; then
-	log 'empty pin selector'
-	log
-	usage
-	exit 1
+	msg 'empty pin selector'
+	usage 1
 fi
-pin="$1"
+
+distro=$(sed -En '/^ID=(.+)$/s//\1/p' /etc/os-release)
+suite=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
+
+pin=$(printf '%s' "$1" | sed -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
 
 case "${pin}" in
 # full qualified pinning stanza
@@ -147,8 +136,6 @@ if [ -s "${pin_file}" ] ; then
 		want_lf=$((want_lf - 1))
 	done
 
-	log "want_lf=${want_lf}"
-
 	case "${want_lf}" in
 	1) padding='\n' ;;
 	2) padding='\n\n' ;;
@@ -162,8 +149,10 @@ for i ; do
 	[ -z "${padding}" ] || printf "${padding}" >> "${pin_file}"
 	padding=
 
+	pkg=$(printf '%s' "$i" | sed -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
+
 	cat >> "${pin_file}" <<-EOF
-	Package: $i
+	Package: ${pkg}
 	Pin: ${pin}
 	Pin-Priority: ${prio}
 

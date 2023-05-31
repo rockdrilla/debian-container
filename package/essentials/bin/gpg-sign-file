@@ -5,32 +5,33 @@
 set -f
 
 me="${0##*/}"
-log() { echo ${1:+"# ${me}: $*"} >&2 ; }
-logf() {
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
 	_____fmt="$1" ; shift
 	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
 	unset _____fmt
 }
 
-have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
+have_cmd() {
+	if ! command -v "$1" >/dev/null 2>&1 ; then
+		msg "unable to find '$1' - install package '${2:-$1}' first"
+		exit 1
+	fi
+}
 
-# naive check for gpg
-if ! have_cmd gpg ; then
-	log 'install gnupg package'
-	exit 1
-fi
+have_cmd gpg gnupg
 
 # test that 1st argument is file
 if [ -z "$1" ] ; then
-	log 'requires argument'
+	msg 'requires argument'
 	exit 1
 fi
 if [ -h "$1" ] ; then
-	log 'symlinks are not supported'
+	msg 'symlinks are not supported'
 	exit 1
 fi
 if ! [ -f "$1" ] ; then
-	logf 'file does not exist: %q' "$1"
+	msgf 'file does not exist: %q' "$1"
 	exit 1
 fi
 

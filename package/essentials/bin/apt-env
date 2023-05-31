@@ -9,4 +9,7 @@ export DEBIAN_FRONTEND=noninteractive
 export DEBIAN_PRIORITY=critical
 export TERM=linux
 
+VERSION_CODENAME=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
+[ -z "${VERSION_CODENAME}" ] || export VERSION_CODENAME
+
 exec "$@"

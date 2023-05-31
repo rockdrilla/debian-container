@@ -4,8 +4,17 @@
 
 set -f
 
-dpkg_info_dir="${DPKG_ADMINDIR:-/var/lib/dpkg}/info"
-dpkg_diversions="${DPKG_ADMINDIR:-/var/lib/dpkg}/diversions"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} <path> [<path> ..]
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+: "${DPKG_ADMINDIR:=/var/lib/dpkg}"
+dpkg_info_dir="${DPKG_ADMINDIR}/info"
+dpkg_diversions="${DPKG_ADMINDIR}/diversions"
 
 _find() { find "$@" -maxdepth 0 -print 2>/dev/null ; }
 _find0() { find "$@" -maxdepth 0 -samefile "$1" -print0 2>/dev/null ; }

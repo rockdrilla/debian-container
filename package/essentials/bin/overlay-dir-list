@@ -4,31 +4,97 @@
 
 set -f
 
+# ephemeral limit, keep in sync with verify_depth()
+max_depth=999
+default_depth=100
+
 me="${0##*/}"
-log() { echo ${1:+"# ${me}: $*"} >&2 ; }
-logf() {
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} [options] <directory> [<directory> ..]
+	# options:
+	#  -d <N>, --depth <N>, --depth=<N>
+	#    limit search depth to <N> (default: ${default_depth}, max: ${max_depth})
+	#  -z, --zero
+	#    separate entries with NUL instead of LF
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
 	_____fmt="$1" ; shift
 	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
 	unset _____fmt
 }
 
-# ephemeral limit
-default_max_depth=100
-
-usage() {
-	cat >&2 <<-EOF
-	usage: ${me} [options] <directory> [..<directory>]
-	options:
-	 -z  | --zero        - separate entries with NUL instead of LF (default: false)
-	 -dN | --max-depth=N - limit search depth to N (default: ${default_max_depth})
-	EOF
+verify_depth() {
+	case "$1" in
+	[1-9] | [1-9][0-9] | [1-9][0-9][0-9] )
+		return 0
+	;;
+	esac
+	msgf 'error: wrong depth specifier: %q' "$1"
+	usage 1
 }
 
-# verify required parameters
-if [ $# -lt 1 ] ; then
-	usage
-	exit 0
-fi
+o_depth=
+f_zero_eol=
+
+# process options
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		case "${want_value}" in
+		depth)
+			o_depth="$i"
+			verify_depth "${o_depth}"
+		;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	-d | --depth | --depth=* )
+		if [ -n "${o_depth}" ] ; then
+			msg 'error: depth option already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_depth="${i#*=}"
+			verify_depth "${o_depth}"
+		;;
+		* ) want_value=depth ;;
+		esac
+	;;
+	-z | --zero )
+		if [ -n "${f_zero_eol}" ] ; then
+			msg 'error: zero flag already set'
+			usage 1
+		fi
+		f_zero_eol=1
+	;;
+	-*)
+		msgf 'unknown option: %q' "$i"
+		usage 1
+	;;
+	*) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+[ $# != 0 ] || usage 1
+
+: "${o_depth:=${default_depth}}"
 
 # work directory
 w=$(mktemp -d) ; : "${w:?}"
@@ -37,72 +103,6 @@ _cleanup() {
 	cd /
 	rm -rf -- "$w"
 }
-
-verify_depth() {
-	if ! printf '%s' "$1" | grep -zqE '^[1-9][0-9]*$' ; then
-		logf 'wrong max depth: %q' "$1"
-		usage
-		_cleanup
-		exit 1
-	fi
-}
-
-n_opts=0
-zero_eol=
-max_depth=
-
-# process options
-for i ; do
-	case "$i" in
-	-z | --zero)
-		if [ -n "${zero_eol}" ] ; then
-			log 'option -z|--zero was already specified'
-			usage
-			_cleanup
-			exit 1
-		fi
-
-		zero_eol=1
-
-		n_opts=$(( n_opts + 1 ))
-	;;
-	-d* | --max-depth=*)
-		if [ -n "${max_depth}" ] ; then
-			log 'option -d|--max-depth was already specified'
-			usage
-			_cleanup
-			exit 1
-		fi
-
-		case "$i" in
-		-d*) max_depth="${i#-d}" ;;
-		--max-depth=*) max_depth="${i#*=}" ;;
-		esac
-
-		verify_depth "${max_depth}"
-
-		n_opts=$(( n_opts + 1 ))
-	;;
-	-*)
-		logf 'unknown option: %q' "$i"
-		usage
-		_cleanup
-		exit 1
-	;;
-	*) break ;;
-	esac
-done
-
-: "${max_depth:=${default_max_depth}}"
-
-[ ${n_opts} = 0 ] || shift ${n_opts}
-
-if [ $# = 0 ] ; then
-	log 'missing arguments'
-	usage
-	_cleanup
-	exit 1
-fi
 
 adjust_with_skiplist() {
 	[ -s "$1" ] || return 0
@@ -210,7 +210,7 @@ cut -z -d '|' -f '3' < "$w/all" \
 
 : > "$w/dirnames"
 
-sub_depth=$(( max_depth - 1 ))
+sub_depth=$(( o_depth - 1 ))
 
 while read -r name ; do
 	export selectname="${name}"
@@ -251,11 +251,11 @@ while read -r name ; do
 			' < "$w/list" > "$w/dir.args"
 			unset selectname
 
-			xargs -0 -a "$w/dir.args" "$0" ${zero_eol:+-z} -d${sub_depth}
+			xargs -0 -a "$w/dir.args" "$0" ${f_zero_eol:+-z} -d ${sub_depth}
 			rm -f "$w/dir.args"
 		;;
 		*)
-			if [ -z "${zero_eol}" ] ; then
+			if [ -z "${f_zero_eol}" ] ; then
 				printf '%s\n' "${dir}/${name}"
 			else
 				printf '%s\0' "${dir}/${name}"

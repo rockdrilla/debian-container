@@ -15,7 +15,7 @@ find -L / -regextype egrep \
 > "$t"
 
 if [ -s "$t" ] ; then
-	echo '# broken symlinks:' 1>&2
+	echo '# broken symlinks:' >&2
 	cat "$t"
 fi
 

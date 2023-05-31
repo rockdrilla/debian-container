@@ -4,17 +4,25 @@
 
 set -ef
 
-_printf() { env printf "$@" ; }
-_msg() {  _printf "${0##*/}: ${__PRINTF_FMT}\n" "$@" >&2 ; }
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} <user>[:<group>] [command and arguments]
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+[ -n "$1" ] || usage 1
 
-msg() {
-	export __PRINTF_FMT="$1" ; shift
-	_msg "$@"
-	unset __PRINTF_FMT
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
 }
 
 if ! command -v setpriv >/dev/null ; then
-	msg "\`setpriv' is missing, unable to switch user!"
+	msg '"setpriv" is missing, unable to switch user!'
 	exit 126
 fi
 
@@ -51,22 +59,20 @@ get_name_by_uid()  { etc_passwd_get 3 "$1" 1 ; }
 get_gid_by_user()  { etc_passwd_get 1 "$1" 4 ; }
 get_home_by_user() { etc_passwd_get 1 "$1" 6 ; }
 
-unset user_group_spec ; user_group_spec="${1:?}" ; shift
+userspec="$1" ; shift
 
 unset user group xtra
-# user[:group]
 IFS=':' read -r user group xtra <<-EOF
-${user_group_spec}
+${userspec}
 EOF
 
 if [ -z "${user}" ] ; then
-	msg "'user:group' spec error: 'user' expected but empty."
-	msg "report this bug to developer ASAP."
-	exit 1
+	msg 'BUG: "user" expected but empty.'
+	usage 1
 fi
 
 if [ -n "${xtra}" ] ; then
-	msg "'user:group' spec warning: extra data: %q" "${xtra}"
+	msgf 'warning: extra data in specifier: %q' "${xtra}"
 fi
 
 _has_user=1
@@ -80,7 +86,7 @@ elif is_id "${user}" ; then
 	# accept unknown/random uid
 	_has_user=0
 else
-	msg "'user:group' spec error: 'user' is malformed - not exist nor numeric."
+	msg "error: 'user' is malformed - not exist nor numeric."
 	exit 1
 fi
 
@@ -95,7 +101,7 @@ else
 		# do nothing - seems to be ok
 		:
 	else
-		msg "'user:group' spec error: 'group' is malformed - not exist nor numeric."
+		msg "error: 'group' is malformed - not exist nor numeric."
 		exit 1
 	fi
 fi
@@ -114,13 +120,14 @@ inh_caps=
 
 unset __exec__
 _runas() {
-	${__exec__:+ exec env -u __exec__ } \
+	${__exec__:+ exec } \
 	setpriv \
 	  --reuid="${user}" \
 	  --regid="${group}" \
 	  ${init_groups} \
 	  ${inh_caps} \
 	env \
+	  -u __exec__ \
 	  -C "${cwd}" \
 	  USER="${username}" \
 	  LOGNAME="${username}" \
@@ -144,24 +151,21 @@ for i in "${PWD}" "${homedir}" / ; do
 	cwd=/
 	if _runas test -r "$i" ; then
 		if [ "$i" != "${PWD}" ] ; then
-			msg "working directory: will be changed to %q" "$i"
+			msgf "info: working directory will be changed to %q" "$i"
 		fi
 
 		cwd="$i"
 		break
 	else
-		msg "working directory: warning: user %q can't access %q" "${user}" "$i"
+		msgf "warning: user %q can't access directory %q" "${user}" "$i"
 	fi
 	cwd=
 done
 
 if [ -z "${cwd}" ] ; then
-	msg "working directory: error: unable to find appropriate location."
+	msg 'error: unable to find appropriate working directory.'
 	exit 1
 fi
 
-
-if [ $# = 0 ] ; then
-	__exec__=1 _runas id
-fi
-__exec__=1 _runas "$@"
+[ $# = 0 ] || __exec__=1 _runas "$@"
+__exec__=1 _runas id

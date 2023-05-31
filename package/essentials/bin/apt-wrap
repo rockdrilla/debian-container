@@ -4,18 +4,24 @@
 
 set -ef
 
+me="${0##*/}"
 usage() {
 	cat >&2 <<-EOF
-	# usage: ${0##*/} [options] {apt packages} {command}
+	# usage: ${me} [options] <apt package list> <command> [arguments]
 	# options:
-	#   user switching (for command):
-	#     -u USER[:GROUP]
-	#     --user USER[:GROUP]
-	#     --user=USER[:GROUP]
+	#  -u <user>[:<group>], --user <user>[:<group>], --user=<user>[:<group>]
+	#    user switching (for command)
 	EOF
+	exit "${1:-0}"
 }
+[ $# != 0 ] || usage
 
-msg() { echo "# ${0##*/}: $*" >&2 ; }
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
 
 join_lines() { sed -zE 's/[[:space:]]+/ /g;s/^ //;s/ $//' ; }
 
@@ -128,7 +134,7 @@ case "$1" in
 	case "$m" in
 	purge|remove) ;;
 	*)
-		msg "warning: adjusting APT_WRAP_REMOVE_METHOD to 'purge'"
+		msg 'warning: adjusting APT_WRAP_REMOVE_METHOD to "purge"'
 		m=purge
 	;;
 	esac
@@ -153,25 +159,24 @@ case "$1" in
 ;;
 esac
 
-if [ $# = 0 ] ; then
-	usage
-	exit 0
-fi
+verify_user() {
+	if run-as "$1" true >&2 ; then return 0 ; fi
+	msg 'error: user specifier is broken'
+	usage 1
+}
 
-userspec=
+o_user=
 
+# process options
 want_value=
 n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
-		if [ -z "$i" ] ; then
-			msg "error: empty value for option"
-			usage
-			exit 1
-		fi
-
 		case "${want_value}" in
-		userspec) userspec="$i" ;;
+		user)
+			o_user="$i"
+			verify_user "${o_user}"
+		;;
 		esac
 
 		want_value=
@@ -180,26 +185,22 @@ for i ; do
 	fi
 
 	case "$i" in
-	--user=*)
-		if [ -n "${userspec}" ] ; then
-			msg "error: user specifier is already set"
-			usage
-			exit 1
+	-u | --user | --user=* )
+		if [ -n "${o_user}" ] ; then
+			msg 'error: user specifier already set'
+			usage 1
 		fi
-		userspec="${i#*=}"
-	;;
-	-u|--user)
-		if [ -n "${userspec}" ] ; then
-			msg "error: user specifier is already set"
-			usage
-			exit 1
-		fi
-		want_value=userspec
+		case "$i" in
+		*=*)
+			o_user="${i#*=}"
+			verify_user "${o_user}"
+		;;
+		* ) want_value=user ;;
+		esac
 	;;
 	-*)
-		msg "error: unknown option $i"
-		usage
-		exit 1
+		msgf 'unknown option: %q' "$i"
+		usage 1
 	;;
 	*) break ;;
 	esac
@@ -209,27 +210,18 @@ done
 
 [ ${n_opt} = 0 ] || shift ${n_opt}
 
-if [ $# -lt 2 ] ; then
-	usage
-	exit 1
-fi
-
-if [ -n "${userspec}" ] ; then
-	if ! run-as "${userspec}" true >&2 ; then
-		msg "error: user specifier is broken"
-		usage
-		exit 1
-	fi
-fi
+[ $# -ge 2 ] || usage 1
 
 deps="$1" ; shift
 w=$("$0" --begin "${deps}") || exit
 
+chmod -R go-rwx "$w"
+
 export APT_WRAP_KEEP="$w/keep"
 export APT_WRAP_NEW="$w/new"
 
-if [ -n "${userspec}" ] ; then
-	g=$(run-as "${userspec}" id -g)
+if [ -n "${o_user}" ] ; then
+	g=$(run-as "${o_user}" id -g)
 	chgrp "$g" "$w" "$w/new" "$w/keep"
 	chmod g+rx "$w"
 	chmod g+r  "$w/new"
@@ -237,10 +229,12 @@ if [ -n "${userspec}" ] ; then
 fi
 
 set +e
-[ -n "${_q}" ] || echo >&2
-${userspec:+ run-as "${userspec}" } "$@"
+[ -n "${_q}" ] || msg
+${o_user:+ run-as "${o_user}" } "$@"
 r=$?
-[ -n "${_q}" ] || echo >&2
+[ -n "${_q}" ] || msg
+msg "command return code: $r"
+[ -n "${_q}" ] || msg
 
 # early exit
 if [ $r != 0 ] ; then

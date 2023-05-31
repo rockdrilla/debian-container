@@ -4,17 +4,29 @@
 
 set -ef
 
-# $1 - ephemeral name
-# $2 - apt repo uri
-# $3 - distribution
-# $4 - keyring uri/path (optional)
-: "${1:?}" "${2:?}" "${3:?}"
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} <name> <repo uri> <distribution> [keyring uri or path]
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+arg_ok=
+while : ; do
+	[ -n "$1" ] || break
+	[ -n "$2" ] || break
+	[ -n "$3" ] || break
+	arg_ok=1
+break ; done
+[ -n "${arg_ok}" ] || usage 1
 
 gpg_on() { gpg-batch start ; }
 gpg_off() {
 	cd /
 	gpg-batch stop
-	exit "$1"
+	exit "${1:-0}"
 }
 
 xsedx=$(printf '\027')
@@ -121,6 +133,6 @@ gpg --armor --export > "${keyring_asc}"
 
 gpg --show-keys "${keyring_asc}"
 
-gpg_off 0
+gpg_off
 
 ) || gpg_off 1

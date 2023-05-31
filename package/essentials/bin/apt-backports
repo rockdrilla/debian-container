@@ -6,13 +6,17 @@ set -f
 
 src_file='/etc/apt/sources.list.d/backports.list'
 
+me="${0##*/}"
 usage() {
 	cat >&2 <<-EOF
-	# usage: ${0##*/} [enable|disable|status]
-	# usage: ${0##*/} [enable-pin|disable-pin|pin-status]
-	# usage: ${0##*/} [enable-all|disable-all]
+	# usage:
+	#   apt source file:  ${me} {enable|disable|status}
+	#   apt pin file:     ${me} {enable-pin|disable-pin|pin-status}
+	#   all-in-one:       ${me} {enable-all|disable-all}
 	EOF
+	exit "${1:-0}"
 }
+[ $# != 0 ] || usage
 
 status() {
 	status=$( [ -s "${src_file}" ] && echo enabled || echo disabled)
@@ -20,7 +24,7 @@ status() {
 	[ -s "${src_file}" ]
 }
 
-VERSION_CODENAME=$( ( . /etc/os-release || : ; printf '%s' "${VERSION_CODENAME}" ; ) )
+VERSION_CODENAME=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
 : "${VERSION_CODENAME:?}"
 
 xsedx=$(printf '\027')
@@ -34,17 +38,6 @@ fi
 
 if [ -n "${rolling}" ] ; then
 	echo "# ${0##*/}: irrelevant for rolling release channels" >&2
-	exit 0
-fi
-
-if [ $# = 0 ] ; then
-	usage
-	echo >&2
-
-	set +e
-
-	status
-	apt-pin backports status
 	exit 0
 fi
 
@@ -87,7 +80,7 @@ esac
 
 case "${act}" in
 enable-pin|enable-all)
-	apt-pin backports 500 "${VERSION_CODENAME}-backports" '*'
+	apt-pin backports 500 '@{suite}-backports' '*'
 ;;
 disable-pin|disable-all)
 	apt-pin backports rm

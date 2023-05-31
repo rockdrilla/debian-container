@@ -4,42 +4,53 @@
 
 set -f
 
+rule_stanza='^(delete|keep)=(.+)$'
+reformat_xglob='s/^delete/match/;s/^keep/skip/'
+
+me="${0##*/}"
 usage() {
 	cat >&2 <<-EOF
-	# usage: ${0##*/} [options] <config> [..<config>]
+	# usage: ${me} [options] <config> [<config> ..]
 	# options:
-	#   root directory (for stanzas with relative paths):
-	#     -p DIR | --path DIR | --path=DIR
-	#   handle directories as well as files:
-	#     -r | --recurse
-	#   verbose removal:
-	#     -v | --verbose
+	#  -p <dir>, --path <dir>, --path=<dir>
+	#    root directory (for stanzas with relative paths)
+	#  -r, --recurse
+	#    handle directories as well as files
+	#  -v, --verbose
+	#    verbose removal
 	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
 }
 
-msg() { echo "# ${0##*/}: $*" >&2 ; }
+# very naive: just check value presence
+verify_path() {
+	[ -z "$1" ] || return 0
+	msgf 'error: wrong path specifier: %q' "$1"
+	usage 1
+}
 
-if [ $# = 0 ] ; then
-	usage
-	exit 0
-fi
+o_path=
+f_rmdir=
+f_verbose=
 
-rootspec=
-rmdirflag=
-verboseflag=
-
+# process options
 want_value=
 n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
-		if [ -z "$i" ] ; then
-			msg "error: empty value for option"
-			usage
-			exit 1
-		fi
-
 		case "${want_value}" in
-		rootspec)  rootspec="$i" ;;
+		path)
+			o_path="$i"
+			verify_path "${o_path}"
+		;;
 		esac
 
 		want_value=
@@ -48,42 +59,36 @@ for i ; do
 	fi
 
 	case "$i" in
-	--path=*)
-		if [ -n "${rootspec}" ] ; then
-			msg "error: root directory specifier is already set"
-			usage
-			exit 1
+	-p | --path | --path=* )
+		if [ -n "${o_path}" ] ; then
+			msg 'error: root directory already set'
+			usage 1
 		fi
-		rootspec="${i#*=}"
+		case "$i" in
+		*=* )
+			o_path="${i#*=}"
+			verify_path "${o_path}"
+		;;
+		* ) want_value=path ;;
+		esac
 	;;
-	-p|--path)
-		if [ -n "${rootspec}" ] ; then
-			msg "error: root directory specifier is already set"
-			usage
-			exit 1
+	-r | --recurse )
+		if [ -n "${f_rmdir}" ] ; then
+			msg 'error: recurse flag already set'
+			usage 1
 		fi
-		want_value=rootspec
+		f_rmdir=1
 	;;
-	-r|--recurse)
-		if [ -n "${rmdirflag}" ] ; then
-			msg "error: recurse flag is already set"
-			usage
-			exit 1
+	-v | --verbose )
+		if [ -n "${f_verbose}" ] ; then
+			msg 'error: verbose flag already set'
+			usage 1
 		fi
-		rmdirflag=1
-	;;
-	-v|--verbose)
-		if [ -n "${verboseflag}" ] ; then
-			msg "error: verbose flag is already set"
-			usage
-			exit 1
-		fi
-		verboseflag=1
+		f_verbose=1
 	;;
 	-*)
-		msg "error: unknown option $i"
-		usage
-		exit 1
+		msgf 'unknown option: %q' "$i"
+		usage 1
 	;;
 	*) break ;;
 	esac
@@ -93,17 +98,11 @@ done
 
 [ ${n_opt} = 0 ] || shift ${n_opt}
 
-if [ $# -lt 1 ] ; then
-	usage
-	exit 1
-fi
+[ $# != 0 ] || usage 1
 
-[ -n "${rootspec}" ] || rootspec=/
+[ -n "${o_path}" ] || o_path=/
 
-rm="rm -f${rmdirflag:+r}${verboseflag:+v}"
-
-rule_stanza='^(delete|keep)=(.+)$'
-reformat_xglob='s/^delete/match/;s/^keep/skip/'
+rm="rm -f${f_rmdir:+r}${f_verbose:+v}"
 
 # work directory
 w=$(mktemp -d) ; : "${w:?}"
@@ -123,7 +122,7 @@ if ! [ -s "$w/rules" ] ; then
 fi
 
 sed -E "${reformat_xglob}" "$w/rules" > "$w/rules.xglob"
-xglob "${rootspec}" "$w/rules.xglob" -- printf '%s\0' > "$w/list"
+xglob "${o_path}" "$w/rules.xglob" -- printf '%s\0' > "$w/list"
 
 # nothing to filter at all
 if ! [ -s "$w/list" ] ; then

@@ -4,10 +4,13 @@
 
 set -f
 
-[ $# -ne 0 ] || {
-	echo "# ${0##*/}: no command was specified" >&2
-	exit 1
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} <command> [arguments]
+	EOF
+	exit "${1:-0}"
 }
+[ $# != 0 ] || usage
 
 t=$(mktemp)
 if [ -z "$t" ] ; then

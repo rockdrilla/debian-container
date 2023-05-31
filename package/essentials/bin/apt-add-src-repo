@@ -4,15 +4,32 @@
 
 set -ef
 
-# $1 - ephemeral name
-# $2 - apt repo uri
-# $3 - distribution
-# $4 - first component
-: "${1:?}" "${2:?}" "${3:?}" "${4:?}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} <name> <repo uri> <distribution> <component> [<component> ..]
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+arg_ok=
+while : ; do
+	[ -n "$1" ] || break
+	[ -n "$2" ] || break
+	[ -n "$3" ] || break
+	[ -n "$4" ] || break
+	arg_ok=1
+break ; done
+[ -n "${arg_ok}" ] || usage 1
+
+distro=$(sed -En '/^ID=(.+)$/s//\1/p' /etc/os-release)
+suite=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
 
 name="$1"
-uri="$2"
-distro="$3"
+uri=$(printf '%s' "$2" | sed -i -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
+distro=$(printf '%s' "$3" | sed -i -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
 shift 3
 
-printf 'deb-src %s %s %s\n' "${uri}" "${distro}" "$*" >> "/etc/apt/sources.list.d/${name}.list"
+comps=$(printf '%s' "$*" | sed -i -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
+
+printf 'deb-src %s %s %s\n' "${uri}" "${distro}" "${comps}" >> "/etc/apt/sources.list.d/${name}.list"

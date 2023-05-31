@@ -4,90 +4,112 @@
 
 set -ef
 
-_printf() { env printf "$@" ; }
-_msg() {  _printf "${0##*/}: ${__PRINTF_FMT}\n" "$@" >&2 ; }
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} <nice spec>[:<ionice spec>[:<chrt spec>]] [command and arguments]
+	# nice spec: <level>
+	# ionice spec: <class>[ <level>]
+	# chrt spec: <level>[ <chrt options>]
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+[ -n "$1" ] || usage 1
 
-msg() {
-	export __PRINTF_FMT="$1" ; shift
-	_msg "$@"
-	unset __PRINTF_FMT
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
 }
 
-prio_spec="${1:?}" ; shift
+prio_spec="$1" ; shift
 
-unset nice_level ionice_spec chrt_spec xtra
-# nice_level[:ionice_class[ ionice_level][:chrt_level[ chrt_options]]]
-IFS=':' read -r nice_level ionice_spec chrt_spec xtra <<-EOF
+unset nice_spec ionice_spec chrt_spec xtra
+IFS=':' read -r nice_spec ionice_spec chrt_spec xtra <<-EOF
 ${prio_spec}
 EOF
 
+nice_level=${nice_spec}
+if [ -z "${nice_level}" ] ; then
+	msg 'BUG: "nice:level" expected but empty.'
+	usage 1
+fi
+
 if [ -n "${xtra}" ] ; then
-	msg "prio spec warning: extra data: %q" "${xtra}"
+	msgf 'warning: extra data in specifier: %q' "${xtra}"
 fi
 
-unset _t ; _t=''
-
-if [ -n "${nice_level}" ] ; then
-	if nice -n "${nice_level}" true >&2 ; then
-		_t="${_t}${_t:+ }nice -n ${nice_level}"
-	fi
-fi
-
-while [ -n "${ionice_spec}" ] ; do
-	unset ionice_class ionice_level ionice_xtra
-	read -r ionice_class ionice_level ionice_xtra <<-EOF
+if [ -n "${ionice_spec}" ] ; then
+	unset ionice_class ionice_level xtra
+	read -r ionice_class ionice_level xtra <<-EOF
 	${ionice_spec}
 	EOF
 
-	if [ -n "${ionice_xtra}" ] ; then
-		msg "ionice spec warning: extra data: %q" "${ionice_xtra}"
+	if [ -z "${ionice_class}" ] ; then
+		msg 'BUG: "ionice:class" expected but empty.'
+		usage 1
 	fi
 
-	if [ -n "${ionice_level}" ] ; then
-		if ionice -c "${ionice_class}" -n "${ionice_level}" true >&2 ; then
-			_t="${_t}${_t:+ }ionice -c ${ionice_class} -n ${ionice_level}"
-			break
-		fi
+	if [ -n "${xtra}" ] ; then
+		msgf 'ionice: extra data: %q' "${xtra}"
 	fi
+fi
 
-	if ionice -c "${ionice_class}" true >&2 ; then
-		_t="${_t}${_t:+ }ionice -c ${ionice_class}"
-		break
-	fi
-
-	break
-done
-
-while [ -n "${chrt_spec}" ] ; do
+if [ -n "${chrt_spec}" ] ; then
 	unset chrt_prio chrt_opt
 	read -r chrt_prio chrt_opt <<-EOF
 	${chrt_spec}
 	EOF
 
+	if [ -z "${chrt_prio}" ] ; then
+		msg 'BUG: "chrt:prio" expected but empty.'
+		usage 1
+	fi
+fi
+
+x=''
+
+if nice -n "${nice_level}" true >&2 ; then
+	x="$x${x:+ }nice -n ${nice_level}"
+fi
+
+while [ -n "${ionice_spec}" ] ; do
+	if [ -n "${ionice_level}" ] ; then
+		if ionice -c "${ionice_class}" -n "${ionice_level}" true >&2 ; then
+			x="$x${x:+ }ionice -c ${ionice_class} -n ${ionice_level}"
+			break
+		fi
+	fi
+
+	if ionice -c "${ionice_class}" true >&2 ; then
+		x="$x${x:+ }ionice -c ${ionice_class}"
+		break
+	fi
+break ; done
+
+while [ -n "${chrt_spec}" ] ; do
 	if [ -n "${chrt_opt}" ] ; then
 		if chrt ${chrt_opt} "${chrt_prio}" true >&2 ; then
-			_t="${_t}${_t:+ }chrt ${chrt_opt} ${chrt_prio}"
+			x="$x${x:+ }chrt ${chrt_opt} ${chrt_prio}"
 			break
 		fi
 	fi
 
 	if chrt "${chrt_prio}" true >&2 ; then
-		_t="${_t}${_t:+ }chrt ${chrt_prio}"
+		x="$x${x:+ }chrt ${chrt_prio}"
 		break
 	fi
+break ; done
 
-	break
-done
+[ $# = 0 ] || exec $x "$@"
 
-if [ $# = 0 ] ; then
-	set +e
-	exec >&2
-	echo "launch prefix: ${_t}"
-	printf 'nice: '
-	${_t} nice
-	printf 'ionice: '
-	${_t} ionice
-	exit 0
-else
-	exec ${_t} "$@"
-fi
+set +e
+exec >&2
+echo "launch prefix: $x"
+printf 'nice: '
+$x nice
+printf 'ionice: '
+$x ionice
+exit 0

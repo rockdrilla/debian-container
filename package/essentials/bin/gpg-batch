@@ -6,10 +6,33 @@ set -ef
 
 : "${GPG_KEYSERVER:=hkps://keyserver.ubuntu.com}"
 
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} {start|stop}
+	# NB: ensure that env GNUPGHOME is set to appropriate (e.g. temporary) directory
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+
+have_cmd() {
+	if ! command -v "$1" >/dev/null 2>&1 ; then
+		msg "unable to find '$1' - install package '${2:-$1}' first"
+		exit 1
+	fi
+}
+
+for c in gpg dirmngr gpgconf ; do
+	have_cmd "$c" gnupg
+done ; unset c
+
 act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 case "${act}" in
 1|start)
-	: "${GNUPGHOME:?}"
+	[ -n "${GNUPGHOME}" ] || usage 1
 	cd "${GNUPGHOME}"
 	cat > gpg.conf <<-EOF
 		quiet
@@ -35,9 +58,6 @@ case "${act}" in
 	gpgconf --quiet --kill all
 	rm -rf "${GNUPGHOME}"
 ;;
-*)
-	env printf '# unknown gpg batch action: %q\n' "$1" >&2
-	exit 1
-;;
+*) usage 1 ;;
 esac
 exit 0
