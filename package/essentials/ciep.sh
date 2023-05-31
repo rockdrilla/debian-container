@@ -11,7 +11,7 @@ log_always() {
 		echo "# ${__CIEP_SOURCE}: $(date +'%Y-%m-%d %H:%M:%S %z')"
 	else
 		echo "# ${__CIEP_SOURCE}: $*"
-	fi 1>&2
+	fi >&2
 }
 if [ "${CIEP_VERBOSE:-0}" = 1 ] ; then
 	log() { log_always "$@" ; }

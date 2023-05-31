@@ -14,7 +14,7 @@ process_file_sh_style() {
 }
 
 usage() {
-	cat 1>&2 <<-EOF
+	cat >&2 <<-EOF
 		Usage: ${arg0} <git ref start> <git ref end> [<filter file>|<filter stanza> [.. <filter stanza>]]
 	EOF
 	exit 1

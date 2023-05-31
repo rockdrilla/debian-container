@@ -13,7 +13,7 @@ log() {
 		echo "# ${arg0}: $(date +'%Y-%m-%d %H:%M:%S %z')"
 	else
 		echo "# ${arg0}: $*"
-	fi 1>&2
+	fi >&2
 }
 
 log_verbose() {
@@ -26,7 +26,7 @@ git_ro() { GIT_OPTIONAL_LOCKS=0 command git "$@"; }
 
 get_env() {
 	printf '%s' "$1" | grep -Eqz '^[a-zA-Z_][a-zA-Z0-9_]*$' || {
-		env printf "! %s: get_env: name looks suspicious: %q\n" "${arg0}" "$1" 1>&2
+		env printf "! %s: get_env: name looks suspicious: %q\n" "${arg0}" "$1" >&2
 		return 0
 	}
 	sed -Enz "/^$1=(.+)\$/s,,\\1,p" /proc/self/environ | tr -d '\0' || :
@@ -401,7 +401,7 @@ if [ -z "${__BUILD_IMAGE_X}" ] ; then
 set -ef
 
 usage() {
-	cat 1>&2 <<-EOF
+	cat >&2 <<-EOF
 		Usage: ${arg0} <script/directory> [.. <image name>]
 	EOF
 	exit ${1:-1}
