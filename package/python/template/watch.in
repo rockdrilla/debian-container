@@ -4,11 +4,35 @@ opts=\
 dversionmangle=s/.*\+// \
   https://www.python.org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
 
-opts=component=python-pyperformance,\
+opts=component=pip-pyperformance,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
-downloadurlmangle=s/^.+\/(.+)\.zip$/https:\/\/github.com\/python\/pyperformance\/archive\/$1.tar.gz/ \
+downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
   https://github.com/python/pyperformance/tree/@{PYPERFORMANCE_GIT_REF}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
+ignore
+
+opts=component=pip-numpy,\
+repack,pgpmode=none,\
+filenamemangle=s/\.zip$/.tar.gz/,\
+downloadurlmangle=s/(.+)\.zip$/$1.tar.gz/ \
+  https://github.com/numpy/numpy/tree/v@{NUMPY_VERSION}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
+ignore
+
+opts=component=pip-pandas,\
+repack,pgpmode=none,\
+filenamemangle=s/\.zip$/.tar.gz/,\
+downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
+  https://github.com/pandas-dev/pandas/tree/v@{PANDAS_VERSION}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
+ignore
+
+opts=component=pip-dask-benchmarks,\
+repack,pgpmode=none,\
+filenamemangle=s/\.zip$/.tar.gz/,\
+downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
+  https://github.com/dask/dask-benchmarks/tree/@{DASK_BENCH_GIT_REF}/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
@@ -18,10 +42,34 @@ ignore
 # dversionmangle=s/.*\+// \
 #   http://127.0.0.1:8081/repository/proxy_raw_python_org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
 
-# opts=component=python-pyperformance,\
+# opts=component=pip-pyperformance,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
-# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_com_python_pyperformance\/archive\/$1.tar.gz/ \
-#   http://127.0.0.1:8081/repository/proxy_raw_github_com_python_pyperformance/tree/@{PYPERFORMANCE_GIT_REF}/ \
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_pyperformance\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_pyperformance/tree/@{PYPERFORMANCE_GIT_REF}/ \
+#   .+/(.+)@ARCHIVE_EXT@ \
+# ignore
+
+# opts=component=pip-numpy,\
+# repack,pgpmode=none,\
+# filenamemangle=s/\.zip$/.tar.gz/,\
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_numpy\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_numpy/tree/v@{NUMPY_VERSION}/ \
+#   .+/(.+)@ARCHIVE_EXT@ \
+# ignore
+
+# opts=component=pip-pandas,\
+# repack,pgpmode=none,\
+# filenamemangle=s/\.zip$/.tar.gz/,\
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_pandas\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_pandas/tree/v@{PANDAS_VERSION}/ \
+#   .+/(.+)@ARCHIVE_EXT@ \
+# ignore
+
+# opts=component=pip-dask-benchmarks,\
+# repack,pgpmode=none,\
+# filenamemangle=s/\.zip$/.tar.gz/,\
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_dask_benchmarks\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_dask_benchmarks/tree/@{DASK_BENCH_GIT_REF}/ \
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore

@@ -1,3 +1,4 @@
+git-branch.patch
 backport-3.10.patch
 
 # these patches are borrowed from Debian

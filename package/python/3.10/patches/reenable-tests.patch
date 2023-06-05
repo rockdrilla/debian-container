@@ -10,3 +10,63 @@
  import warnings
  with warnings.catch_warnings():
      warnings.simplefilter('ignore', DeprecationWarning)
+--- a/Lib/test/test_multiprocessing_fork.py
++++ b/Lib/test/test_multiprocessing_fork.py
+@@ -4,9 +4,6 @@ import test._test_multiprocessing
+ import sys
+ from test import support
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ if sys.platform == "win32":
+     raise unittest.SkipTest("fork is not available on Windows")
+ 
+--- a/Lib/test/test_multiprocessing_forkserver.py
++++ b/Lib/test/test_multiprocessing_forkserver.py
+@@ -4,9 +4,6 @@ import test._test_multiprocessing
+ import sys
+ from test import support
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ if sys.platform == "win32":
+     raise unittest.SkipTest("forkserver is not available on Windows")
+ 
+--- a/Lib/test/test_multiprocessing_main_handling.py
++++ b/Lib/test/test_multiprocessing_main_handling.py
+@@ -17,9 +17,6 @@ from test.support.script_helper import (
+     make_pkg, make_script, make_zip_pkg, make_zip_script,
+     assert_python_ok)
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ # Look up which start methods are available to test
+ import multiprocessing
+ AVAILABLE_START_METHODS = set(multiprocessing.get_all_start_methods())
+--- a/Lib/test/test_multiprocessing_spawn.py
++++ b/Lib/test/test_multiprocessing_spawn.py
+@@ -3,9 +3,6 @@ import test._test_multiprocessing
+ 
+ from test import support
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ test._test_multiprocessing.install_tests_in_module_dict(globals(), 'spawn')
+ 
+ if __name__ == '__main__':
+--- a/Lib/test/test_subprocess.py
++++ b/Lib/test/test_subprocess.py
+@@ -46,9 +46,6 @@ try:
+ except:
+     fcntl = None
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ mswindows = (sys.platform == "win32")
+ 
+ #

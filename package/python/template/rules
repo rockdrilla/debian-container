@@ -57,9 +57,8 @@ include debian/rules.gcc-lto
 include debian/rules.gcc-pgo
 
 ifeq ($(with_pgo),yes)
-  ifeq (,$(filter pgo_standard,$(DEB_BUILD_OPTIONS)))
-    export PGO_EXTRA_PASS = 1
-  endif
+  DEB_PGO_LEVEL := $(patsubst pgo_level=%,%,$(filter pgo_level=%,$(DEB_BUILD_OPTIONS)))
+  export DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),9)
 endif
 
 build_dir = $(CURDIR)/debian.build
@@ -153,6 +152,8 @@ execute_before_dh_auto_configure:
 override_dh_auto_configure:
 	mkdir -p $(HOME)
 
+shared_python = $(call x_python, $(INSTALL_SHARED)/$(PYTHON_PREFIX) , lib , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
+
 define deb_python_configure
 
 	rm -rf $(build_dir) ; mkdir -p $(build_dir)
@@ -172,14 +173,29 @@ define deb_python_configure
 		-e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
 	$(build_dir)/Makefile
 
+	f='$(build_dir)/runpython.sh' ; \
+	: > "$$f" ; \
+	echo '#!/bin/sh' >> "$$f" ; \
+	echo 'export PYTHONPATH=$(INSTALL_SHARED)/$(PYTHON_PREFIX)/lib/python$(PYTHON_BASE_VERSION)/site-packages' >> "$$f" ; \
+	echo 'exec $(shared_python) "$$@"' >> "$$f" ; \
+	chmod 0755 "$$f"
+
 endef
 
 test_python = $(call x_python, $(build_dir) , , python , env -u PYTHONHOME )
 
 define deb_python_build
 
-	CONTAINER_PYTHON_COMPAT=1 \
-	dh_auto_build $(DH_ARGS)
+	build_ret=0 ; \
+	for i in $$( seq 1 3 ) ; do \
+	  set +e ; \
+	  dh_auto_build $(DH_ARGS) ; \
+	  build_ret=$$? ; \
+	  set -e ; \
+	  [ "$${build_ret}" = 0 ] || continue ; \
+	  break ; \
+	done ; \
+	[ "$${build_ret}" = 0 ] || exit $${build_ret}
 
 	$(test_python) -c 'from _multiprocessing import SemLock' || true
 	$(test_python) -c 'import _decimal'
@@ -443,8 +459,6 @@ define deb_python_install
 
 endef
 
-shared_python = $(call x_python, $(INSTALL_SHARED)/$(PYTHON_PREFIX) , lib , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
-
 override_dh_auto_build:
 	$(call deb_python_configure, $(CONFIGURE_FLAGS_SHARED) )
 	$(call deb_python_build)
@@ -473,8 +487,9 @@ override_dh_auto_build:
 	rm -rf "$${dst}" ; \
 	mv "$${src}" "$${dst}"
 
-ifeq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
-	$(shared_python) -m pip install $(CURDIR)/python-pyperformance
+ifeq ($(with_pgo),yes)
+	$(shared_python) -m pip install $(CURDIR)/pip-pyperformance
+	$(shared_python) -m pip install -r debian/req-bench.txt
 endif
 
 	$(call remove_pycache, $(CURDIR) )
@@ -485,16 +500,6 @@ endif
 	| tar -C Lib -xf -
 
 	$(call deb_python_configure, $(CONFIGURE_FLAGS_BINARY) )
-
-ifeq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
-	$(shared_python) -m compileall -q $(INSTALL_SHARED)/
-
-	f='$(build_dir)/pyperformance.sh' ; \
-	: > "$$f" ; \
-	echo '#!/bin/sh' >> "$$f" ; \
-	echo 'exec $(shared_python) -m pyperformance "$$@"' >> "$$f" ; \
-	chmod 0755 "$$f"
-endif
 
 	$(call deb_python_build)
 

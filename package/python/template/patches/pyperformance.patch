@@ -1,5 +1,5 @@
---- a/python-pyperformance/pyperformance/venv.py
-+++ b/python-pyperformance/pyperformance/venv.py
+--- a/pip-pyperformance/pyperformance/venv.py
++++ b/pip-pyperformance/pyperformance/venv.py
 @@ -128,6 +128,8 @@ NECESSARY_ENV_VARS = {
  NECESSARY_ENV_VARS_DEFAULT = [
      "HOME",

@@ -18,7 +18,7 @@ Forwarded: no
  
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -2078,8 +2078,10 @@ libinstall:	all $(srcdir)/Modules/xxmodu
+@@ -2112,8 +2112,10 @@ libinstall:	all $(srcdir)/Modules/xxmodu
  			esac; \
  		done; \
  	done
@@ -31,7 +31,7 @@ Forwarded: no
  	$(INSTALL_DATA) $(srcdir)/LICENSE $(DESTDIR)$(LIBDEST)/LICENSE.txt
  	if test -d $(DESTDIR)$(LIBDEST)/distutils/tests; then \
  		$(INSTALL_DATA) $(srcdir)/Modules/xxmodule.c \
-@@ -2238,6 +2240,7 @@ sharedinstall: all
+@@ -2272,6 +2274,7 @@ sharedinstall: all
  		--install-scripts=$(BINDIR) \
  		--install-platlib=$(DESTSHARED) \
  		--root=$(DESTDIR)/

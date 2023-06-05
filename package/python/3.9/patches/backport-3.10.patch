@@ -8,7 +8,7 @@
 +#define PY_RELEASE_SERIAL       1
  
  /* Version as a string */
- #define PY_VERSION              "3.9.16"
+ #define PY_VERSION              "3.9.16+"
 --- a/Lib/argparse.py
 +++ b/Lib/argparse.py
 @@ -400,10 +400,18 @@ class HelpFormatter(object):
@@ -48,22 +48,39 @@
          text = text.strip()
  
          # return the text
---- a/Lib/bdb.py
-+++ b/Lib/bdb.py
-@@ -553,9 +553,10 @@ class Bdb:
-             rv = frame.f_locals['__return__']
-             s += '->'
-             s += reprlib.repr(rv)
--        line = linecache.getline(filename, lineno, frame.f_globals)
--        if line:
--            s += lprefix + line.strip()
-+        if lineno is not None:
-+            line = linecache.getline(filename, lineno, frame.f_globals)
-+            if line:
-+                s += lprefix + line.strip()
-         return s
+--- a/Lib/concurrent/futures/_base.py
++++ b/Lib/concurrent/futures/_base.py
+@@ -312,6 +312,18 @@ def wait(fs, timeout=None, return_when=A
+     done.update(waiter.finished_futures)
+     return DoneAndNotDoneFutures(done, fs - done)
  
-     # The following methods can be called by clients to use
++
++def _result_or_cancel(fut, timeout=None):
++    try:
++        try:
++            return fut.result(timeout)
++        finally:
++            fut.cancel()
++    finally:
++        # Break a reference cycle with the exception in self._exception
++        del fut
++
++
+ class Future(object):
+     """Represents the result of an asynchronous computation."""
+ 
+@@ -606,9 +618,9 @@ class Executor(object):
+                 while fs:
+                     # Careful not to keep a reference to the popped future
+                     if timeout is None:
+-                        yield fs.pop().result()
++                        yield _result_or_cancel(fs.pop())
+                     else:
+-                        yield fs.pop().result(end_time - time.monotonic())
++                        yield _result_or_cancel(fs.pop(), end_time - time.monotonic())
+             finally:
+                 for future in fs:
+                     future.cancel()
 --- a/Lib/concurrent/futures/process.py
 +++ b/Lib/concurrent/futures/process.py
 @@ -337,6 +337,11 @@ class _ExecutorManagerThread(threading.T
@@ -78,134 +95,21 @@
                  # Since no new work items can be added, it is safe to shutdown
                  # this thread if there are no pending work items.
                  if not self.pending_work_items:
---- a/Lib/dataclasses.py
-+++ b/Lib/dataclasses.py
-@@ -1032,7 +1032,7 @@ def fields(class_or_instance):
+@@ -536,6 +541,14 @@ def _check_system_limits():
+             raise NotImplementedError(_system_limited)
+     _system_limits_checked = True
      try:
-         fields = getattr(class_or_instance, _FIELDS)
-     except AttributeError:
--        raise TypeError('must be called with a dataclass type or instance')
-+        raise TypeError('must be called with a dataclass type or instance') from None
- 
-     # Exclude pseudo-fields.  Note that fields is sorted by insertion
-     # order, so the order of the tuple is as the fields were defined.
---- a/Lib/pdb.py
-+++ b/Lib/pdb.py
-@@ -104,15 +104,6 @@ def find_function(funcname, filename):
-                 return funcname, filename, lineno
-     return None
- 
--def getsourcelines(obj):
--    lines, lineno = inspect.findsource(obj)
--    if inspect.isframe(obj) and obj.f_globals is obj.f_locals:
--        # must be a module frame: do not try to cut a block out of it
--        return lines, 1
--    elif inspect.ismodule(obj):
--        return lines, 1
--    return inspect.getblock(lines[lineno:]), lineno+1
--
- def lasti2lineno(code, lasti):
-     linestarts = list(dis.findlinestarts(code))
-     linestarts.reverse()
-@@ -1267,7 +1258,7 @@ class Pdb(bdb.Bdb, cmd.Cmd):
-         filename = self.curframe.f_code.co_filename
-         breaklist = self.get_file_breaks(filename)
-         try:
--            lines, lineno = getsourcelines(self.curframe)
-+            lines, lineno = inspect.getsourcelines(self.curframe)
-         except OSError as err:
-             self.error(err)
-             return
-@@ -1283,7 +1274,7 @@ class Pdb(bdb.Bdb, cmd.Cmd):
-         except:
-             return
-         try:
--            lines, lineno = getsourcelines(obj)
-+            lines, lineno = inspect.getsourcelines(obj)
-         except (OSError, TypeError) as err:
-             self.error(err)
-             return
---- a/Lib/test/test_threading_local.py
-+++ b/Lib/test/test_threading_local.py
-@@ -193,6 +193,22 @@ class BaseLocalTest:
-         self.assertIsNone(wr())
- 
- 
-+    def test_threading_local_clear_race(self):
-+        # See https://github.com/python/cpython/issues/100892
-+
-+        try:
-+            import _testcapi
-+        except ImportError:
-+            unittest.skip("requires _testcapi")
-+
-+        _testcapi.call_in_temporary_c_thread(lambda: None, False)
-+
-+        for _ in range(1000):
-+            _ = threading.local()
-+
-+        _testcapi.join_temporary_c_thread()
-+
-+
- class ThreadLocalTest(unittest.TestCase, BaseLocalTest):
-     _local = _thread._local
- 
---- a/Lib/urllib/error.py
-+++ b/Lib/urllib/error.py
-@@ -10,7 +10,7 @@ responses, with a status code, headers,
- an application may want to handle an exception like a regular
- response.
- """
--
-+import io
- import urllib.response
- 
- __all__ = ['URLError', 'HTTPError', 'ContentTooShortError']
-@@ -42,12 +42,9 @@ class HTTPError(URLError, urllib.respons
-         self.hdrs = hdrs
-         self.fp = fp
-         self.filename = url
--        # The addinfourl classes depend on fp being a valid file
--        # object.  In some cases, the HTTPError may not have a valid
--        # file object.  If this happens, the simplest workaround is to
--        # not initialize the base classes.
--        if fp is not None:
--            self.__super_init(fp, hdrs, url, code)
-+        if fp is None:
-+            fp = io.BytesIO()
-+        self.__super_init(fp, hdrs, url, code)
- 
-     def __str__(self):
-         return 'HTTP Error %s: %s' % (self.code, self.msg)
---- a/Lib/zipfile.py
-+++ b/Lib/zipfile.py
-@@ -184,6 +184,8 @@ def _strip_extra(extra, xids):
-         i = j
-     if not modified:
-         return extra
-+    if start != len(extra):
-+        buffer.append(extra[start:])
-     return b''.join(buffer)
- 
- def _check_zipfile(fp):
-@@ -2194,6 +2196,17 @@ class CompleteDirs(ZipFile):
-         dir_match = name not in names and dirname in names
-         return dirname if dir_match else name
- 
-+    def getinfo(self, name):
-+        """
-+        Supplement getinfo for implied dirs.
-+        """
-+        try:
-+            return super().getinfo(name)
-+        except KeyError:
-+            if not name.endswith('/') or name not in self._name_set():
-+                raise
-+            return ZipInfo(filename=name)
-+
-     @classmethod
-     def make(cls, source):
-         """
++        import multiprocessing.synchronize
++    except ImportError:
++        _system_limited = (
++            "This Python build lacks multiprocessing.synchronize, usually due "
++            "to named semaphores being unavailable on this platform."
++        )
++        raise NotImplementedError(_system_limited)
++    try:
+         nsems_max = os.sysconf("SC_SEM_NSEMS_MAX")
+     except (AttributeError, ValueError):
+         # sysconf not available or setting not available
 --- a/Modules/_blake2/impl/blake2-config.h
 +++ b/Modules/_blake2/impl/blake2-config.h
 @@ -53,7 +53,7 @@
@@ -217,136 +121,6 @@
  #ifndef HAVE_SSSE3
  #define HAVE_SSSE3
  #endif
---- a/Modules/_testcapimodule.c
-+++ b/Modules/_testcapimodule.c
-@@ -4239,12 +4239,19 @@ temporary_c_thread(void *data)
-     PyThread_exit_thread();
- }
- 
-+static test_c_thread_t test_c_thread;
-+
- static PyObject *
--call_in_temporary_c_thread(PyObject *self, PyObject *callback)
-+call_in_temporary_c_thread(PyObject *self, PyObject *args)
- {
-     PyObject *res = NULL;
--    test_c_thread_t test_c_thread;
-+    PyObject *callback = NULL;
-     long thread;
-+    int wait = 1;
-+    if (!PyArg_ParseTuple(args, "O|i", &callback, &wait))
-+    {
-+        return NULL;
-+    }
- 
-     test_c_thread.start_event = PyThread_allocate_lock();
-     test_c_thread.exit_event = PyThread_allocate_lock();
-@@ -4271,6 +4278,10 @@ call_in_temporary_c_thread(PyObject *sel
-     PyThread_acquire_lock(test_c_thread.start_event, 1);
-     PyThread_release_lock(test_c_thread.start_event);
- 
-+    if (!wait) {
-+        Py_RETURN_NONE;
-+    }
-+
-     Py_BEGIN_ALLOW_THREADS
-         PyThread_acquire_lock(test_c_thread.exit_event, 1);
-         PyThread_release_lock(test_c_thread.exit_event);
-@@ -4281,13 +4292,32 @@ call_in_temporary_c_thread(PyObject *sel
- 
- exit:
-     Py_CLEAR(test_c_thread.callback);
--    if (test_c_thread.start_event)
-+    if (test_c_thread.start_event) {
-         PyThread_free_lock(test_c_thread.start_event);
--    if (test_c_thread.exit_event)
-+        test_c_thread.start_event = NULL;
-+    }
-+    if (test_c_thread.exit_event) {
-         PyThread_free_lock(test_c_thread.exit_event);
-+        test_c_thread.exit_event = NULL;
-+    }
-     return res;
- }
- 
-+static PyObject *
-+join_temporary_c_thread(PyObject *self, PyObject *Py_UNUSED(ignored))
-+{
-+    Py_BEGIN_ALLOW_THREADS
-+        PyThread_acquire_lock(test_c_thread.exit_event, 1);
-+        PyThread_release_lock(test_c_thread.exit_event);
-+    Py_END_ALLOW_THREADS
-+    Py_CLEAR(test_c_thread.callback);
-+    PyThread_free_lock(test_c_thread.start_event);
-+    test_c_thread.start_event = NULL;
-+    PyThread_free_lock(test_c_thread.exit_event);
-+    test_c_thread.exit_event = NULL;
-+    Py_RETURN_NONE;
-+}
-+
- /* marshal */
- 
- static PyObject*
-@@ -5532,8 +5562,9 @@ static PyMethodDef TestMethods[] = {
-     {"docstring_with_signature_with_defaults",
-         (PyCFunction)test_with_docstring, METH_NOARGS,
-         docstring_with_signature_with_defaults},
--    {"call_in_temporary_c_thread", call_in_temporary_c_thread, METH_O,
-+    {"call_in_temporary_c_thread", call_in_temporary_c_thread, METH_VARARGS,
-      PyDoc_STR("set_error_class(error_class) -> None")},
-+    {"join_temporary_c_thread", join_temporary_c_thread, METH_NOARGS},
-     {"pymarshal_write_long_to_file",
-         pymarshal_write_long_to_file, METH_VARARGS},
-     {"pymarshal_write_object_to_file",
---- a/Modules/_threadmodule.c
-+++ b/Modules/_threadmodule.c
-@@ -801,6 +801,11 @@ local_traverse(localobject *self, visitp
-     return 0;
- }
- 
-+#define HEAD_LOCK(runtime) \
-+    PyThread_acquire_lock((runtime)->interpreters.mutex, WAIT_LOCK)
-+#define HEAD_UNLOCK(runtime) \
-+    PyThread_release_lock((runtime)->interpreters.mutex)
-+
- static int
- local_clear(localobject *self)
- {
-@@ -810,17 +815,26 @@ local_clear(localobject *self)
-     Py_CLEAR(self->dummies);
-     Py_CLEAR(self->wr_callback);
-     /* Remove all strong references to dummies from the thread states */
--    if (self->key
--        && (tstate = PyThreadState_Get())
--        && tstate->interp) {
--        for(tstate = PyInterpreterState_ThreadHead(tstate->interp);
--            tstate;
--            tstate = PyThreadState_Next(tstate))
--            if (tstate->dict && PyDict_GetItem(tstate->dict, self->key)) {
--                if (PyDict_DelItem(tstate->dict, self->key)) {
-+    if (self->key) {
-+        PyInterpreterState *interp = _PyInterpreterState_GET();
-+        _PyRuntimeState *runtime = &_PyRuntime;
-+        HEAD_LOCK(runtime);
-+        PyThreadState *tstate = PyInterpreterState_ThreadHead(interp);
-+        HEAD_UNLOCK(runtime);
-+        while (tstate) {
-+            if (tstate->dict) {
-+                PyObject *v = _PyDict_Pop(tstate->dict, self->key, Py_None);
-+                if (v != NULL) {
-+                    Py_DECREF(v);
-+                }
-+                else {
-                     PyErr_Clear();
-                 }
-             }
-+            HEAD_LOCK(runtime);
-+            tstate = PyThreadState_Next(tstate);
-+            HEAD_UNLOCK(runtime);
-+        }
-     }
-     return 0;
- }
 --- a/Modules/posixmodule.c
 +++ b/Modules/posixmodule.c
 @@ -9280,11 +9280,6 @@ os_dup2_impl(PyObject *module, int fd, i
@@ -361,226 +135,6 @@
      /* dup2() can fail with EINTR if the target FD is already open, because it
       * then has to be closed. See os_close_impl() for why we don't handle EINTR
       * upon close(), and therefore below.
---- a/Objects/bytearrayobject.c
-+++ b/Objects/bytearrayobject.c
-@@ -2437,11 +2437,16 @@ static PyObject *
- bytearrayiter_reduce(bytesiterobject *it, PyObject *Py_UNUSED(ignored))
- {
-     _Py_IDENTIFIER(iter);
-+    PyObject *iter = _PyEval_GetBuiltinId(&PyId_iter);
-+
-+    /* _PyEval_GetBuiltinId can invoke arbitrary code,
-+     * call must be before access of iterator pointers.
-+     * see issue #101765 */
-+
-     if (it->it_seq != NULL) {
--        return Py_BuildValue("N(O)n", _PyEval_GetBuiltinId(&PyId_iter),
--                             it->it_seq, it->it_index);
-+        return Py_BuildValue("N(O)n", iter, it->it_seq, it->it_index);
-     } else {
--        return Py_BuildValue("N(())", _PyEval_GetBuiltinId(&PyId_iter));
-+        return Py_BuildValue("N(())", iter);
-     }
- }
- 
---- a/Objects/bytesobject.c
-+++ b/Objects/bytesobject.c
-@@ -3125,11 +3125,16 @@ static PyObject *
- striter_reduce(striterobject *it, PyObject *Py_UNUSED(ignored))
- {
-     _Py_IDENTIFIER(iter);
-+    PyObject *iter = _PyEval_GetBuiltinId(&PyId_iter);
-+
-+    /* _PyEval_GetBuiltinId can invoke arbitrary code,
-+     * call must be before access of iterator pointers.
-+     * see issue #101765 */
-+
-     if (it->it_seq != NULL) {
--        return Py_BuildValue("N(O)n", _PyEval_GetBuiltinId(&PyId_iter),
--                             it->it_seq, it->it_index);
-+        return Py_BuildValue("N(O)n", iter, it->it_seq, it->it_index);
-     } else {
--        return Py_BuildValue("N(())", _PyEval_GetBuiltinId(&PyId_iter));
-+        return Py_BuildValue("N(())", iter);
-     }
- }
- 
---- a/Objects/iterobject.c
-+++ b/Objects/iterobject.c
-@@ -104,11 +104,16 @@ PyDoc_STRVAR(length_hint_doc, "Private m
- static PyObject *
- iter_reduce(seqiterobject *it, PyObject *Py_UNUSED(ignored))
- {
-+    PyObject *iter = _PyEval_GetBuiltinId(&PyId_iter);
-+
-+    /* _PyEval_GetBuiltinId can invoke arbitrary code,
-+     * call must be before access of iterator pointers.
-+     * see issue #101765 */
-+
-     if (it->it_seq != NULL)
--        return Py_BuildValue("N(O)n", _PyEval_GetBuiltinId(&PyId_iter),
--                             it->it_seq, it->it_index);
-+        return Py_BuildValue("N(O)n", iter, it->it_seq, it->it_index);
-     else
--        return Py_BuildValue("N(())", _PyEval_GetBuiltinId(&PyId_iter));
-+        return Py_BuildValue("N(())", iter);
- }
- 
- PyDoc_STRVAR(reduce_doc, "Return state information for pickling.");
-@@ -218,7 +223,7 @@ calliter_iternext(calliterobject *it)
-     }
- 
-     result = _PyObject_CallNoArg(it->it_callable);
--    if (result != NULL) {
-+    if (result != NULL && it->it_sentinel != NULL){
-         int ok;
- 
-         ok = PyObject_RichCompareBool(it->it_sentinel, result, Py_EQ);
-@@ -226,7 +231,6 @@ calliter_iternext(calliterobject *it)
-             return result; /* Common case, fast path */
-         }
- 
--        Py_DECREF(result);
-         if (ok > 0) {
-             Py_CLEAR(it->it_callable);
-             Py_CLEAR(it->it_sentinel);
-@@ -237,17 +241,23 @@ calliter_iternext(calliterobject *it)
-         Py_CLEAR(it->it_callable);
-         Py_CLEAR(it->it_sentinel);
-     }
-+    Py_XDECREF(result);
-     return NULL;
- }
- 
- static PyObject *
- calliter_reduce(calliterobject *it, PyObject *Py_UNUSED(ignored))
- {
-+    PyObject *iter = _PyEval_GetBuiltinId(&PyId_iter);
-+
-+    /* _PyEval_GetBuiltinId can invoke arbitrary code,
-+     * call must be before access of iterator pointers.
-+     * see issue #101765 */
-+
-     if (it->it_callable != NULL && it->it_sentinel != NULL)
--        return Py_BuildValue("N(OO)", _PyEval_GetBuiltinId(&PyId_iter),
--                             it->it_callable, it->it_sentinel);
-+        return Py_BuildValue("N(OO)", iter, it->it_callable, it->it_sentinel);
-     else
--        return Py_BuildValue("N(())", _PyEval_GetBuiltinId(&PyId_iter));
-+        return Py_BuildValue("N(())", iter);
- }
- 
- static PyMethodDef calliter_methods[] = {
---- a/Objects/listobject.c
-+++ b/Objects/listobject.c
-@@ -3389,17 +3389,31 @@ listiter_reduce_general(void *_it, int f
-     _Py_IDENTIFIER(reversed);
-     PyObject *list;
- 
-+    /* _PyEval_GetBuiltinId can invoke arbitrary code,
-+     * call must be before access of iterator pointers.
-+     * see issue #101765 */
-+
-     /* the objects are not the same, index is of different types! */
-     if (forward) {
-+        PyObject *iter = _PyEval_GetBuiltinId(&PyId_iter);
-+        if (!iter) {
-+            return NULL;
-+        }
-         listiterobject *it = (listiterobject *)_it;
--        if (it->it_seq)
--            return Py_BuildValue("N(O)n", _PyEval_GetBuiltinId(&PyId_iter),
--                                 it->it_seq, it->it_index);
-+        if (it->it_seq) {
-+            return Py_BuildValue("N(O)n", iter, it->it_seq, it->it_index);
-+        }
-+        Py_DECREF(iter);
-     } else {
-+        PyObject *reversed = _PyEval_GetBuiltinId(&PyId_reversed);
-+        if (!reversed) {
-+            return NULL;
-+        }
-         listreviterobject *it = (listreviterobject *)_it;
--        if (it->it_seq)
--            return Py_BuildValue("N(O)n", _PyEval_GetBuiltinId(&PyId_reversed),
--                                 it->it_seq, it->it_index);
-+        if (it->it_seq) {
-+            return Py_BuildValue("N(O)n", reversed, it->it_seq, it->it_index);
-+        }
-+        Py_DECREF(reversed);
-     }
-     /* empty iterator, create an empty list */
-     list = PyList_New(0);
---- a/Objects/tupleobject.c
-+++ b/Objects/tupleobject.c
-@@ -1049,11 +1049,16 @@ static PyObject *
- tupleiter_reduce(tupleiterobject *it, PyObject *Py_UNUSED(ignored))
- {
-     _Py_IDENTIFIER(iter);
-+    PyObject *iter = _PyEval_GetBuiltinId(&PyId_iter);
-+
-+    /* _PyEval_GetBuiltinId can invoke arbitrary code,
-+     * call must be before access of iterator pointers.
-+     * see issue #101765 */
-+
-     if (it->it_seq)
--        return Py_BuildValue("N(O)n", _PyEval_GetBuiltinId(&PyId_iter),
--                             it->it_seq, it->it_index);
-+        return Py_BuildValue("N(O)n", iter, it->it_seq, it->it_index);
-     else
--        return Py_BuildValue("N(())", _PyEval_GetBuiltinId(&PyId_iter));
-+        return Py_BuildValue("N(())", iter);
- }
- 
- static PyObject *
---- a/Objects/unicodeobject.c
-+++ b/Objects/unicodeobject.c
-@@ -15887,14 +15887,21 @@ static PyObject *
- unicodeiter_reduce(unicodeiterobject *it, PyObject *Py_UNUSED(ignored))
- {
-     _Py_IDENTIFIER(iter);
-+    PyObject *iter = _PyEval_GetBuiltinId(&PyId_iter);
-+
-+    /* _PyEval_GetBuiltinId can invoke arbitrary code,
-+     * call must be before access of iterator pointers.
-+     * see issue #101765 */
-+
-     if (it->it_seq != NULL) {
--        return Py_BuildValue("N(O)n", _PyEval_GetBuiltinId(&PyId_iter),
--                             it->it_seq, it->it_index);
-+        return Py_BuildValue("N(O)n", iter, it->it_seq, it->it_index);
-     } else {
-         PyObject *u = (PyObject *)_PyUnicode_New(0);
--        if (u == NULL)
-+        if (u == NULL) {
-+            Py_XDECREF(iter);
-             return NULL;
--        return Py_BuildValue("N(N)", _PyEval_GetBuiltinId(&PyId_iter), u);
-+        }
-+        return Py_BuildValue("N(N)", iter, u);
-     }
- }
- 
---- a/Parser/pegen/pegen.c
-+++ b/Parser/pegen/pegen.c
-@@ -693,7 +693,7 @@ _PyPegen_fill_token(Parser *p)
- static long memo_statistics[NSTATISTICS];
- 
- void
--_PyPegen_clear_memo_statistics()
-+_PyPegen_clear_memo_statistics(void)
- {
-     for (int i = 0; i < NSTATISTICS; i++) {
-         memo_statistics[i] = 0;
-@@ -701,7 +701,7 @@ _PyPegen_clear_memo_statistics()
- }
- 
- PyObject *
--_PyPegen_get_memo_statistics()
-+_PyPegen_get_memo_statistics(void)
- {
-     PyObject *ret = PyList_New(NSTATISTICS);
-     if (ret == NULL) {
 --- a/Python/bltinmodule.c
 +++ b/Python/bltinmodule.c
 @@ -534,9 +534,11 @@ static void
@@ -622,30 +176,6 @@
  
      return status;
  }
---- a/Python/pystate.c
-+++ b/Python/pystate.c
-@@ -288,11 +288,19 @@ PyInterpreterState_Clear(PyInterpreterSt
-         _PyErr_Clear(tstate);
-     }
- 
-+    // Clear the current/main thread state last.
-     HEAD_LOCK(runtime);
--    for (PyThreadState *p = interp->tstate_head; p != NULL; p = p->next) {
-+    PyThreadState *p = interp->tstate_head;
-+    HEAD_UNLOCK(runtime);
-+    while (p != NULL) {
-+        // See https://github.com/python/cpython/issues/102126
-+        // Must be called without HEAD_LOCK held as it can deadlock
-+        // if any finalizer tries to acquire that lock.
-         PyThreadState_Clear(p);
-+        HEAD_LOCK(runtime);
-+        p = p->next;
-+        HEAD_UNLOCK(runtime);
-     }
--    HEAD_UNLOCK(runtime);
- 
-     Py_CLEAR(interp->audit_hooks);
- 
 --- a/Python/pytime.c
 +++ b/Python/pytime.c
 @@ -34,6 +34,25 @@
@@ -728,24 +258,3 @@
          }
          else {
              info->resolution = 1e-9;
---- a/Tools/peg_generator/pegen/c_generator.py
-+++ b/Tools/peg_generator/pegen/c_generator.py
-@@ -564,7 +564,8 @@ class CParserGenerator(ParserGenerator,
-                     self.add_return("_res")
-                 self.print("}")
-             self.print("int _mark = p->mark;")
--            self.print("int _start_mark = p->mark;")
-+            if memoize:
-+                self.print("int _start_mark = p->mark;")
-             self.print("void **_children = PyMem_Malloc(sizeof(void *));")
-             self.out_of_memory_return(f"!_children")
-             self.print("ssize_t _children_capacity = 1;")
-@@ -584,7 +585,7 @@ class CParserGenerator(ParserGenerator,
-             self.out_of_memory_return(f"!_seq", cleanup_code="PyMem_Free(_children);")
-             self.print("for (int i = 0; i < _n; i++) asdl_seq_SET(_seq, i, _children[i]);")
-             self.print("PyMem_Free(_children);")
--            if node.name:
-+            if memoize and node.name:
-                 self.print(f"_PyPegen_insert_memo(p, _start_mark, {node.name}_type, _seq);")
-             self.add_return("_seq")
- 

@@ -1,3 +1,5 @@
+git-branch.patch
+
 # these patches are borrowed from Debian
 # I'd like to say many thanks to the maintainers for their work :)
 debian/deb-setup.diff
