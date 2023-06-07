@@ -77,3 +77,18 @@ Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/nodejs-min/tags)
 |
 [standard](https://hub.docker.com/r/rockdrilla/nodejs/tags)
+
+### ansible-mini
+
+Minimized Ansible image - `image/ansible-mini/` ([dockerfile](image/ansible-mini/Dockerfile))
+
+Based on `python:3.11.3-bullseye`.
+
+Versions:
+
+- 2.9.x
+- 7.6.x
+- 8.0.x
+
+Images on Docker.io:
+[ansible-mini](https://hub.docker.com/r/rockdrilla/ansible-mini/tags)

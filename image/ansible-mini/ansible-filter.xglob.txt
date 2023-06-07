@@ -1,0 +1,34 @@
+# modern Ansible versions
+match=ansible_collections/amazon/
+match=ansible_collections/arista/
+match=ansible_collections/azure/
+match=ansible_collections/check_point/
+match=ansible_collections/cisco/
+match=ansible_collections/dellemc/
+match=ansible_collections/f5networks/
+match=ansible_collections/fortinet/
+match=ansible_collections/google/
+match=ansible_collections/junipernetworks/
+match=ansible_collections/netapp_eseries/
+match=ansible_collections/netapp/
+match=ansible_collections/vyos/
+
+match=ansible_collections/**/*.rst
+match=ansible_collections/**/*.md
+match=ansible_collections/**/changelog.yaml
+
+match=ansible_collections/awx/**/completeness_test_output.png
+
+# legacy Ansible versions
+match=ansible/modules/cloud/amazon/
+match=ansible/modules/cloud/azure/
+match=ansible/modules/cloud/google/
+match=ansible/modules/network/aci/
+match=ansible/modules/network/avi/
+match=ansible/modules/network/check_point/
+match=ansible/modules/network/cloudengine/
+match=ansible/modules/network/f5/
+match=ansible/modules/network/fortimanager/
+match=ansible/modules/network/fortios/
+match=ansible/modules/network/nxos/
+match=ansible/modules/storage/netapp/
