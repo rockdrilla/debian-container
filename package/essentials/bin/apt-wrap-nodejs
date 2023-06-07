@@ -7,10 +7,12 @@ set -ef
 me="${0##*/}"
 usage() {
 	cat >&2 <<-EOF
-	# usage: ${me} [options] <apt package list> <command> [arguments]
+	# usage: ${me} [options] <command> [arguments]
 	# NB: if command isn't related with Node.js - consider using generic scripts:
 	#     'apt-wrap' or 'apt-wrap-sodeps'.
 	# options:
+	#  -d <packages>, --deps <packages>, --deps=<packages>
+	#    packages to be installed along with Node.js
 	#  -V <version>, --nodejs-version <version>, --nodejs-version=<version>
 	#    Node.js version selector
 	#  -u <user>[:<group>], --user <user>[:<group>], --user=<user>[:<group>]
@@ -111,6 +113,7 @@ verify_path() {
 	usage 1
 }
 
+o_deps=
 o_version=
 o_user=
 o_path=
@@ -121,6 +124,9 @@ n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
 		case "${want_value}" in
+		deps)
+			o_deps="$i"
+		;;
 		version)
 			o_version="$i"
 			verify_version "${o_version}"
@@ -141,6 +147,18 @@ for i ; do
 	fi
 
 	case "$i" in
+	-d | --deps | --deps=* )
+		if [ -n "${o_deps}" ] ; then
+			msg 'error: deps specifier already set'
+			usage 1
+		fi
+		case "$i" in
+		*=*)
+			o_deps="${i#*=}"
+		;;
+		* ) want_value=deps ;;
+		esac
+	;;
 	-V | --nodejs-version | --nodejs-version=* )
 		if [ -n "${o_version}" ] ; then
 			msg 'error: nodejs version specifier already set'
@@ -192,7 +210,7 @@ done
 
 [ ${n_opt} = 0 ] || shift ${n_opt}
 
-[ $# -ge 2 ] || usage 1
+[ $# != 0 ] || usage 1
 
 _apt_search() {
 	apt-cache search "$1" | mawk "/^$2 /{print \$1}" | sort -ruV | head -n 1
@@ -237,7 +255,9 @@ satisfy)
 	deps=$(printf '%s, ' ${deps})
 ;;
 esac
-deps="${deps} $1"
-shift
+
+if [ -n "${o_deps}" ] ; then
+	deps="${deps} ${o_deps}"
+fi
 
 exec apt-wrap ${o_user:+ -u "${o_user}" } "${deps}" "$0" --do "${o_version}" "${o_path}" "$@"
