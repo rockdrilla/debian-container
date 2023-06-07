@@ -1,0 +1,120 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+conf=/etc/container/cleanup/python-site-packages
+
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} [options]
+	# options:
+	#  -V <version>, --python-version <version>, --python-version=<version>
+	#    Python version selector
+	EOF
+	exit "${1:-0}"
+}
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
+
+# naive check for format
+verify_version() {
+	case "$1" in
+	[1-9].[0-9] | [1-9].[1-9][0-9] )
+		return 0
+	;;
+	esac
+	msg 'error: python version specifier is broken (must be in form "\d+.\d+")'
+	usage 1
+}
+
+o_version=
+
+# process options
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		case "${want_value}" in
+		version)
+			o_version="$i"
+			verify_version "${o_version}"
+		;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	-V | --python-version | --python-version=* )
+		if [ -n "${o_version}" ] ; then
+			msg 'error: python version specifier already set'
+			usage 1
+		fi
+		case "$i" in
+		*=*)
+			o_version="${i#*=}"
+			verify_version "${o_version}"
+		;;
+		* ) want_value=version ;;
+		esac
+	;;
+	-*)
+		msgf 'unknown option: %q' "$i"
+		usage 1
+	;;
+	*) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+if ! [ -s "${conf}" ] ; then
+	msg "warning: ${conf} is missing or empty"
+	exit 0
+fi
+
+python='python'
+if [ -n "${o_version}" ] ; then
+	python="python-${o_version}"
+fi
+
+if ! command -v "${python}" >/dev/null ; then
+	msg "error: Python binary '${python}' is missing"
+	usage 1
+fi
+
+case "$(id -u)" in
+0)
+	pathspec=$("${python}" -c 'import site;print(":".join(site.getsitepackages()))')
+;;
+*)
+	unset CONTAINER_PYTHON_GLOBALBIN
+	pathspec=$("${python}" -c 'import site;print(site.getusersitepackages())')
+;;
+esac
+
+if [ -z "${pathspec}" ] ; then
+	msg "error: unable to determine site package path(s)"
+	exit 1
+fi
+
+rm="rm -rf${VERBOSE:+v}"
+[ -z "${DEBUG}" ] || set -xv
+
+printf '%s' "${pathspec}" | tr ':' '\0' \
+| xargs -0 -r -n 1 stat --printf='%n\0' 2>/dev/null \
+| xargs -0 -r -I '%_%' xglob '%_%' "${conf}" -- ${rm}
+
+exit 0
