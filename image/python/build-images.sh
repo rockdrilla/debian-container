@@ -17,7 +17,6 @@ export PATH="${rootdir}/scripts:${PATH}"
 . "${rootdir}/image/python/common.envsh"
 
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
-	PYTHON_BASE_VERSION
 	PYTHON_MIN_IMAGE
 "
 

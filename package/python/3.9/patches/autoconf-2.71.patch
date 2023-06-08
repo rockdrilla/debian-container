@@ -1,0 +1,56 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -8,7 +8,7 @@ dnl
+ # Set VERSION so we only need to edit in one place (i.e., here)
+ m4_define(PYTHON_VERSION, 3.9)
+ 
+-AC_PREREQ([2.69])
++AC_PREREQ([2.71])
+ 
+ AC_INIT([python],[PYTHON_VERSION],[https://bugs.python.org/])
+ 
+@@ -56,7 +56,7 @@ else
+ fi
+ 
+ AC_CONFIG_SRCDIR([Include/object.h])
+-AC_CONFIG_HEADER(pyconfig.h)
++AC_CONFIG_HEADERS([pyconfig.h])
+ 
+ AC_CANONICAL_HOST
+ AC_SUBST(build)
+@@ -669,6 +669,7 @@ AC_PROG_CC
+ AC_PROG_CPP
+ AC_PROG_GREP
+ AC_PROG_SED
++AC_PROG_EGREP
+ 
+ AC_SUBST(CXX)
+ AC_SUBST(MAINCC)
+@@ -2213,8 +2214,11 @@ dnl struct {char *name; int *addr; char *doc;} desc = spam(foo, "something");
+ dnl ]], [[;]])],[cpp_type=ansi],[AC_DEFINE(HAVE_OLD_CPP) cpp_type=traditional])
+ dnl AC_MSG_RESULT($cpp_type)
+ 
++dnl autoconf 2.71 deprecates STDC_HEADERS, keep for backwards compatibility
++dnl assume C99 compilers provide ANSI C headers
++AC_DEFINE(STDC_HEADERS, 1, [Define to 1 if you have the ANSI C header files.])
++
+ # checks for header files
+-AC_HEADER_STDC
+ AC_CHECK_HEADERS(asm/types.h crypt.h conio.h direct.h dlfcn.h errno.h \
+ fcntl.h grp.h \
+ ieeefp.h io.h langinfo.h libintl.h process.h pthread.h \
+@@ -4230,8 +4234,13 @@ fi
+ 
+ AC_CHECK_FUNCS(getnameinfo)
+ 
++dnl autoconf 2.71 deprecates AC_HEADER_TIME, keep for backwards compatibility
++dnl TIME_WITH_SYS_TIME works on all supported systems that have sys/time.h
++AS_VAR_IF([ac_cv_header_sys_time_h], [yes], [
++  AC_DEFINE([TIME_WITH_SYS_TIME], 1, [Define to 1 if you can safely include both <sys/time.h> and <time.h>.])
++])
++
+ # checks for structures
+-AC_HEADER_TIME
+ AC_STRUCT_TM
+ AC_STRUCT_TIMEZONE
+ AC_CHECK_MEMBERS([struct stat.st_rdev])

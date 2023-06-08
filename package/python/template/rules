@@ -208,13 +208,11 @@ define deb_python_build
 
 endef
 
-define deb_python_test
-
+deb_python_test = \
+	env -C '$(build_dir)' \
 	CONTAINER_PYTHON_COMPAT=1 \
-	NPROC=$(NPROC_TEST) \
-	dh_auto_test $(DH_ARGS) -- TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)'
-
-endef
+	NPROC=$(NPROC_MAKE) \
+	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)'
 
 define remove_pycache
 
@@ -503,8 +501,12 @@ endif
 
 	$(call deb_python_build)
 
+ifneq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	$(strip $(deb_python_test)) || :
+endif
+
 override_dh_auto_test:
-	$(call deb_python_test)
+	$(strip $(deb_python_test))
 
 override_dh_auto_install:
 	$(call deb_python_install)
