@@ -7,5 +7,5 @@ https://go.dev/dl/ \
 
 # opts=\
 # downloadurlmangle=s%/dl/%/repository/proxy_raw_go_dev/dl/% \
-# http://localhost:8081/repository/proxy_raw_go_dev/dl/ \
+# http://127.0.0.1:8081/repository/proxy_raw_go_dev/dl/ \
 #   .*/go(@{GOLANG_BASE_VERSION}\.[.\d]+)?.src.tar.gz

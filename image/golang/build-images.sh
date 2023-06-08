@@ -17,7 +17,6 @@ export PATH="${rootdir}/scripts:${PATH}"
 . "${rootdir}/image/golang/common.envsh"
 
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
-	GOLANG_BASE_VERSION
 	GOLANG_MIN_IMAGE
 "
 
