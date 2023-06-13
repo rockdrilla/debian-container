@@ -10,23 +10,45 @@ ARG BASE_IMAGE=python:${PYTHON_VERSION}-${SUITE}
 FROM ${IMAGE_PATH}/${BASE_IMAGE}
 SHELL [ "/bin/sh", "-ec" ]
 
+RUN apt-install \
+      ca-certificates \
+      cowsay \
+      curl \
+      git \
+      openssh-client \
+      openssh-client-ssh1 \
+      patch \
+      sshpass \
+    ; \
+    cleanup
+
 COPY /ansible-filter.xglob.txt /etc/container/cleanup/python-site-packages
 
 RUN CONTAINER_PYTHON_GLOBALBIN=1 \
-    apt-wrap-python pip install "ansible~=${ANSIBLE_VERSION}.0" ; \
+    apt-wrap-python \
+      pip install \
+        "ansible~=${ANSIBLE_VERSION}.0" \
+        ansible-lint \
+    ; \
     python-site-cleanup ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
     ansible --version
 
-RUN _uid='30000' ; _home='/ansible' ; \
-    echo "ansible:x:${_uid}:" >> /etc/group ; \
+ENV PAGER=cat \
+    ANSIBLE_HOME=/ansible \
+    ANSIBLE_UID=30000
+
+RUN echo "ansible:x:${ANSIBLE_UID}:" >> /etc/group ; \
     echo "ansible:!:::::::" >> /etc/shadow ; \
-    echo "ansible:x:${_uid}:${_uid}:ansible:${_home}:/bin/false" >> /etc/passwd ; \
-    install -d -o ansible -g ansible -m 0750 "${_home}" ; \
-    ln -s "${_home}" /home/ansible ; \
-    cd "${_home}" ; \
+    echo "ansible:x:${ANSIBLE_UID}:${ANSIBLE_UID}:ansible:${ANSIBLE_HOME}:/bin/false" >> /etc/passwd ; \
+    install -d -o ansible -g ansible -m 0750 "${ANSIBLE_HOME}" ; \
+    # compat symlinks
+    ln -s "${ANSIBLE_HOME}" /home/ansible ; \
+    ln -s "${ANSIBLE_HOME}" /etc/ansible ; \
+    # preseed "home"
+    cd "${ANSIBLE_HOME}" ; \
     install -d -o ansible -g ansible -m 0700 .cache .config .gnupg .local .ssh
 
 RUN install -d -m 01777 /work
