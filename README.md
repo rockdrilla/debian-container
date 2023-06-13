@@ -86,7 +86,6 @@ Based on `python:3.11-bullseye`.
 
 Versions:
 
-- 2.9.x
 - 7.6.x
 - 8.0.x
 

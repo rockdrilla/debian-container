@@ -1,6 +1,5 @@
 
 ansible_versions='
-	2.9
 	7.6
 	8.0
 '
