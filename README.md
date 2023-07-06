@@ -86,8 +86,7 @@ Based on `python:3.11-bullseye`.
 
 Versions:
 
-- 7.6.x
-- 8.0.x
+- 8.1.x
 
 Images on Docker.io:
 [ansible-mini](https://hub.docker.com/r/rockdrilla/ansible-mini/tags)

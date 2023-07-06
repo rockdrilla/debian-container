@@ -18,17 +18,3 @@ match=ansible_collections/**/*.md
 match=ansible_collections/**/changelog.yaml
 
 match=ansible_collections/awx/**/completeness_test_output.png
-
-# legacy Ansible versions
-match=ansible/modules/cloud/amazon/
-match=ansible/modules/cloud/azure/
-match=ansible/modules/cloud/google/
-match=ansible/modules/network/aci/
-match=ansible/modules/network/avi/
-match=ansible/modules/network/check_point/
-match=ansible/modules/network/cloudengine/
-match=ansible/modules/network/f5/
-match=ansible/modules/network/fortimanager/
-match=ansible/modules/network/fortios/
-match=ansible/modules/network/nxos/
-match=ansible/modules/storage/netapp/

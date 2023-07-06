@@ -29,6 +29,7 @@ RUN CONTAINER_PYTHON_GLOBALBIN=1 \
       pip install \
         "ansible~=${ANSIBLE_VERSION}.0" \
         ansible-lint \
+        netaddr \
     ; \
     python-site-cleanup ; \
     cleanup ; \
