@@ -18,7 +18,7 @@ match_end2="\\${xsedx}^\$${xsedx}"
 replace1="s${xsedx}^${field}:\\s*\$${xsedx}${xsedx}"
 replace2="s${xsedx}^${field}:\\s+(\\S.*)\\s*\$${xsedx}\\1${xsedx}"
 
-match_script="h;:a;\$!n;${match_end1}bb;${match_end2}bb;H;ba;:b;x;${replace1};${replace2};p"
+match_script="h;:a;\$bb;n;${match_end1}bb;${match_end2}bb;H;ba;:b;x;${replace1};${replace2};p"
 
 script="${match_start}{${match_script}}"
 
