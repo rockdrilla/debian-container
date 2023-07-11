@@ -19,6 +19,8 @@ export SOURCE_DATE_EPOCH
 
 include debian/rules.pkg-info
 
+PYTHON_SO_ABI = 1.0
+
 PYTHON_VERSION ?= $(DEB_VERSION_UPSTREAM)
 
 empty :=
@@ -36,7 +38,7 @@ PYTHON_PREFIX = opt/python-$(PYTHON_BASE_VERSION)
 PYTHON_BINARY = usr/bin/python-$(PYTHON_BASE_VERSION)
 PYTHON_MODULES = $(PYTHON_PREFIX)/lib/python$(PYTHON_BASE_VERSION)
 
-include debian/rules.ver
+include debian/rules.versions
 
 distribution = $(if $(filter Ubuntu,$(DEB_VENDOR) $(DEB_PARENT_VENDOR)),Ubuntu,Debian)
 distrelease  = $(shell sed -En '/^VERSION_CODENAME=(.+)$$/s//\1/p' /etc/os-release)
