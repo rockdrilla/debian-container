@@ -19,7 +19,7 @@
              self.install_base = self.prefix
              self.install_platbase = self.exec_prefix
 -            self.select_scheme("unix_prefix")
-+            if 'CONTAINER_PYTHON_GLOBALBIN' in os.environ:
++            if os.getenv('CONTAINER_PYTHON_GLOBALBIN', '0') != '0':
 +                self.select_scheme("unix_local")
 +            else:
 +                self.select_scheme("unix_prefix")
@@ -59,7 +59,7 @@
      if os.name == 'posix':
          # the default scheme for posix is posix_prefix
 -        return 'posix_prefix'
-+        if 'CONTAINER_PYTHON_GLOBALBIN' in os.environ:
++        if os.getenv('CONTAINER_PYTHON_GLOBALBIN', '0') != '0':
 +            return 'posix_local'
 +        else:
 +            return 'posix_prefix'

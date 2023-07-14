@@ -15,17 +15,17 @@ define deb_python_postconf
 
 	sed -En '/^#($(builtin_ext__re))/p' Modules/Setup \
 	| sed -E 's/^#//;s/-Wl,-Bdynamic//;s/-Wl,-Bstatic//' \
-	>> $(build_dir)/Modules/Setup.local
+	>> $(DEB_BUILD_DIR)/Modules/Setup.local
 
 	: # unconditionally run makesetup
-	cd $(build_dir) && \
+	cd $(DEB_BUILD_DIR) && \
 	$(CURDIR)/Modules/makesetup \
 	  -c $(CURDIR)/Modules/config.c.in \
 	  -s Modules \
 	  Modules/Setup.local $(CURDIR)/Modules/Setup
-	mv $(build_dir)/config.c $(build_dir)/Modules/
+	mv $(DEB_BUILD_DIR)/config.c $(DEB_BUILD_DIR)/Modules/
 
 	: # and fix the timestamps
-	$(MAKE) -C $(build_dir) Makefile Modules/config.c
+	$(MAKE) -C $(DEB_BUILD_DIR) Makefile Modules/config.c
 
 endef

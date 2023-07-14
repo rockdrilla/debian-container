@@ -27,4 +27,7 @@ lto-pgo-flags.patch
 pgo-extra-pass.patch
 ensurepip.patch
 
+# shared patches
 pyperformance.patch
+numpy.patch
+# dask-benchmarks.patch

@@ -1,0 +1,26 @@
+--- a/pip-dask-benchmarks/dask/benchmarks/tokenize.py
++++ b/pip-dask-benchmarks/dask/benchmarks/tokenize.py
+@@ -39,8 +39,10 @@ class TokenizePandas(DaskSuite):
+         N = 10000
+         if dtype == "period":
+             array = pd.period_range("2000", periods=N).array
+-        elif dtype.startswith("datetime"):
+-            array = pd.date_range("2000", periods=N).astype(dtype)
++        elif dtype == "datetime64[ns]":
++            array = pd.date_range("2000", periods=N).tz_localize(None)
++        elif dtype == "datetime64[ns, CET]":
++            array = pd.date_range("2000", periods=N).tz_localize("CET")
+         elif dtype == "int":
+             array = np.arange(N)
+         elif dtype == "Int":
+--- a/pip-dask-benchmarks/distributed/benchmarks/worker_state_machine.py
++++ b/pip-dask-benchmarks/distributed/benchmarks/worker_state_machine.py
+@@ -21,7 +21,7 @@ class _EnsureCommunicating:
+ 
+     def setup(self, n_workers, n_tasks):
+         self.ws = WorkerState(
+-            address="1.0.0.1:1", total_out_connections=50, validate=False
++            address="1.0.0.1:1", validate=False
+         )
+         workers = [f"1.0.0.1:{i}" for i in range(2, n_workers + 2)]
+         rng = random.Random(42)

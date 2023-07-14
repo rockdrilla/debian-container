@@ -9,9 +9,3299 @@
  /*--end constants--*/
  
  /* Version as a single 4-byte hex number, e.g. 0x010502B2 == 1.5.2b2.
+--- a/configure.ac
++++ b/configure.ac
+@@ -2246,6 +2246,10 @@ yes)
+     AS_VAR_IF([ac_cv_disable_unused_parameter_warning], [yes],
+               [CFLAGS_NODIST="$CFLAGS_NODIST -Wno-unused-parameter"])
+ 
++    PY_CHECK_CC_WARNING([disable], [int-conversion])
++    AS_VAR_IF([ac_cv_disable_int_conversion], [yes],
++              [CFLAGS_NODIST="$CFLAGS_NODIST -Wno-int-conversion"])
++
+     PY_CHECK_CC_WARNING([disable], [missing-field-initializers])
+     AS_VAR_IF([ac_cv_disable_missing_field_initializers_warning], [yes],
+               [CFLAGS_NODIST="$CFLAGS_NODIST -Wno-missing-field-initializers"])
+--- a/Doc/tools/extensions/pyspecific.py
++++ b/Doc/tools/extensions/pyspecific.py
+@@ -14,30 +14,28 @@ import io
+ from os import getenv, path
+ from time import asctime
+ from pprint import pformat
++
++from docutils import nodes, utils
+ from docutils.io import StringOutput
+ from docutils.parsers.rst import Directive
+ from docutils.utils import new_document
+-
+-from docutils import nodes, utils
+-
+ from sphinx import addnodes
+ from sphinx.builders import Builder
+-try:
+-    from sphinx.errors import NoUri
+-except ImportError:
+-    from sphinx.environment import NoUri
++from sphinx.domains.python import PyFunction, PyMethod
++from sphinx.errors import NoUri
+ from sphinx.locale import _ as sphinx_gettext
+-from sphinx.util import status_iterator, logging
++from sphinx.util import logging
+ from sphinx.util.docutils import SphinxDirective
+ from sphinx.util.nodes import split_explicit_title
+ from sphinx.writers.text import TextWriter, TextTranslator
+ from sphinx.writers.latex import LaTeXTranslator
+ 
+ try:
+-    from sphinx.domains.python import PyFunction, PyMethod
++    # Sphinx 6+
++    from sphinx.util.display import status_iterator
+ except ImportError:
+-    from sphinx.domains.python import PyClassmember as PyMethod
+-    from sphinx.domains.python import PyModulelevel as PyFunction
++    # Deprecated in Sphinx 6.1, will be removed in Sphinx 8
++    from sphinx.util import status_iterator
+ 
+ # Support for checking for suspicious markup
+ 
+--- a/Lib/colorsys.py
++++ b/Lib/colorsys.py
+@@ -83,7 +83,7 @@ def rgb_to_hls(r, g, b):
+     if l <= 0.5:
+         s = rangec / sumc
+     else:
+-        s = rangec / (2.0-sumc)
++        s = rangec / (2.0-maxc-minc)  # Not always 2.0-sumc: gh-106498.
+     rc = (maxc-r) / rangec
+     gc = (maxc-g) / rangec
+     bc = (maxc-b) / rangec
+--- a/Lib/concurrent/futures/process.py
++++ b/Lib/concurrent/futures/process.py
+@@ -497,6 +497,10 @@ class _ExecutorManagerThread(threading.T
+         for p in self.processes.values():
+             p.terminate()
+ 
++        # Prevent queue writing to a pipe which is no longer read.
++        # https://github.com/python/cpython/issues/94777
++        self.call_queue._reader.close()
++
+         # clean up resources
+         self.join_executor_internals()
+ 
+--- a/Lib/enum.py
++++ b/Lib/enum.py
+@@ -12,6 +12,7 @@ __all__ = [
+         'FlagBoundary', 'STRICT', 'CONFORM', 'EJECT', 'KEEP',
+         'global_flag_repr', 'global_enum_repr', 'global_str', 'global_enum',
+         'EnumCheck', 'CONTINUOUS', 'NAMED_FLAGS', 'UNIQUE',
++        'pickle_by_global_name', 'pickle_by_enum_name',
+         ]
+ 
+ 
+@@ -918,7 +919,6 @@ class EnumType(type):
+         body['__module__'] = module
+         tmp_cls = type(name, (object, ), body)
+         cls = _simple_enum(etype=cls, boundary=boundary or KEEP)(tmp_cls)
+-        cls.__reduce_ex__ = _reduce_ex_by_global_name
+         if as_global:
+             global_enum(cls)
+         else:
+@@ -1225,7 +1225,13 @@ class Enum(metaclass=EnumType):
+         return hash(self._name_)
+ 
+     def __reduce_ex__(self, proto):
+-        return getattr, (self.__class__, self._name_)
++        return self.__class__, (self._value_, )
++
++    def __deepcopy__(self,memo):
++        return self
++
++    def __copy__(self):
++        return self
+ 
+     # enum.property is used to provide access to the `name` and
+     # `value` attributes of enum members while keeping some measure of
+@@ -1291,8 +1297,14 @@ class StrEnum(str, ReprEnum):
+         return name.lower()
+ 
+ 
+-def _reduce_ex_by_global_name(self, proto):
++def pickle_by_global_name(self, proto):
++    # should not be used with Flag-type enums
+     return self.name
++_reduce_ex_by_global_name = pickle_by_global_name
++
++def pickle_by_enum_name(self, proto):
++    # should not be used with Flag-type enums
++    return getattr, (self.__class__, self._name_)
+ 
+ class FlagBoundary(StrEnum):
+     """
+@@ -1314,23 +1326,6 @@ class Flag(Enum, boundary=STRICT):
+     Support for flags
+     """
+ 
+-    def __reduce_ex__(self, proto):
+-        cls = self.__class__
+-        unknown = self._value_ & ~cls._flag_mask_
+-        member_value = self._value_ & cls._flag_mask_
+-        if unknown and member_value:
+-            return _or_, (cls(member_value), unknown)
+-        for val in _iter_bits_lsb(member_value):
+-            rest = member_value & ~val
+-            if rest:
+-                return _or_, (cls(rest), cls._value2member_map_.get(val))
+-            else:
+-                break
+-        if self._name_ is None:
+-            return cls, (self._value_,)
+-        else:
+-            return getattr, (cls, self._name_)
+-
+     _numeric_repr_ = repr
+ 
+     def _generate_next_value_(name, start, count, last_values):
+@@ -1457,12 +1452,11 @@ class Flag(Enum, boundary=STRICT):
+         else:
+             pseudo_member._name_ = None
+         # use setdefault in case another thread already created a composite
+-        # with this value, but only if all members are known
+-        # note: zero is a special case -- add it
+-        if not unknown:
+-            pseudo_member = cls._value2member_map_.setdefault(value, pseudo_member)
+-            if neg_value is not None:
+-                cls._value2member_map_[neg_value] = pseudo_member
++        # with this value
++        # note: zero is a special case -- always add it
++        pseudo_member = cls._value2member_map_.setdefault(value, pseudo_member)
++        if neg_value is not None:
++            cls._value2member_map_[neg_value] = pseudo_member
+         return pseudo_member
+ 
+     def __contains__(self, other):
+@@ -1534,14 +1528,10 @@ class Flag(Enum, boundary=STRICT):
+ 
+     def __invert__(self):
+         if self._inverted_ is None:
+-            if self._boundary_ is KEEP:
+-                # use all bits
++            if self._boundary_ in (EJECT, KEEP):
+                 self._inverted_ = self.__class__(~self._value_)
+             else:
+-                # calculate flags not in this member
+-                self._inverted_ = self.__class__(self._flag_mask_ ^ self._value_)
+-            if isinstance(self._inverted_, self.__class__):
+-                self._inverted_._inverted_ = self
++                self._inverted_ = self.__class__(self._singles_mask_ & ~self._value_)
+         return self._inverted_
+ 
+     __rand__ = __and__
+@@ -2047,7 +2037,6 @@ def _old_convert_(etype, name, module, f
+         # unless some values aren't comparable, in which case sort by name
+         members.sort(key=lambda t: t[0])
+     cls = etype(name, members, module=module, boundary=boundary or KEEP)
+-    cls.__reduce_ex__ = _reduce_ex_by_global_name
+     return cls
+ 
+ _stdlib_enums = IntEnum, StrEnum, IntFlag
+--- a/Lib/multiprocessing/spawn.py
++++ b/Lib/multiprocessing/spawn.py
+@@ -31,11 +31,13 @@ if sys.platform != 'win32':
+     WINSERVICE = False
+ else:
+     WINEXE = getattr(sys, 'frozen', False)
+-    WINSERVICE = sys.executable.lower().endswith("pythonservice.exe")
++    WINSERVICE = sys.executable and sys.executable.lower().endswith("pythonservice.exe")
+ 
+ def set_executable(exe):
+     global _python_exe
+-    if sys.platform == 'win32':
++    if exe is None:
++        _python_exe = exe
++    elif sys.platform == 'win32':
+         _python_exe = os.fsdecode(exe)
+     else:
+         _python_exe = os.fsencode(exe)
+--- a/Lib/pydoc.py
++++ b/Lib/pydoc.py
+@@ -1778,12 +1778,21 @@ def render_doc(thing, title='Python Libr
+     return title % desc + '\n\n' + renderer.document(object, name)
+ 
+ def doc(thing, title='Python Library Documentation: %s', forceload=0,
+-        output=None):
++        output=None, is_cli=False):
+     """Display text documentation, given an object or a path to an object."""
+     if output is None:
+-        pager(render_doc(thing, title, forceload))
++        try:
++            pager(render_doc(thing, title, forceload))
++        except ImportError as exc:
++            if is_cli:
++                raise
++            print(exc)
+     else:
+-        output.write(render_doc(thing, title, forceload, plaintext))
++        try:
++            s = render_doc(thing, title, forceload, plaintext)
++        except ImportError as exc:
++            s = str(exc)
++        output.write(s)
+ 
+ def writedoc(thing, forceload=0):
+     """Write HTML documentation to a file in the current directory."""
+@@ -2042,8 +2051,8 @@ has the same effect as typing a particul
+             self.output.flush()
+             return self.input.readline()
+ 
+-    def help(self, request):
+-        if type(request) is type(''):
++    def help(self, request, is_cli=False):
++        if isinstance(request, str):
+             request = request.strip()
+             if request == 'keywords': self.listkeywords()
+             elif request == 'symbols': self.listsymbols()
+@@ -2054,13 +2063,13 @@ has the same effect as typing a particul
+             elif request in self.symbols: self.showsymbol(request)
+             elif request in ['True', 'False', 'None']:
+                 # special case these keywords since they are objects too
+-                doc(eval(request), 'Help on %s:')
++                doc(eval(request), 'Help on %s:', is_cli=is_cli)
+             elif request in self.keywords: self.showtopic(request)
+             elif request in self.topics: self.showtopic(request)
+-            elif request: doc(request, 'Help on %s:', output=self._output)
+-            else: doc(str, 'Help on %s:', output=self._output)
++            elif request: doc(request, 'Help on %s:', output=self._output, is_cli=is_cli)
++            else: doc(str, 'Help on %s:', output=self._output, is_cli=is_cli)
+         elif isinstance(request, Helper): self()
+-        else: doc(request, 'Help on %s:', output=self._output)
++        else: doc(request, 'Help on %s:', output=self._output, is_cli=is_cli)
+         self.output.write('\n')
+ 
+     def intro(self):
+@@ -2798,7 +2807,7 @@ def cli():
+                     else:
+                         writedoc(arg)
+                 else:
+-                    help.help(arg)
++                    help.help(arg, is_cli=True)
+             except (ImportError, ErrorDuringImport) as value:
+                 print(value)
+                 sys.exit(1)
+--- a/Lib/re/_parser.py
++++ b/Lib/re/_parser.py
+@@ -114,7 +114,6 @@ class SubPattern:
+         self.width = None
+ 
+     def dump(self, level=0):
+-        nl = True
+         seqtypes = (tuple, list)
+         for op, av in self.data:
+             print(level*"  " + str(op), end='')
+@@ -136,6 +135,9 @@ class SubPattern:
+                 if item_no:
+                     print(level*"  " + "ELSE")
+                     item_no.dump(level+1)
++            elif isinstance(av, SubPattern):
++                print()
++                av.dump(level+1)
+             elif isinstance(av, seqtypes):
+                 nl = False
+                 for a in av:
+--- a/Lib/test/_test_multiprocessing.py
++++ b/Lib/test/_test_multiprocessing.py
+@@ -13,6 +13,7 @@ import sys
+ import os
+ import gc
+ import errno
++import functools
+ import signal
+ import array
+ import socket
+@@ -31,6 +32,7 @@ from test import support
+ from test.support import hashlib_helper
+ from test.support import import_helper
+ from test.support import os_helper
++from test.support import script_helper
+ from test.support import socket_helper
+ from test.support import threading_helper
+ from test.support import warnings_helper
+@@ -170,6 +172,59 @@ def check_enough_semaphores():
+                             "to run the test (required: %d)." % nsems_min)
+ 
+ 
++def only_run_in_spawn_testsuite(reason):
++    """Returns a decorator: raises SkipTest when SM != spawn at test time.
++
++    This can be useful to save overall Python test suite execution time.
++    "spawn" is the universal mode available on all platforms so this limits the
++    decorated test to only execute within test_multiprocessing_spawn.
++
++    This would not be necessary if we refactored our test suite to split things
++    into other test files when they are not start method specific to be rerun
++    under all start methods.
++    """
++
++    def decorator(test_item):
++
++        @functools.wraps(test_item)
++        def spawn_check_wrapper(*args, **kwargs):
++            if (start_method := multiprocessing.get_start_method()) != "spawn":
++                raise unittest.SkipTest(f"{start_method=}, not 'spawn'; {reason}")
++            return test_item(*args, **kwargs)
++
++        return spawn_check_wrapper
++
++    return decorator
++
++
++class TestInternalDecorators(unittest.TestCase):
++    """Logic within a test suite that could errantly skip tests? Test it!"""
++
++    @unittest.skipIf(sys.platform == "win32", "test requires that fork exists.")
++    def test_only_run_in_spawn_testsuite(self):
++        if multiprocessing.get_start_method() != "spawn":
++            raise unittest.SkipTest("only run in test_multiprocessing_spawn.")
++
++        try:
++            @only_run_in_spawn_testsuite("testing this decorator")
++            def return_four_if_spawn():
++                return 4
++        except Exception as err:
++            self.fail(f"expected decorated `def` not to raise; caught {err}")
++
++        orig_start_method = multiprocessing.get_start_method(allow_none=True)
++        try:
++            multiprocessing.set_start_method("spawn", force=True)
++            self.assertEqual(return_four_if_spawn(), 4)
++            multiprocessing.set_start_method("fork", force=True)
++            with self.assertRaises(unittest.SkipTest) as ctx:
++                return_four_if_spawn()
++            self.assertIn("testing this decorator", str(ctx.exception))
++            self.assertIn("start_method=", str(ctx.exception))
++        finally:
++            multiprocessing.set_start_method(orig_start_method, force=True)
++
++
+ #
+ # Creates a wrapper for a function which records the time it takes to finish
+ #
+@@ -5775,6 +5830,7 @@ class TestSyncManagerTypes(unittest.Test
+ 
+ 
+ class TestNamedResource(unittest.TestCase):
++    @only_run_in_spawn_testsuite("spawn specific test.")
+     def test_global_named_resource_spawn(self):
+         #
+         # gh-90549: Check that global named resources in main module
+@@ -5785,22 +5841,18 @@ class TestNamedResource(unittest.TestCas
+         with open(testfn, 'w', encoding='utf-8') as f:
+             f.write(textwrap.dedent('''\
+                 import multiprocessing as mp
+-
+                 ctx = mp.get_context('spawn')
+-
+                 global_resource = ctx.Semaphore()
+-
+                 def submain(): pass
+-
+                 if __name__ == '__main__':
+                     p = ctx.Process(target=submain)
+                     p.start()
+                     p.join()
+             '''))
+-        rc, out, err = test.support.script_helper.assert_python_ok(testfn)
++        rc, out, err = script_helper.assert_python_ok(testfn)
+         # on error, err = 'UserWarning: resource_tracker: There appear to
+         # be 1 leaked semaphore objects to clean up at shutdown'
+-        self.assertEqual(err, b'')
++        self.assertFalse(err, msg=err.decode('utf-8'))
+ 
+ 
+ class MiscTestCase(unittest.TestCase):
+@@ -5809,6 +5861,24 @@ class MiscTestCase(unittest.TestCase):
+         support.check__all__(self, multiprocessing, extra=multiprocessing.__all__,
+                              not_exported=['SUBDEBUG', 'SUBWARNING'])
+ 
++    @only_run_in_spawn_testsuite("avoids redundant testing.")
++    def test_spawn_sys_executable_none_allows_import(self):
++        # Regression test for a bug introduced in
++        # https://github.com/python/cpython/issues/90876 that caused an
++        # ImportError in multiprocessing when sys.executable was None.
++        # This can be true in embedded environments.
++        rc, out, err = script_helper.assert_python_ok(
++            "-c",
++            """if 1:
++            import sys
++            sys.executable = None
++            assert "multiprocessing" not in sys.modules, "already imported!"
++            import multiprocessing
++            import multiprocessing.spawn  # This should not fail\n""",
++        )
++        self.assertEqual(rc, 0)
++        self.assertFalse(err, msg=err.decode('utf-8'))
++
+ 
+ #
+ # Mixins
+--- a/Lib/test/libregrtest/runtest_mp.py
++++ b/Lib/test/libregrtest/runtest_mp.py
+@@ -269,6 +269,7 @@ class TestWorkerProcess(threading.Thread
+             encoding = locale.getencoding()
+         else:
+             encoding = sys.stdout.encoding
++
+         # gh-94026: Write stdout+stderr to a tempfile as workaround for
+         # non-blocking pipes on Emscripten with NodeJS.
+         with tempfile.TemporaryFile('w+', encoding=encoding) as stdout_fh:
+@@ -277,7 +278,14 @@ class TestWorkerProcess(threading.Thread
+             # Python finalization: too late for libregrtest.
+             retcode = self._run_process(test_name, stdout_fh)
+             stdout_fh.seek(0)
+-            stdout = stdout_fh.read().strip()
++
++            try:
++                stdout = stdout_fh.read().strip()
++            except Exception as exc:
++                # gh-101634: Catch UnicodeDecodeError if stdout cannot be
++                # decoded from encoding
++                err_msg = f"Cannot read process stdout: {exc}"
++                return self.mp_result_error(ChildError(test_name), '', err_msg)
+ 
+         if retcode is None:
+             return self.mp_result_error(Timeout(test_name), stdout)
+@@ -452,6 +460,8 @@ class MultiprocessTestRunner:
+             # Thread got an exception
+             format_exc = item[1]
+             print_warning(f"regrtest worker thread failed: {format_exc}")
++            result = ChildError("<regrtest worker>")
++            self.regrtest.accumulate_result(result)
+             return True
+ 
+         self.test_index += 1
+--- a/Lib/test/test_abc.py
++++ b/Lib/test/test_abc.py
+@@ -448,15 +448,16 @@ def test_factory(abc_ABCMeta, abc_get_ca
+ 
+             # Also check that issubclass() propagates exceptions raised by
+             # __subclasses__.
++            class CustomError(Exception): ...
+             exc_msg = "exception from __subclasses__"
+ 
+             def raise_exc():
+-                raise Exception(exc_msg)
++                raise CustomError(exc_msg)
+ 
+             class S(metaclass=abc_ABCMeta):
+                 __subclasses__ = raise_exc
+ 
+-            with self.assertRaisesRegex(Exception, exc_msg):
++            with self.assertRaisesRegex(CustomError, exc_msg):
+                 issubclass(int, S)
+ 
+         def test_subclasshook(self):
+--- a/Lib/test/test_ast.py
++++ b/Lib/test/test_ast.py
+@@ -3,6 +3,7 @@ import builtins
+ import dis
+ import enum
+ import os
++import re
+ import sys
+ import types
+ import unittest
+@@ -862,6 +863,32 @@ class AST_Tests(unittest.TestCase):
+             msg="source code string cannot contain null bytes"):
+             ast.parse("a\0b")
+ 
++    def assert_none_check(self, node: type[ast.AST], attr: str, source: str) -> None:
++        with self.subTest(f"{node.__name__}.{attr}"):
++            tree = ast.parse(source)
++            found = 0
++            for child in ast.walk(tree):
++                if isinstance(child, node):
++                    setattr(child, attr, None)
++                    found += 1
++            self.assertEqual(found, 1)
++            e = re.escape(f"field '{attr}' is required for {node.__name__}")
++            with self.assertRaisesRegex(ValueError, f"^{e}$"):
++                compile(tree, "<test>", "exec")
++
++    def test_none_checks(self) -> None:
++        tests = [
++            (ast.alias, "name", "import spam as SPAM"),
++            (ast.arg, "arg", "def spam(SPAM): spam"),
++            (ast.comprehension, "target", "[spam for SPAM in spam]"),
++            (ast.comprehension, "iter", "[spam for spam in SPAM]"),
++            (ast.keyword, "value", "spam(**SPAM)"),
++            (ast.match_case, "pattern", "match spam:\n case SPAM: spam"),
++            (ast.withitem, "context_expr", "with SPAM: spam"),
++        ]
++        for node, attr, source in tests:
++            self.assert_none_check(node, attr, source)
++
+ class ASTHelpers_Test(unittest.TestCase):
+     maxDiff = None
+ 
+--- a/Lib/test/test_clinic.py
++++ b/Lib/test/test_clinic.py
+@@ -3,7 +3,8 @@
+ # Licensed to the PSF under a contributor agreement.
+ 
+ from test import support, test_tools
+-from test.support import import_helper, os_helper
++from test.support import os_helper
++from textwrap import dedent
+ from unittest import TestCase
+ import collections
+ import inspect
+@@ -170,43 +171,43 @@ class ClinicLinearFormatTest(TestCase):
+     def test_no_substitution(self):
+         self._test("""
+           abc
+-          """, """
++        """, """
+           abc
+-          """)
++        """)
+ 
+     def test_empty_substitution(self):
+         self._test("""
+           abc
+           {name}
+           def
+-          """, """
++        """, """
+           abc
+           def
+-          """, name='')
++        """, name='')
+ 
+     def test_single_line_substitution(self):
+         self._test("""
+           abc
+           {name}
+           def
+-          """, """
++        """, """
+           abc
+           GARGLE
+           def
+-          """, name='GARGLE')
++        """, name='GARGLE')
+ 
+     def test_multiline_substitution(self):
+         self._test("""
+           abc
+           {name}
+           def
+-          """, """
++        """, """
+           abc
+           bingle
+           bungle
+ 
+           def
+-          """, name='bingle\nbungle\n')
++        """, name='bingle\nbungle\n')
+ 
+ class InertParser:
+     def __init__(self, clinic):
+@@ -239,9 +240,9 @@ class ClinicBlockParserTest(TestCase):
+ 
+     def test_round_trip_1(self):
+         self.round_trip("""
+-    verbatim text here
+-    lah dee dah
+-""")
++            verbatim text here
++            lah dee dah
++        """)
+     def test_round_trip_2(self):
+         self.round_trip("""
+     verbatim text here
+@@ -285,22 +286,38 @@ xyz
+ 
+ 
+ class ClinicParserTest(TestCase):
++    def checkDocstring(self, fn, expected):
++        self.assertTrue(hasattr(fn, "docstring"))
++        self.assertEqual(fn.docstring.strip(),
++                         dedent(expected).strip())
++
+     def test_trivial(self):
+         parser = DSLParser(FakeClinic())
+-        block = clinic.Block("module os\nos.access")
++        block = clinic.Block("""
++            module os
++            os.access
++        """)
+         parser.parse(block)
+         module, function = block.signatures
+         self.assertEqual("access", function.name)
+         self.assertEqual("os", module.name)
+ 
+     def test_ignore_line(self):
+-        block = self.parse("#\nmodule os\nos.access")
++        block = self.parse(dedent("""
++            #
++            module os
++            os.access
++        """))
+         module, function = block.signatures
+         self.assertEqual("access", function.name)
+         self.assertEqual("os", module.name)
+ 
+     def test_param(self):
+-        function = self.parse_function("module os\nos.access\n   path: int")
++        function = self.parse_function("""
++            module os
++            os.access
++                path: int
++        """)
+         self.assertEqual("access", function.name)
+         self.assertEqual(2, len(function.parameters))
+         p = function.parameters['path']
+@@ -308,236 +325,296 @@ class ClinicParserTest(TestCase):
+         self.assertIsInstance(p.converter, clinic.int_converter)
+ 
+     def test_param_default(self):
+-        function = self.parse_function("module os\nos.access\n    follow_symlinks: bool = True")
++        function = self.parse_function("""
++            module os
++            os.access
++                follow_symlinks: bool = True
++        """)
+         p = function.parameters['follow_symlinks']
+         self.assertEqual(True, p.default)
+ 
+     def test_param_with_continuations(self):
+-        function = self.parse_function("module os\nos.access\n    follow_symlinks: \\\n   bool \\\n   =\\\n    True")
++        function = self.parse_function(r"""
++            module os
++            os.access
++                follow_symlinks: \
++                bool \
++                = \
++                True
++        """)
+         p = function.parameters['follow_symlinks']
+         self.assertEqual(True, p.default)
+ 
+     def test_param_default_expression(self):
+-        function = self.parse_function("module os\nos.access\n    follow_symlinks: int(c_default='MAXSIZE') = sys.maxsize")
++        function = self.parse_function("""
++            module os
++            os.access
++                follow_symlinks: int(c_default='MAXSIZE') = sys.maxsize
++            """)
+         p = function.parameters['follow_symlinks']
+         self.assertEqual(sys.maxsize, p.default)
+         self.assertEqual("MAXSIZE", p.converter.c_default)
+ 
+-        s = self.parse_function_should_fail("module os\nos.access\n    follow_symlinks: int = sys.maxsize")
+-        self.assertEqual(s, "Error on line 0:\nWhen you specify a named constant ('sys.maxsize') as your default value,\nyou MUST specify a valid c_default.\n")
++        expected_msg = (
++            "Error on line 0:\n"
++            "When you specify a named constant ('sys.maxsize') as your default value,\n"
++            "you MUST specify a valid c_default.\n"
++        )
++        out = self.parse_function_should_fail("""
++            module os
++            os.access
++                follow_symlinks: int = sys.maxsize
++        """)
++        self.assertEqual(out, expected_msg)
+ 
+     def test_param_no_docstring(self):
+         function = self.parse_function("""
+-module os
+-os.access
+-    follow_symlinks: bool = True
+-    something_else: str = ''""")
++            module os
++            os.access
++                follow_symlinks: bool = True
++                something_else: str = ''
++        """)
+         p = function.parameters['follow_symlinks']
+         self.assertEqual(3, len(function.parameters))
+-        self.assertIsInstance(function.parameters['something_else'].converter, clinic.str_converter)
++        conv = function.parameters['something_else'].converter
++        self.assertIsInstance(conv, clinic.str_converter)
+ 
+     def test_param_default_parameters_out_of_order(self):
+-        s = self.parse_function_should_fail("""
+-module os
+-os.access
+-    follow_symlinks: bool = True
+-    something_else: str""")
+-        self.assertEqual(s, """Error on line 0:
+-Can't have a parameter without a default ('something_else')
+-after a parameter with a default!
+-""")
++        expected_msg = (
++            "Error on line 0:\n"
++            "Can't have a parameter without a default ('something_else')\n"
++            "after a parameter with a default!\n"
++        )
++        out = self.parse_function_should_fail("""
++            module os
++            os.access
++                follow_symlinks: bool = True
++                something_else: str""")
++        self.assertEqual(out, expected_msg)
+ 
+     def disabled_test_converter_arguments(self):
+-        function = self.parse_function("module os\nos.access\n    path: path_t(allow_fd=1)")
++        function = self.parse_function("""
++            module os
++            os.access
++                path: path_t(allow_fd=1)
++        """)
+         p = function.parameters['path']
+         self.assertEqual(1, p.converter.args['allow_fd'])
+ 
+     def test_function_docstring(self):
+         function = self.parse_function("""
+-module os
+-os.stat as os_stat_fn
++            module os
++            os.stat as os_stat_fn
+ 
+-   path: str
+-       Path to be examined
++               path: str
++                   Path to be examined
+ 
+-Perform a stat system call on the given path.""")
+-        self.assertEqual("""
+-stat($module, /, path)
+---
+-
+-Perform a stat system call on the given path.
+-
+-  path
+-    Path to be examined
+-""".strip(), function.docstring)
++            Perform a stat system call on the given path.
++        """)
++        self.checkDocstring(function, """
++            stat($module, /, path)
++            --
++
++            Perform a stat system call on the given path.
++
++              path
++                Path to be examined
++        """)
+ 
+     def test_explicit_parameters_in_docstring(self):
+-        function = self.parse_function("""
+-module foo
+-foo.bar
+-  x: int
+-     Documentation for x.
+-  y: int
+-
+-This is the documentation for foo.
+-
+-Okay, we're done here.
+-""")
+-        self.assertEqual("""
+-bar($module, /, x, y)
+---
++        function = self.parse_function(dedent("""
++            module foo
++            foo.bar
++              x: int
++                 Documentation for x.
++              y: int
++
++            This is the documentation for foo.
++
++            Okay, we're done here.
++        """))
++        self.checkDocstring(function, """
++            bar($module, /, x, y)
++            --
+ 
+-This is the documentation for foo.
++            This is the documentation for foo.
+ 
+-  x
+-    Documentation for x.
++              x
++                Documentation for x.
+ 
+-Okay, we're done here.
+-""".strip(), function.docstring)
++            Okay, we're done here.
++        """)
+ 
+     def test_parser_regression_special_character_in_parameter_column_of_docstring_first_line(self):
+-        function = self.parse_function("""
+-module os
+-os.stat
+-    path: str
+-This/used to break Clinic!
+-""")
+-        self.assertEqual("stat($module, /, path)\n--\n\nThis/used to break Clinic!", function.docstring)
++        function = self.parse_function(dedent("""
++            module os
++            os.stat
++                path: str
++            This/used to break Clinic!
++        """))
++        self.checkDocstring(function, """
++            stat($module, /, path)
++            --
++
++            This/used to break Clinic!
++        """)
+ 
+     def test_c_name(self):
+-        function = self.parse_function("module os\nos.stat as os_stat_fn")
++        function = self.parse_function("""
++            module os
++            os.stat as os_stat_fn
++        """)
+         self.assertEqual("os_stat_fn", function.c_basename)
+ 
+     def test_return_converter(self):
+-        function = self.parse_function("module os\nos.stat -> int")
++        function = self.parse_function("""
++            module os
++            os.stat -> int
++        """)
+         self.assertIsInstance(function.return_converter, clinic.int_return_converter)
+ 
+     def test_star(self):
+-        function = self.parse_function("module os\nos.access\n    *\n    follow_symlinks: bool = True")
++        function = self.parse_function("""
++            module os
++            os.access
++                *
++                follow_symlinks: bool = True
++        """)
+         p = function.parameters['follow_symlinks']
+         self.assertEqual(inspect.Parameter.KEYWORD_ONLY, p.kind)
+         self.assertEqual(0, p.group)
+ 
+     def test_group(self):
+-        function = self.parse_function("module window\nwindow.border\n [\n ls : int\n ]\n /\n")
++        function = self.parse_function("""
++            module window
++            window.border
++                [
++                ls: int
++                ]
++                /
++        """)
+         p = function.parameters['ls']
+         self.assertEqual(1, p.group)
+ 
+     def test_left_group(self):
+         function = self.parse_function("""
+-module curses
+-curses.addch
+-   [
+-   y: int
+-     Y-coordinate.
+-   x: int
+-     X-coordinate.
+-   ]
+-   ch: char
+-     Character to add.
+-   [
+-   attr: long
+-     Attributes for the character.
+-   ]
+-   /
+-""")
+-        for name, group in (
++            module curses
++            curses.addch
++                [
++                y: int
++                    Y-coordinate.
++                x: int
++                    X-coordinate.
++                ]
++                ch: char
++                    Character to add.
++                [
++                attr: long
++                    Attributes for the character.
++                ]
++                /
++        """)
++        dataset = (
+             ('y', -1), ('x', -1),
+             ('ch', 0),
+             ('attr', 1),
+-            ):
+-            p = function.parameters[name]
+-            self.assertEqual(p.group, group)
+-            self.assertEqual(p.kind, inspect.Parameter.POSITIONAL_ONLY)
+-        self.assertEqual(function.docstring.strip(), """
+-addch([y, x,] ch, [attr])
+-
+-
+-  y
+-    Y-coordinate.
+-  x
+-    X-coordinate.
+-  ch
+-    Character to add.
+-  attr
+-    Attributes for the character.
+-            """.strip())
++        )
++        for name, group in dataset:
++            with self.subTest(name=name, group=group):
++                p = function.parameters[name]
++                self.assertEqual(p.group, group)
++                self.assertEqual(p.kind, inspect.Parameter.POSITIONAL_ONLY)
++        self.checkDocstring(function, """
++            addch([y, x,] ch, [attr])
++
++
++              y
++                Y-coordinate.
++              x
++                X-coordinate.
++              ch
++                Character to add.
++              attr
++                Attributes for the character.
++        """)
+ 
+     def test_nested_groups(self):
+         function = self.parse_function("""
+-module curses
+-curses.imaginary
+-   [
+-   [
+-   y1: int
+-     Y-coordinate.
+-   y2: int
+-     Y-coordinate.
+-   ]
+-   x1: int
+-     X-coordinate.
+-   x2: int
+-     X-coordinate.
+-   ]
+-   ch: char
+-     Character to add.
+-   [
+-   attr1: long
+-     Attributes for the character.
+-   attr2: long
+-     Attributes for the character.
+-   attr3: long
+-     Attributes for the character.
+-   [
+-   attr4: long
+-     Attributes for the character.
+-   attr5: long
+-     Attributes for the character.
+-   attr6: long
+-     Attributes for the character.
+-   ]
+-   ]
+-   /
+-""")
+-        for name, group in (
++            module curses
++            curses.imaginary
++               [
++               [
++               y1: int
++                 Y-coordinate.
++               y2: int
++                 Y-coordinate.
++               ]
++               x1: int
++                 X-coordinate.
++               x2: int
++                 X-coordinate.
++               ]
++               ch: char
++                 Character to add.
++               [
++               attr1: long
++                 Attributes for the character.
++               attr2: long
++                 Attributes for the character.
++               attr3: long
++                 Attributes for the character.
++               [
++               attr4: long
++                 Attributes for the character.
++               attr5: long
++                 Attributes for the character.
++               attr6: long
++                 Attributes for the character.
++               ]
++               ]
++               /
++        """)
++        dataset = (
+             ('y1', -2), ('y2', -2),
+             ('x1', -1), ('x2', -1),
+             ('ch', 0),
+             ('attr1', 1), ('attr2', 1), ('attr3', 1),
+             ('attr4', 2), ('attr5', 2), ('attr6', 2),
+-            ):
+-            p = function.parameters[name]
+-            self.assertEqual(p.group, group)
+-            self.assertEqual(p.kind, inspect.Parameter.POSITIONAL_ONLY)
+-
+-        self.assertEqual(function.docstring.strip(), """
+-imaginary([[y1, y2,] x1, x2,] ch, [attr1, attr2, attr3, [attr4, attr5,
+-          attr6]])
+-
+-
+-  y1
+-    Y-coordinate.
+-  y2
+-    Y-coordinate.
+-  x1
+-    X-coordinate.
+-  x2
+-    X-coordinate.
+-  ch
+-    Character to add.
+-  attr1
+-    Attributes for the character.
+-  attr2
+-    Attributes for the character.
+-  attr3
+-    Attributes for the character.
+-  attr4
+-    Attributes for the character.
+-  attr5
+-    Attributes for the character.
+-  attr6
+-    Attributes for the character.
+-                """.strip())
++        )
++        for name, group in dataset:
++            with self.subTest(name=name, group=group):
++                p = function.parameters[name]
++                self.assertEqual(p.group, group)
++                self.assertEqual(p.kind, inspect.Parameter.POSITIONAL_ONLY)
++
++        self.checkDocstring(function, """
++            imaginary([[y1, y2,] x1, x2,] ch, [attr1, attr2, attr3, [attr4, attr5,
++                      attr6]])
++
++
++              y1
++                Y-coordinate.
++              y2
++                Y-coordinate.
++              x1
++                X-coordinate.
++              x2
++                X-coordinate.
++              ch
++                Character to add.
++              attr1
++                Attributes for the character.
++              attr2
++                Attributes for the character.
++              attr3
++                Attributes for the character.
++              attr4
++                Attributes for the character.
++              attr5
++                Attributes for the character.
++              attr6
++                Attributes for the character.
++        """)
+ 
+     def parse_function_should_fail(self, s):
+         with support.captured_stdout() as stdout:
+@@ -546,218 +623,276 @@ imaginary([[y1, y2,] x1, x2,] ch, [attr1
+         return stdout.getvalue()
+ 
+     def test_disallowed_grouping__two_top_groups_on_left(self):
+-        s = self.parse_function_should_fail("""
+-module foo
+-foo.two_top_groups_on_left
+-    [
+-    group1 : int
+-    ]
+-    [
+-    group2 : int
+-    ]
+-    param: int
+-            """)
+-        self.assertEqual(s,
+-            ('Error on line 0:\n'
+-            'Function two_top_groups_on_left has an unsupported group configuration. (Unexpected state 2.b)\n'))
++        expected_msg = (
++            'Error on line 0:\n'
++            'Function two_top_groups_on_left has an unsupported group '
++            'configuration. (Unexpected state 2.b)\n'
++        )
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.two_top_groups_on_left
++                [
++                group1 : int
++                ]
++                [
++                group2 : int
++                ]
++                param: int
++        """)
++        self.assertEqual(out, expected_msg)
+ 
+     def test_disallowed_grouping__two_top_groups_on_right(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.two_top_groups_on_right
+-    param: int
+-    [
+-    group1 : int
+-    ]
+-    [
+-    group2 : int
+-    ]
+-            """)
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.two_top_groups_on_right
++                param: int
++                [
++                group1 : int
++                ]
++                [
++                group2 : int
++                ]
++        """)
++        msg = (
++            "Function two_top_groups_on_right has an unsupported group "
++            "configuration. (Unexpected state 6.b)"
++        )
++        self.assertIn(msg, out)
+ 
+     def test_disallowed_grouping__parameter_after_group_on_right(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.parameter_after_group_on_right
+-    param: int
+-    [
+-    [
+-    group1 : int
+-    ]
+-    group2 : int
+-    ]
+-            """)
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.parameter_after_group_on_right
++                param: int
++                [
++                [
++                group1 : int
++                ]
++                group2 : int
++                ]
++        """)
++        msg = (
++            "Function parameter_after_group_on_right has an unsupported group "
++            "configuration. (Unexpected state 6.a)"
++        )
++        self.assertIn(msg, out)
+ 
+     def test_disallowed_grouping__group_after_parameter_on_left(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.group_after_parameter_on_left
+-    [
+-    group2 : int
+-    [
+-    group1 : int
+-    ]
+-    ]
+-    param: int
+-            """)
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.group_after_parameter_on_left
++                [
++                group2 : int
++                [
++                group1 : int
++                ]
++                ]
++                param: int
++        """)
++        msg = (
++            "Function group_after_parameter_on_left has an unsupported group "
++            "configuration. (Unexpected state 2.b)"
++        )
++        self.assertIn(msg, out)
+ 
+     def test_disallowed_grouping__empty_group_on_left(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.empty_group
+-    [
+-    [
+-    ]
+-    group2 : int
+-    ]
+-    param: int
+-            """)
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.empty_group
++                [
++                [
++                ]
++                group2 : int
++                ]
++                param: int
++        """)
++        msg = (
++            "Function empty_group has an empty group.\n"
++            "All groups must contain at least one parameter."
++        )
++        self.assertIn(msg, out)
+ 
+     def test_disallowed_grouping__empty_group_on_right(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.empty_group
+-    param: int
+-    [
+-    [
+-    ]
+-    group2 : int
+-    ]
+-            """)
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.empty_group
++                param: int
++                [
++                [
++                ]
++                group2 : int
++                ]
++        """)
++        msg = (
++            "Function empty_group has an empty group.\n"
++            "All groups must contain at least one parameter."
++        )
++        self.assertIn(msg, out)
++
++    def test_disallowed_grouping__no_matching_bracket(self):
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.empty_group
++                param: int
++                ]
++                group2: int
++                ]
++        """)
++        msg = "Function empty_group has a ] without a matching [."
++        self.assertIn(msg, out)
+ 
+     def test_no_parameters(self):
+         function = self.parse_function("""
+-module foo
+-foo.bar
++            module foo
++            foo.bar
+ 
+-Docstring
++            Docstring
+ 
+-""")
++        """)
+         self.assertEqual("bar($module, /)\n--\n\nDocstring", function.docstring)
+         self.assertEqual(1, len(function.parameters)) # self!
+ 
+     def test_init_with_no_parameters(self):
+         function = self.parse_function("""
+-module foo
+-class foo.Bar "unused" "notneeded"
+-foo.Bar.__init__
++            module foo
++            class foo.Bar "unused" "notneeded"
++            foo.Bar.__init__
+ 
+-Docstring
++            Docstring
++
++        """, signatures_in_block=3, function_index=2)
+ 
+-""", signatures_in_block=3, function_index=2)
+         # self is not in the signature
+         self.assertEqual("Bar()\n--\n\nDocstring", function.docstring)
+         # but it *is* a parameter
+         self.assertEqual(1, len(function.parameters))
+ 
+     def test_illegal_module_line(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar => int
+-    /
+-""")
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar => int
++                /
++        """)
++        msg = "Illegal function name: foo.bar => int"
++        self.assertIn(msg, out)
+ 
+     def test_illegal_c_basename(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar as 935
+-    /
+-""")
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar as 935
++                /
++        """)
++        msg = "Illegal C basename: 935"
++        self.assertIn(msg, out)
+ 
+     def test_single_star(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-    *
+-    *
+-""")
+-
+-    def test_parameters_required_after_star_without_initial_parameters_or_docstring(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-    *
+-""")
+-
+-    def test_parameters_required_after_star_without_initial_parameters_with_docstring(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-    *
+-Docstring here.
+-""")
+-
+-    def test_parameters_required_after_star_with_initial_parameters_without_docstring(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-    this: int
+-    *
+-""")
+-
+-    def test_parameters_required_after_star_with_initial_parameters_and_docstring(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-    this: int
+-    *
+-Docstring.
+-""")
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar
++                *
++                *
++        """)
++        self.assertIn("Function bar uses '*' more than once.", out)
++
++    def test_parameters_required_after_star(self):
++        dataset = (
++            "module foo\nfoo.bar\n  *",
++            "module foo\nfoo.bar\n  *\nDocstring here.",
++            "module foo\nfoo.bar\n  this: int\n  *",
++            "module foo\nfoo.bar\n  this: int\n  *\nDocstring.",
++        )
++        msg = "Function bar specifies '*' without any parameters afterwards."
++        for block in dataset:
++            with self.subTest(block=block):
++                out = self.parse_function_should_fail(block)
++                self.assertIn(msg, out)
+ 
+     def test_single_slash(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-    /
+-    /
+-""")
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar
++                /
++                /
++        """)
++        msg = (
++            "Function bar has an unsupported group configuration. "
++            "(Unexpected state 0.d)"
++        )
++        self.assertIn(msg, out)
++
++    def test_double_slash(self):
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar
++                a: int
++                /
++                b: int
++                /
++        """)
++        msg = "Function bar uses '/' more than once."
++        self.assertIn(msg, out)
+ 
+     def test_mix_star_and_slash(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-   x: int
+-   y: int
+-   *
+-   z: int
+-   /
+-""")
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar
++               x: int
++               y: int
++               *
++               z: int
++               /
++        """)
++        msg = (
++            "Function bar mixes keyword-only and positional-only parameters, "
++            "which is unsupported."
++        )
++        self.assertIn(msg, out)
+ 
+     def test_parameters_not_permitted_after_slash_for_now(self):
+-        self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-    /
+-    x: int
+-""")
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar
++                /
++                x: int
++        """)
++        msg = (
++            "Function bar has an unsupported group configuration. "
++            "(Unexpected state 0.d)"
++        )
++        self.assertIn(msg, out)
+ 
+     def test_parameters_no_more_than_one_vararg(self):
+-        s = self.parse_function_should_fail("""
+-module foo
+-foo.bar
+-   *vararg1: object
+-   *vararg2: object
+-""")
+-        self.assertEqual(s, "Error on line 0:\nToo many var args\n")
++        expected_msg = (
++            "Error on line 0:\n"
++            "Too many var args\n"
++        )
++        out = self.parse_function_should_fail("""
++            module foo
++            foo.bar
++               *vararg1: object
++               *vararg2: object
++        """)
++        self.assertEqual(out, expected_msg)
+ 
+     def test_function_not_at_column_0(self):
+         function = self.parse_function("""
+-  module foo
+-  foo.bar
+-    x: int
+-      Nested docstring here, goeth.
+-    *
+-    y: str
+-  Not at column 0!
+-""")
+-        self.assertEqual("""
+-bar($module, /, x, *, y)
+---
+-
+-Not at column 0!
+-
+-  x
+-    Nested docstring here, goeth.
+-""".strip(), function.docstring)
++              module foo
++              foo.bar
++                x: int
++                  Nested docstring here, goeth.
++                *
++                y: str
++              Not at column 0!
++        """)
++        self.checkDocstring(function, """
++            bar($module, /, x, *, y)
++            --
++
++            Not at column 0!
++
++              x
++                Nested docstring here, goeth.
++        """)
+ 
+     def test_directive(self):
+         c = FakeClinic()
+@@ -771,46 +906,96 @@ Not at column 0!
+     def test_legacy_converters(self):
+         block = self.parse('module os\nos.access\n   path: "s"')
+         module, function = block.signatures
+-        self.assertIsInstance((function.parameters['path']).converter, clinic.str_converter)
++        conv = (function.parameters['path']).converter
++        self.assertIsInstance(conv, clinic.str_converter)
+ 
+     def test_legacy_converters_non_string_constant_annotation(self):
+-        expected_failure_message = """\
+-Error on line 0:
+-Annotations must be either a name, a function call, or a string.
+-"""
+-
+-        s = self.parse_function_should_fail('module os\nos.access\n   path: 42')
+-        self.assertEqual(s, expected_failure_message)
+-
+-        s = self.parse_function_should_fail('module os\nos.access\n   path: 42.42')
+-        self.assertEqual(s, expected_failure_message)
+-
+-        s = self.parse_function_should_fail('module os\nos.access\n   path: 42j')
+-        self.assertEqual(s, expected_failure_message)
+-
+-        s = self.parse_function_should_fail('module os\nos.access\n   path: b"42"')
+-        self.assertEqual(s, expected_failure_message)
++        expected_failure_message = (
++            "Error on line 0:\n"
++            "Annotations must be either a name, a function call, or a string.\n"
++        )
++        dataset = (
++            'module os\nos.access\n   path: 42',
++            'module os\nos.access\n   path: 42.42',
++            'module os\nos.access\n   path: 42j',
++            'module os\nos.access\n   path: b"42"',
++        )
++        for block in dataset:
++            with self.subTest(block=block):
++                out = self.parse_function_should_fail(block)
++                self.assertEqual(out, expected_failure_message)
+ 
+     def test_other_bizarre_things_in_annotations_fail(self):
+-        expected_failure_message = """\
+-Error on line 0:
+-Annotations must be either a name, a function call, or a string.
+-"""
+-
+-        s = self.parse_function_should_fail(
+-            'module os\nos.access\n   path: {"some": "dictionary"}'
++        expected_failure_message = (
++            "Error on line 0:\n"
++            "Annotations must be either a name, a function call, or a string.\n"
+         )
+-        self.assertEqual(s, expected_failure_message)
+-
+-        s = self.parse_function_should_fail(
+-            'module os\nos.access\n   path: ["list", "of", "strings"]'
++        dataset = (
++            'module os\nos.access\n   path: {"some": "dictionary"}',
++            'module os\nos.access\n   path: ["list", "of", "strings"]',
++            'module os\nos.access\n   path: (x for x in range(42))',
+         )
+-        self.assertEqual(s, expected_failure_message)
+-
+-        s = self.parse_function_should_fail(
+-            'module os\nos.access\n   path: (x for x in range(42))'
++        for block in dataset:
++            with self.subTest(block=block):
++                out = self.parse_function_should_fail(block)
++                self.assertEqual(out, expected_failure_message)
++
++    def test_self_param_placement(self):
++        expected_error_msg = (
++            "Error on line 0:\n"
++            "A 'self' parameter, if specified, must be the very first thing "
++            "in the parameter block.\n"
+         )
+-        self.assertEqual(s, expected_failure_message)
++        block = """
++            module foo
++            foo.func
++                a: int
++                self: self(type="PyObject *")
++        """
++        out = self.parse_function_should_fail(block)
++        self.assertEqual(out, expected_error_msg)
++
++    def test_self_param_cannot_be_optional(self):
++        expected_error_msg = (
++            "Error on line 0:\n"
++            "A 'self' parameter cannot be marked optional.\n"
++        )
++        block = """
++            module foo
++            foo.func
++                self: self(type="PyObject *") = None
++        """
++        out = self.parse_function_should_fail(block)
++        self.assertEqual(out, expected_error_msg)
++
++    def test_defining_class_param_placement(self):
++        expected_error_msg = (
++            "Error on line 0:\n"
++            "A 'defining_class' parameter, if specified, must either be the "
++            "first thing in the parameter block, or come just after 'self'.\n"
++        )
++        block = """
++            module foo
++            foo.func
++                self: self(type="PyObject *")
++                a: int
++                cls: defining_class
++        """
++        out = self.parse_function_should_fail(block)
++        self.assertEqual(out, expected_error_msg)
++
++    def test_defining_class_param_cannot_be_optional(self):
++        expected_error_msg = (
++            "Error on line 0:\n"
++            "A 'defining_class' parameter cannot be marked optional.\n"
++        )
++        block = """
++            module foo
++            foo.func
++                cls: defining_class(type="PyObject *") = None
++        """
++        out = self.parse_function_should_fail(block)
++        self.assertEqual(out, expected_error_msg)
+ 
+     def parse(self, text):
+         c = FakeClinic()
+@@ -833,10 +1018,16 @@ Annotations must be either a name, a fun
+         self.assertEqual(repr(clinic.NULL), '<Null>')
+ 
+         # test that fail fails
++        expected = (
++            'Error in file "clown.txt" on line 69:\n'
++            'The igloos are melting!\n'
++        )
+         with support.captured_stdout() as stdout:
+             with self.assertRaises(SystemExit):
+-                clinic.fail('The igloos are melting!', filename='clown.txt', line_number=69)
+-        self.assertEqual(stdout.getvalue(), 'Error in file "clown.txt" on line 69:\nThe igloos are melting!\n')
++                clinic.fail('The igloos are melting!',
++                            filename='clown.txt', line_number=69)
++        actual = stdout.getvalue()
++        self.assertEqual(actual, expected)
+ 
+ 
+ class ClinicExternalTest(TestCase):
+@@ -1327,5 +1518,111 @@ class ClinicFunctionalTest(unittest.Test
+             ac_tester.gh_99240_double_free('a', '\0b')
+ 
+ 
++class PermutationTests(unittest.TestCase):
++    """Test permutation support functions."""
++
++    def test_permute_left_option_groups(self):
++        expected = (
++            (),
++            (3,),
++            (2, 3),
++            (1, 2, 3),
++        )
++        data = list(zip([1, 2, 3]))  # Generate a list of 1-tuples.
++        actual = tuple(clinic.permute_left_option_groups(data))
++        self.assertEqual(actual, expected)
++
++    def test_permute_right_option_groups(self):
++        expected = (
++            (),
++            (1,),
++            (1, 2),
++            (1, 2, 3),
++        )
++        data = list(zip([1, 2, 3]))  # Generate a list of 1-tuples.
++        actual = tuple(clinic.permute_right_option_groups(data))
++        self.assertEqual(actual, expected)
++
++    def test_permute_optional_groups(self):
++        empty = {
++            "left": (), "required": (), "right": (),
++            "expected": ((),),
++        }
++        noleft1 = {
++            "left": (), "required": ("b",), "right": ("c",),
++            "expected": (
++                ("b",),
++                ("b", "c"),
++            ),
++        }
++        noleft2 = {
++            "left": (), "required": ("b", "c",), "right": ("d",),
++            "expected": (
++                ("b", "c"),
++                ("b", "c", "d"),
++            ),
++        }
++        noleft3 = {
++            "left": (), "required": ("b", "c",), "right": ("d", "e"),
++            "expected": (
++                ("b", "c"),
++                ("b", "c", "d"),
++                ("b", "c", "d", "e"),
++            ),
++        }
++        noright1 = {
++            "left": ("a",), "required": ("b",), "right": (),
++            "expected": (
++                ("b",),
++                ("a", "b"),
++            ),
++        }
++        noright2 = {
++            "left": ("a",), "required": ("b", "c"), "right": (),
++            "expected": (
++                ("b", "c"),
++                ("a", "b", "c"),
++            ),
++        }
++        noright3 = {
++            "left": ("a", "b"), "required": ("c",), "right": (),
++            "expected": (
++                ("c",),
++                ("b", "c"),
++                ("a", "b", "c"),
++            ),
++        }
++        leftandright1 = {
++            "left": ("a",), "required": ("b",), "right": ("c",),
++            "expected": (
++                ("b",),
++                ("a", "b"),  # Prefer left.
++                ("a", "b", "c"),
++            ),
++        }
++        leftandright2 = {
++            "left": ("a", "b"), "required": ("c", "d"), "right": ("e", "f"),
++            "expected": (
++                ("c", "d"),
++                ("b", "c", "d"),       # Prefer left.
++                ("a", "b", "c", "d"),  # Prefer left.
++                ("a", "b", "c", "d", "e"),
++                ("a", "b", "c", "d", "e", "f"),
++            ),
++        }
++        dataset = (
++            empty,
++            noleft1, noleft2, noleft3,
++            noright1, noright2, noright3,
++            leftandright1, leftandright2,
++        )
++        for params in dataset:
++            with self.subTest(**params):
++                left, required, right, expected = params.values()
++                permutations = clinic.permute_optional_groups(left, required, right)
++                actual = tuple(permutations)
++                self.assertEqual(actual, expected)
++
++
+ if __name__ == "__main__":
+     unittest.main()
+--- a/Lib/test/test_cmd_line_script.py
++++ b/Lib/test/test_cmd_line_script.py
+@@ -777,7 +777,7 @@ class CmdLineTest(unittest.TestCase):
+         with os_helper.temp_dir() as work_dir:
+             script_name = _make_test_script(work_dir, 'script.py', script)
+             with open(script_name, "r") as fp:
+-                p = spawn_python(f"/dev/fd/{fp.fileno()}", close_fds=False, pass_fds=(0,1,2,fp.fileno()))
++                p = spawn_python(f"/dev/fd/{fp.fileno()}", close_fds=True, pass_fds=(0,1,2,fp.fileno()))
+                 out, err = p.communicate()
+                 self.assertEqual(out, b"12345678912345678912345\n")
+ 
+--- a/Lib/test/test_codecs.py
++++ b/Lib/test/test_codecs.py
+@@ -2823,15 +2823,16 @@ class TransformCodecTest(unittest.TestCa
+     def test_custom_zlib_error_is_wrapped(self):
+         # Check zlib codec gives a good error for malformed input
+         msg = "^decoding with 'zlib_codec' codec failed"
+-        with self.assertRaisesRegex(Exception, msg) as failure:
++        with self.assertRaises(zlib.error) as failure:
+             codecs.decode(b"hello", "zlib_codec")
+         self.assertIsInstance(failure.exception.__cause__,
+                                                 type(failure.exception))
+ 
+     def test_custom_hex_error_is_wrapped(self):
+         # Check hex codec gives a good error for malformed input
++        import binascii
+         msg = "^decoding with 'hex_codec' codec failed"
+-        with self.assertRaisesRegex(Exception, msg) as failure:
++        with self.assertRaises(binascii.Error) as failure:
+             codecs.decode(b"hello", "hex_codec")
+         self.assertIsInstance(failure.exception.__cause__,
+                                                 type(failure.exception))
+--- a/Lib/test/test_colorsys.py
++++ b/Lib/test/test_colorsys.py
+@@ -69,6 +69,16 @@ class ColorsysTest(unittest.TestCase):
+             self.assertTripleEqual(hls, colorsys.rgb_to_hls(*rgb))
+             self.assertTripleEqual(rgb, colorsys.hls_to_rgb(*hls))
+ 
++    def test_hls_nearwhite(self):  # gh-106498
++        values = (
++            # rgb, hls: these do not work in reverse
++            ((0.9999999999999999, 1, 1), (0.5, 1.0, 1.0)),
++            ((1, 0.9999999999999999, 0.9999999999999999), (0.0, 1.0, 1.0)),
++        )
++        for rgb, hls in values:
++            self.assertTripleEqual(hls, colorsys.rgb_to_hls(*rgb))
++            self.assertTripleEqual((1.0, 1.0, 1.0), colorsys.hls_to_rgb(*hls))
++
+     def test_yiq_roundtrip(self):
+         for r in frange(0.0, 1.0, 0.2):
+             for g in frange(0.0, 1.0, 0.2):
+--- a/Lib/test/test_concurrent_futures.py
++++ b/Lib/test/test_concurrent_futures.py
+@@ -1167,6 +1167,11 @@ def _crash(delay=None):
+     faulthandler._sigsegv()
+ 
+ 
++def _crash_with_data(data):
++    """Induces a segfault with dummy data in input."""
++    _crash()
++
++
+ def _exit():
+     """Induces a sys exit with exitcode 1."""
+     sys.exit(1)
+@@ -1366,6 +1371,19 @@ class ExecutorDeadlockTest:
+         # dangling threads
+         executor_manager.join()
+ 
++    def test_crash_big_data(self):
++        # Test that there is a clean exception instad of a deadlock when a
++        # child process crashes while some data is being written into the
++        # queue.
++        # https://github.com/python/cpython/issues/94777
++        self.executor.shutdown(wait=True)
++        data = "a" * support.PIPE_MAX_SIZE
++        with self.executor_type(max_workers=2,
++                                mp_context=self.get_context()) as executor:
++            self.executor = executor  # Allow clean up in fail_on_deadlock
++            with self.assertRaises(BrokenProcessPool):
++                list(executor.map(_crash_with_data, [data] * 10))
++
+ 
+ create_executor_tests(ExecutorDeadlockTest,
+                       executor_mixins=(ProcessPoolForkMixin,
+--- a/Lib/test/test_decimal.py
++++ b/Lib/test/test_decimal.py
+@@ -32,7 +32,7 @@ import pickle, copy
+ import unittest
+ import numbers
+ import locale
+-from test.support import (run_unittest, run_doctest, is_resource_enabled,
++from test.support import (is_resource_enabled,
+                           requires_IEEE_754, requires_docstrings,
+                           requires_legacy_unicode_capi, check_sanitizer)
+ from test.support import (TestFailed,
+@@ -62,6 +62,7 @@ sys.modules['decimal'] = C
+ fractions = {C:cfractions, P:pfractions}
+ sys.modules['decimal'] = orig_sys_decimal
+ 
++requires_cdecimal = unittest.skipUnless(C, "test requires C version")
+ 
+ # Useful Test Constant
+ Signals = {
+@@ -133,7 +134,7 @@ skip_if_extra_functionality = unittest.s
+   EXTRA_FUNCTIONALITY, "test requires regular build")
+ 
+ 
+-class IBMTestCases(unittest.TestCase):
++class IBMTestCases:
+     """Class which tests the Decimal class against the IBM test cases."""
+ 
+     def setUp(self):
+@@ -488,14 +489,10 @@ class IBMTestCases(unittest.TestCase):
+     def change_clamp(self, clamp):
+         self.context.clamp = clamp
+ 
+-class CIBMTestCases(IBMTestCases):
+-    decimal = C
+-class PyIBMTestCases(IBMTestCases):
+-    decimal = P
+ 
+ # The following classes test the behaviour of Decimal according to PEP 327
+ 
+-class ExplicitConstructionTest(unittest.TestCase):
++class ExplicitConstructionTest:
+     '''Unit tests for Explicit Construction cases of Decimal.'''
+ 
+     def test_explicit_empty(self):
+@@ -838,12 +835,13 @@ class ExplicitConstructionTest(unittest.
+         for input, expected in test_values.items():
+             self.assertEqual(str(Decimal(input)), expected)
+ 
+-class CExplicitConstructionTest(ExplicitConstructionTest):
++@requires_cdecimal
++class CExplicitConstructionTest(ExplicitConstructionTest, unittest.TestCase):
+     decimal = C
+-class PyExplicitConstructionTest(ExplicitConstructionTest):
++class PyExplicitConstructionTest(ExplicitConstructionTest, unittest.TestCase):
+     decimal = P
+ 
+-class ImplicitConstructionTest(unittest.TestCase):
++class ImplicitConstructionTest:
+     '''Unit tests for Implicit Construction cases of Decimal.'''
+ 
+     def test_implicit_from_None(self):
+@@ -920,12 +918,13 @@ class ImplicitConstructionTest(unittest.
+             self.assertEqual(eval('Decimal(10)' + sym + 'E()'),
+                              '10' + rop + 'str')
+ 
+-class CImplicitConstructionTest(ImplicitConstructionTest):
++@requires_cdecimal
++class CImplicitConstructionTest(ImplicitConstructionTest, unittest.TestCase):
+     decimal = C
+-class PyImplicitConstructionTest(ImplicitConstructionTest):
++class PyImplicitConstructionTest(ImplicitConstructionTest, unittest.TestCase):
+     decimal = P
+ 
+-class FormatTest(unittest.TestCase):
++class FormatTest:
+     '''Unit tests for the format function.'''
+     def test_formatting(self):
+         Decimal = self.decimal.Decimal
+@@ -1262,12 +1261,13 @@ class FormatTest(unittest.TestCase):
+         a = A.from_float(42)
+         self.assertEqual(self.decimal.Decimal, a.a_type)
+ 
+-class CFormatTest(FormatTest):
++@requires_cdecimal
++class CFormatTest(FormatTest, unittest.TestCase):
+     decimal = C
+-class PyFormatTest(FormatTest):
++class PyFormatTest(FormatTest, unittest.TestCase):
+     decimal = P
+ 
+-class ArithmeticOperatorsTest(unittest.TestCase):
++class ArithmeticOperatorsTest:
+     '''Unit tests for all arithmetic operators, binary and unary.'''
+ 
+     def test_addition(self):
+@@ -1523,14 +1523,17 @@ class ArithmeticOperatorsTest(unittest.T
+         equality_ops = operator.eq, operator.ne
+ 
+         # results when InvalidOperation is not trapped
+-        for x, y in qnan_pairs + snan_pairs:
+-            for op in order_ops + equality_ops:
+-                got = op(x, y)
+-                expected = True if op is operator.ne else False
+-                self.assertIs(expected, got,
+-                              "expected {0!r} for operator.{1}({2!r}, {3!r}); "
+-                              "got {4!r}".format(
+-                        expected, op.__name__, x, y, got))
++        with localcontext() as ctx:
++            ctx.traps[InvalidOperation] = 0
++
++            for x, y in qnan_pairs + snan_pairs:
++                for op in order_ops + equality_ops:
++                    got = op(x, y)
++                    expected = True if op is operator.ne else False
++                    self.assertIs(expected, got,
++                                "expected {0!r} for operator.{1}({2!r}, {3!r}); "
++                                "got {4!r}".format(
++                            expected, op.__name__, x, y, got))
+ 
+         # repeat the above, but this time trap the InvalidOperation
+         with localcontext() as ctx:
+@@ -1562,9 +1565,10 @@ class ArithmeticOperatorsTest(unittest.T
+         self.assertEqual(Decimal(1).copy_sign(-2), d)
+         self.assertRaises(TypeError, Decimal(1).copy_sign, '-2')
+ 
+-class CArithmeticOperatorsTest(ArithmeticOperatorsTest):
++@requires_cdecimal
++class CArithmeticOperatorsTest(ArithmeticOperatorsTest, unittest.TestCase):
+     decimal = C
+-class PyArithmeticOperatorsTest(ArithmeticOperatorsTest):
++class PyArithmeticOperatorsTest(ArithmeticOperatorsTest, unittest.TestCase):
+     decimal = P
+ 
+ # The following are two functions used to test threading in the next class
+@@ -1654,7 +1658,7 @@ def thfunc2(cls):
+ 
+ 
+ @threading_helper.requires_working_threading()
+-class ThreadingTest(unittest.TestCase):
++class ThreadingTest:
+     '''Unit tests for thread local contexts in Decimal.'''
+ 
+     # Take care executing this test from IDLE, there's an issue in threading
+@@ -1699,13 +1703,14 @@ class ThreadingTest(unittest.TestCase):
+         DefaultContext.Emin = save_emin
+ 
+ 
+-class CThreadingTest(ThreadingTest):
++@requires_cdecimal
++class CThreadingTest(ThreadingTest, unittest.TestCase):
+     decimal = C
+ 
+-class PyThreadingTest(ThreadingTest):
++class PyThreadingTest(ThreadingTest, unittest.TestCase):
+     decimal = P
+ 
+-class UsabilityTest(unittest.TestCase):
++class UsabilityTest:
+     '''Unit tests for Usability cases of Decimal.'''
+ 
+     def test_comparison_operators(self):
+@@ -2521,9 +2526,10 @@ class UsabilityTest(unittest.TestCase):
+         self.assertEqual(Decimal(-12).fma(45, Decimal(67)),
+                          Decimal(-12).fma(Decimal(45), Decimal(67)))
+ 
+-class CUsabilityTest(UsabilityTest):
++@requires_cdecimal
++class CUsabilityTest(UsabilityTest, unittest.TestCase):
+     decimal = C
+-class PyUsabilityTest(UsabilityTest):
++class PyUsabilityTest(UsabilityTest, unittest.TestCase):
+     decimal = P
+ 
+     def setUp(self):
+@@ -2535,7 +2541,7 @@ class PyUsabilityTest(UsabilityTest):
+         sys.set_int_max_str_digits(self._previous_int_limit)
+         super().tearDown()
+ 
+-class PythonAPItests(unittest.TestCase):
++class PythonAPItests:
+ 
+     def test_abc(self):
+         Decimal = self.decimal.Decimal
+@@ -2884,12 +2890,13 @@ class PythonAPItests(unittest.TestCase):
+         self.assertTrue(issubclass(decimal.DivisionUndefined, ZeroDivisionError))
+         self.assertTrue(issubclass(decimal.InvalidContext, InvalidOperation))
+ 
+-class CPythonAPItests(PythonAPItests):
++@requires_cdecimal
++class CPythonAPItests(PythonAPItests, unittest.TestCase):
+     decimal = C
+-class PyPythonAPItests(PythonAPItests):
++class PyPythonAPItests(PythonAPItests, unittest.TestCase):
+     decimal = P
+ 
+-class ContextAPItests(unittest.TestCase):
++class ContextAPItests:
+ 
+     def test_none_args(self):
+         Context = self.decimal.Context
+@@ -3635,12 +3642,13 @@ class ContextAPItests(unittest.TestCase)
+         self.assertRaises(TypeError, c.to_integral_value, '10')
+         self.assertRaises(TypeError, c.to_integral_value, 10, 'x')
+ 
+-class CContextAPItests(ContextAPItests):
++@requires_cdecimal
++class CContextAPItests(ContextAPItests, unittest.TestCase):
+     decimal = C
+-class PyContextAPItests(ContextAPItests):
++class PyContextAPItests(ContextAPItests, unittest.TestCase):
+     decimal = P
+ 
+-class ContextWithStatement(unittest.TestCase):
++class ContextWithStatement:
+     # Can't do these as docstrings until Python 2.6
+     # as doctest can't handle __future__ statements
+ 
+@@ -3704,9 +3712,13 @@ class ContextWithStatement(unittest.Test
+ 
+     def test_local_context_kwargs_does_not_overwrite_existing_argument(self):
+         ctx = self.decimal.getcontext()
+-        ctx.prec = 28
++        orig_prec = ctx.prec
+         with self.decimal.localcontext(prec=10) as ctx2:
+-            self.assertEqual(ctx.prec, 28)
++            self.assertEqual(ctx2.prec, 10)
++            self.assertEqual(ctx.prec, orig_prec)
++        with self.decimal.localcontext(prec=20) as ctx2:
++            self.assertEqual(ctx2.prec, 20)
++            self.assertEqual(ctx.prec, orig_prec)
+ 
+     def test_nested_with_statements(self):
+         # Use a copy of the supplied context in the block
+@@ -3800,12 +3812,13 @@ class ContextWithStatement(unittest.Test
+                         self.assertEqual(c4.prec, 4)
+                         del c4
+ 
+-class CContextWithStatement(ContextWithStatement):
++@requires_cdecimal
++class CContextWithStatement(ContextWithStatement, unittest.TestCase):
+     decimal = C
+-class PyContextWithStatement(ContextWithStatement):
++class PyContextWithStatement(ContextWithStatement, unittest.TestCase):
+     decimal = P
+ 
+-class ContextFlags(unittest.TestCase):
++class ContextFlags:
+ 
+     def test_flags_irrelevant(self):
+         # check that the result (numeric result + flags raised) of an
+@@ -4072,12 +4085,13 @@ class ContextFlags(unittest.TestCase):
+         self.assertTrue(context.traps[FloatOperation])
+         self.assertTrue(context.traps[Inexact])
+ 
+-class CContextFlags(ContextFlags):
++@requires_cdecimal
++class CContextFlags(ContextFlags, unittest.TestCase):
+     decimal = C
+-class PyContextFlags(ContextFlags):
++class PyContextFlags(ContextFlags, unittest.TestCase):
+     decimal = P
+ 
+-class SpecialContexts(unittest.TestCase):
++class SpecialContexts:
+     """Test the context templates."""
+ 
+     def test_context_templates(self):
+@@ -4157,12 +4171,13 @@ class SpecialContexts(unittest.TestCase)
+             if ex:
+                 raise ex
+ 
+-class CSpecialContexts(SpecialContexts):
++@requires_cdecimal
++class CSpecialContexts(SpecialContexts, unittest.TestCase):
+     decimal = C
+-class PySpecialContexts(SpecialContexts):
++class PySpecialContexts(SpecialContexts, unittest.TestCase):
+     decimal = P
+ 
+-class ContextInputValidation(unittest.TestCase):
++class ContextInputValidation:
+ 
+     def test_invalid_context(self):
+         Context = self.decimal.Context
+@@ -4224,12 +4239,13 @@ class ContextInputValidation(unittest.Te
+         self.assertRaises(TypeError, Context, flags=(0,1))
+         self.assertRaises(TypeError, Context, traps=(1,0))
+ 
+-class CContextInputValidation(ContextInputValidation):
++@requires_cdecimal
++class CContextInputValidation(ContextInputValidation, unittest.TestCase):
+     decimal = C
+-class PyContextInputValidation(ContextInputValidation):
++class PyContextInputValidation(ContextInputValidation, unittest.TestCase):
+     decimal = P
+ 
+-class ContextSubclassing(unittest.TestCase):
++class ContextSubclassing:
+ 
+     def test_context_subclassing(self):
+         decimal = self.decimal
+@@ -4338,12 +4354,14 @@ class ContextSubclassing(unittest.TestCa
+         for signal in OrderedSignals[decimal]:
+             self.assertFalse(c.traps[signal])
+ 
+-class CContextSubclassing(ContextSubclassing):
++@requires_cdecimal
++class CContextSubclassing(ContextSubclassing, unittest.TestCase):
+     decimal = C
+-class PyContextSubclassing(ContextSubclassing):
++class PyContextSubclassing(ContextSubclassing, unittest.TestCase):
+     decimal = P
+ 
+ @skip_if_extra_functionality
++@requires_cdecimal
+ class CheckAttributes(unittest.TestCase):
+ 
+     def test_module_attributes(self):
+@@ -4373,7 +4391,7 @@ class CheckAttributes(unittest.TestCase)
+         y = [s for s in dir(C.Decimal(9)) if '__' in s or not s.startswith('_')]
+         self.assertEqual(set(x) - set(y), set())
+ 
+-class Coverage(unittest.TestCase):
++class Coverage:
+ 
+     def test_adjusted(self):
+         Decimal = self.decimal.Decimal
+@@ -4630,9 +4648,10 @@ class Coverage(unittest.TestCase):
+         y = c.copy_sign(x, 1)
+         self.assertEqual(y, -x)
+ 
+-class CCoverage(Coverage):
++@requires_cdecimal
++class CCoverage(Coverage, unittest.TestCase):
+     decimal = C
+-class PyCoverage(Coverage):
++class PyCoverage(Coverage, unittest.TestCase):
+     decimal = P
+ 
+     def setUp(self):
+@@ -4885,6 +4904,7 @@ class CFunctionality(unittest.TestCase):
+         self.assertEqual(C.DecTraps,
+                          C.DecErrors|C.DecOverflow|C.DecUnderflow)
+ 
++@requires_cdecimal
+ class CWhitebox(unittest.TestCase):
+     """Whitebox testing for _decimal"""
+ 
+@@ -5663,7 +5683,7 @@ class CWhitebox(unittest.TestCase):
+ 
+ 
+ @requires_docstrings
+-@unittest.skipUnless(C, "test requires C version")
++@requires_cdecimal
+ class SignatureTest(unittest.TestCase):
+     """Function signatures"""
+ 
+@@ -5799,52 +5819,10 @@ class SignatureTest(unittest.TestCase):
+         doit('Context')
+ 
+ 
+-all_tests = [
+-  CExplicitConstructionTest, PyExplicitConstructionTest,
+-  CImplicitConstructionTest, PyImplicitConstructionTest,
+-  CFormatTest,               PyFormatTest,
+-  CArithmeticOperatorsTest,  PyArithmeticOperatorsTest,
+-  CThreadingTest,            PyThreadingTest,
+-  CUsabilityTest,            PyUsabilityTest,
+-  CPythonAPItests,           PyPythonAPItests,
+-  CContextAPItests,          PyContextAPItests,
+-  CContextWithStatement,     PyContextWithStatement,
+-  CContextFlags,             PyContextFlags,
+-  CSpecialContexts,          PySpecialContexts,
+-  CContextInputValidation,   PyContextInputValidation,
+-  CContextSubclassing,       PyContextSubclassing,
+-  CCoverage,                 PyCoverage,
+-  CFunctionality,            PyFunctionality,
+-  CWhitebox,                 PyWhitebox,
+-  CIBMTestCases,             PyIBMTestCases,
+-]
+-
+-# Delete C tests if _decimal.so is not present.
+-if not C:
+-    all_tests = all_tests[1::2]
+-else:
+-    all_tests.insert(0, CheckAttributes)
+-    all_tests.insert(1, SignatureTest)
+-
+-
+-def test_main(arith=None, verbose=None, todo_tests=None, debug=None):
+-    """ Execute the tests.
+-
+-    Runs all arithmetic tests if arith is True or if the "decimal" resource
+-    is enabled in regrtest.py
+-    """
+-
+-    init(C)
+-    init(P)
+-    global TEST_ALL, DEBUG
+-    TEST_ALL = arith if arith is not None else is_resource_enabled('decimal')
+-    DEBUG = debug
+-
+-    if todo_tests is None:
+-        test_classes = all_tests
+-    else:
+-        test_classes = [CIBMTestCases, PyIBMTestCases]
+-
++def load_tests(loader, tests, pattern):
++    if TODO_TESTS is not None:
++        # Run only Arithmetic tests
++        tests = loader.suiteClass()
+     # Dynamically build custom test definition for each file in the test
+     # directory and add the definitions to the DecimalTest class.  This
+     # procedure insures that new files do not get skipped.
+@@ -5852,34 +5830,69 @@ def test_main(arith=None, verbose=None,
+         if '.decTest' not in filename or filename.startswith("."):
+             continue
+         head, tail = filename.split('.')
+-        if todo_tests is not None and head not in todo_tests:
++        if TODO_TESTS is not None and head not in TODO_TESTS:
+             continue
+         tester = lambda self, f=filename: self.eval_file(directory + f)
+-        setattr(CIBMTestCases, 'test_' + head, tester)
+-        setattr(PyIBMTestCases, 'test_' + head, tester)
++        setattr(IBMTestCases, 'test_' + head, tester)
+         del filename, head, tail, tester
++    for prefix, mod in ('C', C), ('Py', P):
++        if not mod:
++            continue
++        test_class = type(prefix + 'IBMTestCases',
++                          (IBMTestCases, unittest.TestCase),
++                          {'decimal': mod})
++        tests.addTest(loader.loadTestsFromTestCase(test_class))
++
++    if TODO_TESTS is None:
++        from doctest import DocTestSuite, IGNORE_EXCEPTION_DETAIL
++        for mod in C, P:
++            if not mod:
++                continue
++            def setUp(slf, mod=mod):
++                sys.modules['decimal'] = mod
++            def tearDown(slf):
++                sys.modules['decimal'] = orig_sys_decimal
++            optionflags = IGNORE_EXCEPTION_DETAIL if mod is C else 0
++            sys.modules['decimal'] = mod
++            tests.addTest(DocTestSuite(mod, setUp=setUp, tearDown=tearDown,
++                                   optionflags=optionflags))
++            sys.modules['decimal'] = orig_sys_decimal
++    return tests
+ 
++def setUpModule():
++    init(C)
++    init(P)
++    global TEST_ALL
++    TEST_ALL = ARITH if ARITH is not None else is_resource_enabled('decimal')
+ 
+-    try:
+-        run_unittest(*test_classes)
+-        if todo_tests is None:
+-            from doctest import IGNORE_EXCEPTION_DETAIL
+-            savedecimal = sys.modules['decimal']
+-            if C:
+-                sys.modules['decimal'] = C
+-                run_doctest(C, verbose, optionflags=IGNORE_EXCEPTION_DETAIL)
+-            sys.modules['decimal'] = P
+-            run_doctest(P, verbose)
+-            sys.modules['decimal'] = savedecimal
+-    finally:
+-        if C: C.setcontext(ORIGINAL_CONTEXT[C])
+-        P.setcontext(ORIGINAL_CONTEXT[P])
+-        if not C:
+-            warnings.warn('C tests skipped: no module named _decimal.',
+-                          UserWarning)
+-        if not orig_sys_decimal is sys.modules['decimal']:
+-            raise TestFailed("Internal error: unbalanced number of changes to "
+-                             "sys.modules['decimal'].")
++def tearDownModule():
++    if C: C.setcontext(ORIGINAL_CONTEXT[C])
++    P.setcontext(ORIGINAL_CONTEXT[P])
++    if not C:
++        warnings.warn('C tests skipped: no module named _decimal.',
++                      UserWarning)
++    if not orig_sys_decimal is sys.modules['decimal']:
++        raise TestFailed("Internal error: unbalanced number of changes to "
++                         "sys.modules['decimal'].")
++
++
++ARITH = None
++TEST_ALL = True
++TODO_TESTS = None
++DEBUG = False
++
++def test(arith=None, verbose=None, todo_tests=None, debug=None):
++    """ Execute the tests.
++
++    Runs all arithmetic tests if arith is True or if the "decimal" resource
++    is enabled in regrtest.py
++    """
++
++    global ARITH, TODO_TESTS, DEBUG
++    ARITH = arith
++    TODO_TESTS = todo_tests
++    DEBUG = debug
++    unittest.main(__name__, verbosity=2 if verbose else 1, exit=False, argv=[__name__])
+ 
+ 
+ if __name__ == '__main__':
+@@ -5890,8 +5903,8 @@ if __name__ == '__main__':
+     (opt, args) = p.parse_args()
+ 
+     if opt.skip:
+-        test_main(arith=False, verbose=True)
++        test(arith=False, verbose=True)
+     elif args:
+-        test_main(arith=True, verbose=True, todo_tests=args, debug=opt.debug)
++        test(arith=True, verbose=True, todo_tests=args, debug=opt.debug)
+     else:
+-        test_main(arith=True, verbose=True)
++        test(arith=True, verbose=True)
+--- a/Lib/test/test_email/test_message.py
++++ b/Lib/test/test_email/test_message.py
+@@ -696,14 +696,16 @@ class TestEmailMessageBase:
+             self.assertIsNone(part['Content-Disposition'])
+ 
+     class _TestSetRaisingContentManager:
++        class CustomError(Exception):
++            pass
+         def set_content(self, msg, content, *args, **kw):
+-            raise Exception('test')
++            raise self.CustomError('test')
+ 
+     def test_default_content_manager_for_add_comes_from_policy(self):
+         cm = self._TestSetRaisingContentManager()
+         m = self.message(policy=self.policy.clone(content_manager=cm))
+         for method in ('add_related', 'add_alternative', 'add_attachment'):
+-            with self.assertRaises(Exception) as ar:
++            with self.assertRaises(self._TestSetRaisingContentManager.CustomError) as ar:
+                 getattr(m, method)('')
+             self.assertEqual(str(ar.exception), 'test')
+ 
+--- a/Lib/test/test_enum.py
++++ b/Lib/test/test_enum.py
+@@ -32,6 +32,11 @@ def load_tests(loader, tests, ignore):
+                 '../../Doc/library/enum.rst',
+                 optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
+                 ))
++    if os.path.exists('Doc/howto/enum.rst'):
++        tests.addTests(doctest.DocFileSuite(
++                '../../Doc/howto/enum.rst',
++                optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
++                ))
+     return tests
+ 
+ MODULE = __name__
+@@ -67,6 +72,7 @@ try:
+         LARRY = 1
+         CURLY = 2
+         MOE = 4
++        BIG = 389
+ except Exception as exc:
+     FlagStooges = exc
+ 
+@@ -75,17 +81,20 @@ class FlagStoogesWithZero(Flag):
+     LARRY = 1
+     CURLY = 2
+     MOE = 4
++    BIG = 389
+ 
+ class IntFlagStooges(IntFlag):
+     LARRY = 1
+     CURLY = 2
+     MOE = 4
++    BIG = 389
+ 
+ class IntFlagStoogesWithZero(IntFlag):
+     NOFLAG = 0
+     LARRY = 1
+     CURLY = 2
+     MOE = 4
++    BIG = 389
+ 
+ # for pickle test and subclass tests
+ class Name(StrEnum):
+@@ -766,9 +775,17 @@ class _MinimalOutputTests:
+         TE = self.MainEnum
+         copied = copy.copy(TE)
+         self.assertEqual(copied, TE)
++        self.assertIs(copied, TE)
+         deep = copy.deepcopy(TE)
+         self.assertEqual(deep, TE)
++        self.assertIs(deep, TE)
+ 
++    def test_copy_member(self):
++        TE = self.MainEnum
++        copied = copy.copy(TE.first)
++        self.assertIs(copied, TE.first)
++        deep = copy.deepcopy(TE.first)
++        self.assertIs(deep, TE.first)
+ 
+ class _FlagTests:
+ 
+@@ -780,6 +797,89 @@ class _FlagTests:
+             self.MainEnum('RED')
+         self.assertIs(ctx.exception.__context__, None)
+ 
++    def test_closed_invert_expectations(self):
++        class ClosedAB(self.enum_type):
++            A = 1
++            B = 2
++            MASK = 3
++        A, B = ClosedAB
++        AB_MASK = ClosedAB.MASK
++        #
++        self.assertIs(~A, B)
++        self.assertIs(~B, A)
++        self.assertIs(~(A|B), ClosedAB(0))
++        self.assertIs(~AB_MASK, ClosedAB(0))
++        self.assertIs(~ClosedAB(0), (A|B))
++        #
++        class ClosedXYZ(self.enum_type):
++            X = 4
++            Y = 2
++            Z = 1
++            MASK = 7
++        X, Y, Z = ClosedXYZ
++        XYZ_MASK = ClosedXYZ.MASK
++        #
++        self.assertIs(~X, Y|Z)
++        self.assertIs(~Y, X|Z)
++        self.assertIs(~Z, X|Y)
++        self.assertIs(~(X|Y), Z)
++        self.assertIs(~(X|Z), Y)
++        self.assertIs(~(Y|Z), X)
++        self.assertIs(~(X|Y|Z), ClosedXYZ(0))
++        self.assertIs(~XYZ_MASK, ClosedXYZ(0))
++        self.assertIs(~ClosedXYZ(0), (X|Y|Z))
++
++    def test_open_invert_expectations(self):
++        class OpenAB(self.enum_type):
++            A = 1
++            B = 2
++            MASK = 255
++        A, B = OpenAB
++        AB_MASK = OpenAB.MASK
++        #
++        if OpenAB._boundary_ in (EJECT, KEEP):
++            self.assertIs(~A, OpenAB(254))
++            self.assertIs(~B, OpenAB(253))
++            self.assertIs(~(A|B), OpenAB(252))
++            self.assertIs(~AB_MASK, OpenAB(0))
++            self.assertIs(~OpenAB(0), AB_MASK)
++        else:
++            self.assertIs(~A, B)
++            self.assertIs(~B, A)
++            self.assertIs(~(A|B), OpenAB(0))
++            self.assertIs(~AB_MASK, OpenAB(0))
++            self.assertIs(~OpenAB(0), (A|B))
++        #
++        class OpenXYZ(self.enum_type):
++            X = 4
++            Y = 2
++            Z = 1
++            MASK = 31
++        X, Y, Z = OpenXYZ
++        XYZ_MASK = OpenXYZ.MASK
++        #
++        if OpenXYZ._boundary_ in (EJECT, KEEP):
++            self.assertIs(~X, OpenXYZ(27))
++            self.assertIs(~Y, OpenXYZ(29))
++            self.assertIs(~Z, OpenXYZ(30))
++            self.assertIs(~(X|Y), OpenXYZ(25))
++            self.assertIs(~(X|Z), OpenXYZ(26))
++            self.assertIs(~(Y|Z), OpenXYZ(28))
++            self.assertIs(~(X|Y|Z), OpenXYZ(24))
++            self.assertIs(~XYZ_MASK, OpenXYZ(0))
++            self.assertTrue(~OpenXYZ(0), XYZ_MASK)
++        else:
++            self.assertIs(~X, Y|Z)
++            self.assertIs(~Y, X|Z)
++            self.assertIs(~Z, X|Y)
++            self.assertIs(~(X|Y), Z)
++            self.assertIs(~(X|Z), Y)
++            self.assertIs(~(Y|Z), X)
++            self.assertIs(~(X|Y|Z), OpenXYZ(0))
++            self.assertIs(~XYZ_MASK, OpenXYZ(0))
++            self.assertTrue(~OpenXYZ(0), (X|Y|Z))
++
++
+ class TestPlainEnum(_EnumTests, _PlainOutputTests, unittest.TestCase):
+     enum_type = Enum
+ 
+@@ -1860,7 +1960,6 @@ class TestSpecial(unittest.TestCase):
+             __qualname__ = 'NEI'
+             x = ('the-x', 1)
+             y = ('the-y', 2)
+-
+         self.assertIs(NEI.__new__, Enum.__new__)
+         self.assertEqual(repr(NEI.x + NEI.y), "NamedInt('(the-x + the-y)', 3)")
+         globals()['NamedInt'] = NamedInt
+@@ -1868,6 +1967,10 @@ class TestSpecial(unittest.TestCase):
+         NI5 = NamedInt('test', 5)
+         self.assertEqual(NI5, 5)
+         self.assertEqual(NEI.y.value, 2)
++        with self.assertRaisesRegex(TypeError, "name and value must be specified"):
++            test_pickle_dump_load(self.assertIs, NEI.y)
++        # fix pickle support and try again
++        NEI.__reduce_ex__ = enum.pickle_by_enum_name
+         test_pickle_dump_load(self.assertIs, NEI.y)
+         test_pickle_dump_load(self.assertIs, NEI)
+ 
+@@ -2944,22 +3047,6 @@ class OldTestFlag(unittest.TestCase):
+         self.assertIs(Open.RO ^ Open.CE, Open.CE)
+         self.assertIs(Open.CE ^ Open.CE, Open.RO)
+ 
+-    def test_invert(self):
+-        Perm = self.Perm
+-        RW = Perm.R | Perm.W
+-        RX = Perm.R | Perm.X
+-        WX = Perm.W | Perm.X
+-        RWX = Perm.R | Perm.W | Perm.X
+-        values = list(Perm) + [RW, RX, WX, RWX, Perm(0)]
+-        for i in values:
+-            self.assertIs(type(~i), Perm)
+-            self.assertEqual(~~i, i)
+-        for i in Perm:
+-            self.assertIs(~~i, i)
+-        Open = self.Open
+-        self.assertIs(Open.WO & ~Open.WO, Open.RO)
+-        self.assertIs((Open.WO|Open.CE) & ~Open.WO, Open.CE)
+-
+     def test_bool(self):
+         Perm = self.Perm
+         for f in Perm:
+@@ -3120,11 +3207,17 @@ class OldTestFlag(unittest.TestCase):
+         test_pickle_dump_load(self.assertEqual,
+                         FlagStooges.CURLY&~FlagStooges.CURLY)
+         test_pickle_dump_load(self.assertIs, FlagStooges)
++        test_pickle_dump_load(self.assertEqual, FlagStooges.BIG)
++        test_pickle_dump_load(self.assertEqual,
++                        FlagStooges.CURLY|FlagStooges.BIG)
+ 
+         test_pickle_dump_load(self.assertIs, FlagStoogesWithZero.CURLY)
+         test_pickle_dump_load(self.assertEqual,
+                         FlagStoogesWithZero.CURLY|FlagStoogesWithZero.MOE)
+         test_pickle_dump_load(self.assertIs, FlagStoogesWithZero.NOFLAG)
++        test_pickle_dump_load(self.assertEqual, FlagStoogesWithZero.BIG)
++        test_pickle_dump_load(self.assertEqual,
++                        FlagStoogesWithZero.CURLY|FlagStoogesWithZero.BIG)
+ 
+         test_pickle_dump_load(self.assertIs, IntFlagStooges.CURLY)
+         test_pickle_dump_load(self.assertEqual,
+@@ -3134,11 +3227,19 @@ class OldTestFlag(unittest.TestCase):
+         test_pickle_dump_load(self.assertEqual, IntFlagStooges(0))
+         test_pickle_dump_load(self.assertEqual, IntFlagStooges(0x30))
+         test_pickle_dump_load(self.assertIs, IntFlagStooges)
++        test_pickle_dump_load(self.assertEqual, IntFlagStooges.BIG)
++        test_pickle_dump_load(self.assertEqual, IntFlagStooges.BIG|1)
++        test_pickle_dump_load(self.assertEqual,
++                        IntFlagStooges.CURLY|IntFlagStooges.BIG)
+ 
+         test_pickle_dump_load(self.assertIs, IntFlagStoogesWithZero.CURLY)
+         test_pickle_dump_load(self.assertEqual,
+                         IntFlagStoogesWithZero.CURLY|IntFlagStoogesWithZero.MOE)
+         test_pickle_dump_load(self.assertIs, IntFlagStoogesWithZero.NOFLAG)
++        test_pickle_dump_load(self.assertEqual, IntFlagStoogesWithZero.BIG)
++        test_pickle_dump_load(self.assertEqual, IntFlagStoogesWithZero.BIG|1)
++        test_pickle_dump_load(self.assertEqual,
++                        IntFlagStoogesWithZero.CURLY|IntFlagStoogesWithZero.BIG)
+ 
+     @unittest.skipIf(
+             python_version >= (3, 12),
+--- a/Lib/test/test_import/__init__.py
++++ b/Lib/test/test_import/__init__.py
+@@ -17,6 +17,7 @@ import threading
+ import time
+ import unittest
+ from unittest import mock
++import _imp
+ 
+ from test.support import os_helper
+ from test.support import (
+@@ -529,6 +530,13 @@ class ImportTests(unittest.TestCase):
+                                     env=env,
+                                     cwd=os.path.dirname(pyexe))
+ 
++    def test_issue105979(self):
++        # this used to crash
++        with self.assertRaises(ImportError) as cm:
++            _imp.get_frozen_object("x", b"6\'\xd5Cu\x12")
++        self.assertIn("Frozen object named 'x' is invalid",
++                      str(cm.exception))
++
+ 
+ @skip_if_dont_write_bytecode
+ class FilePermissionTests(unittest.TestCase):
+--- a/Lib/test/test_importlib/test_main.py
++++ b/Lib/test/test_importlib/test_main.py
+@@ -56,7 +56,7 @@ class BasicTests(fixtures.DistInfoPkg, u
+         dict(name=''),
+     )
+     def test_invalid_inputs_to_from_name(self, name):
+-        with self.assertRaises(Exception):
++        with self.assertRaises(ValueError):
+             Distribution.from_name(name)
+ 
+ 
+--- a/Lib/test/test_mailbox.py
++++ b/Lib/test/test_mailbox.py
+@@ -116,10 +116,13 @@ class TestMailbox(TestBase):
+         self.assertMailboxEmpty()
+ 
+     def test_add_that_raises_leaves_mailbox_empty(self):
++        class CustomError(Exception): ...
++        exc_msg = "a fake error"
++
+         def raiser(*args, **kw):
+-            raise Exception("a fake error")
++            raise CustomError(exc_msg)
+         support.patch(self, email.generator.BytesGenerator, 'flatten', raiser)
+-        with self.assertRaises(Exception):
++        with self.assertRaisesRegex(CustomError, exc_msg):
+             self._box.add(email.message_from_string("From: Alphöso"))
+         self.assertEqual(len(self._box), 0)
+         self._box.close()
+--- a/Lib/test/test_opcache.py
++++ b/Lib/test/test_opcache.py
+@@ -429,6 +429,35 @@ class TestLoadMethodCache(unittest.TestC
+             self.assertFalse(f())
+ 
+ 
++class TestCallCache(unittest.TestCase):
++    def test_too_many_defaults_0(self):
++        def f():
++            pass
++
++        f.__defaults__ = (None,)
++        for _ in range(1025):
++            f()
++
++    def test_too_many_defaults_1(self):
++        def f(x):
++            pass
++
++        f.__defaults__ = (None, None)
++        for _ in range(1025):
++            f(None)
++            f()
++
++    def test_too_many_defaults_2(self):
++        def f(x, y):
++            pass
++
++        f.__defaults__ = (None, None, None)
++        for _ in range(1025):
++            f(None, None)
++            f(None)
++            f()
++
++
+ if __name__ == "__main__":
+     import unittest
+     unittest.main()
+--- a/Lib/test/test_pydoc.py
++++ b/Lib/test/test_pydoc.py
+@@ -24,7 +24,8 @@ from collections import namedtuple
+ from urllib.request import urlopen, urlcleanup
+ from test.support import import_helper
+ from test.support import os_helper
+-from test.support.script_helper import assert_python_ok, assert_python_failure
++from test.support.script_helper import (assert_python_ok,
++                                        assert_python_failure, spawn_python)
+ from test.support import threading_helper
+ from test.support import (reap_children, captured_output, captured_stdout,
+                           captured_stderr, is_emscripten, is_wasi,
+@@ -631,6 +632,21 @@ class PydocDocTest(unittest.TestCase):
+         # Testing that the subclasses section does not appear
+         self.assertNotIn('Built-in subclasses', text)
+ 
++    def test_fail_help_cli(self):
++        elines = (missing_pattern % 'abd').splitlines()
++        with spawn_python("-c" "help()") as proc:
++            out, _ = proc.communicate(b"abd")
++            olines = out.decode().splitlines()[-9:-6]
++            olines[0] = olines[0].removeprefix('help> ')
++            self.assertEqual(elines, olines)
++
++    def test_fail_help_output_redirect(self):
++        with StringIO() as buf:
++            helper = pydoc.Helper(output=buf)
++            helper.help("abd")
++            expected = missing_pattern % "abd"
++            self.assertEqual(expected, buf.getvalue().strip().replace('\n', os.linesep))
++
+     @unittest.skipIf(hasattr(sys, 'gettrace') and sys.gettrace(),
+                      'trace function introduces __locals__ unexpectedly')
+     @requires_docstrings
+--- a/Lib/test/test_re.py
++++ b/Lib/test/test_re.py
+@@ -1077,33 +1077,6 @@ class ReTests(unittest.TestCase):
+     def test_category(self):
+         self.assertEqual(re.match(r"(\s)", " ").group(1), " ")
+ 
+-    @cpython_only
+-    def test_case_helpers(self):
+-        import _sre
+-        for i in range(128):
+-            c = chr(i)
+-            lo = ord(c.lower())
+-            self.assertEqual(_sre.ascii_tolower(i), lo)
+-            self.assertEqual(_sre.unicode_tolower(i), lo)
+-            iscased = c in string.ascii_letters
+-            self.assertEqual(_sre.ascii_iscased(i), iscased)
+-            self.assertEqual(_sre.unicode_iscased(i), iscased)
+-
+-        for i in list(range(128, 0x1000)) + [0x10400, 0x10428]:
+-            c = chr(i)
+-            self.assertEqual(_sre.ascii_tolower(i), i)
+-            if i != 0x0130:
+-                self.assertEqual(_sre.unicode_tolower(i), ord(c.lower()))
+-            iscased = c != c.lower() or c != c.upper()
+-            self.assertFalse(_sre.ascii_iscased(i))
+-            self.assertEqual(_sre.unicode_iscased(i),
+-                             c != c.lower() or c != c.upper())
+-
+-        self.assertEqual(_sre.ascii_tolower(0x0130), 0x0130)
+-        self.assertEqual(_sre.unicode_tolower(0x0130), ord('i'))
+-        self.assertFalse(_sre.ascii_iscased(0x0130))
+-        self.assertTrue(_sre.unicode_iscased(0x0130))
+-
+     def test_not_literal(self):
+         self.assertEqual(re.search(r"\s([^a])", " b").group(1), "b")
+         self.assertEqual(re.search(r"\s([^a]*)", " bb").group(1), "bb")
+@@ -1800,20 +1773,6 @@ class ReTests(unittest.TestCase):
+         pat = re.compile(b'..')
+         self.assertEqual(pat.sub(lambda m: b'bytes', b'a5'), b'bytes')
+ 
+-    def test_dealloc(self):
+-        # issue 3299: check for segfault in debug build
+-        import _sre
+-        # the overflow limit is different on wide and narrow builds and it
+-        # depends on the definition of SRE_CODE (see sre.h).
+-        # 2**128 should be big enough to overflow on both. For smaller values
+-        # a RuntimeError is raised instead of OverflowError.
+-        long_overflow = 2**128
+-        self.assertRaises(TypeError, re.finditer, "a", {})
+-        with self.assertRaises(OverflowError):
+-            _sre.compile("abc", 0, [long_overflow], 0, {}, ())
+-        with self.assertRaises(TypeError):
+-            _sre.compile({}, 0, [], 0, [], [])
+-
+     def test_search_dot_unicode(self):
+         self.assertTrue(re.search("123.*-", '123abc-'))
+         self.assertTrue(re.search("123.*-", '123\xe9-'))
+@@ -1871,21 +1830,6 @@ class ReTests(unittest.TestCase):
+         self.assertRaises(OverflowError, re.compile, r".{%d,}?" % 2**128)
+         self.assertRaises(OverflowError, re.compile, r".{%d,%d}" % (2**129, 2**128))
+ 
+-    @cpython_only
+-    def test_repeat_minmax_overflow_maxrepeat(self):
+-        try:
+-            from _sre import MAXREPEAT
+-        except ImportError:
+-            self.skipTest('requires _sre.MAXREPEAT constant')
+-        string = "x" * 100000
+-        self.assertIsNone(re.match(r".{%d}" % (MAXREPEAT - 1), string))
+-        self.assertEqual(re.match(r".{,%d}" % (MAXREPEAT - 1), string).span(),
+-                         (0, 100000))
+-        self.assertIsNone(re.match(r".{%d,}?" % (MAXREPEAT - 1), string))
+-        self.assertRaises(OverflowError, re.compile, r".{%d}" % MAXREPEAT)
+-        self.assertRaises(OverflowError, re.compile, r".{,%d}" % MAXREPEAT)
+-        self.assertRaises(OverflowError, re.compile, r".{%d,}?" % MAXREPEAT)
+-
+     def test_backref_group_name_in_exception(self):
+         # Issue 17341: Poor error message when compiling invalid regex
+         self.checkPatternError('(?P=<foo>)',
+@@ -2533,7 +2477,10 @@ ELSE
+ 
+     def test_atomic_group(self):
+         self.assertEqual(get_debug_out(r'(?>ab?)'), '''\
+-ATOMIC_GROUP [(LITERAL, 97), (MAX_REPEAT, (0, 1, [(LITERAL, 98)]))]
++ATOMIC_GROUP
++  LITERAL 97
++  MAX_REPEAT 0 1
++    LITERAL 98
+ 
+  0. INFO 4 0b0 1 2 (to 5)
+  5: ATOMIC_GROUP 11 (to 17)
+@@ -2717,6 +2664,64 @@ class ImplementationTest(unittest.TestCa
+                     self.assertTrue(hasattr(mod, attr))
+                 del sys.modules[name]
+ 
++    @cpython_only
++    def test_case_helpers(self):
++        import _sre
++        for i in range(128):
++            c = chr(i)
++            lo = ord(c.lower())
++            self.assertEqual(_sre.ascii_tolower(i), lo)
++            self.assertEqual(_sre.unicode_tolower(i), lo)
++            iscased = c in string.ascii_letters
++            self.assertEqual(_sre.ascii_iscased(i), iscased)
++            self.assertEqual(_sre.unicode_iscased(i), iscased)
++
++        for i in list(range(128, 0x1000)) + [0x10400, 0x10428]:
++            c = chr(i)
++            self.assertEqual(_sre.ascii_tolower(i), i)
++            if i != 0x0130:
++                self.assertEqual(_sre.unicode_tolower(i), ord(c.lower()))
++            iscased = c != c.lower() or c != c.upper()
++            self.assertFalse(_sre.ascii_iscased(i))
++            self.assertEqual(_sre.unicode_iscased(i),
++                             c != c.lower() or c != c.upper())
++
++        self.assertEqual(_sre.ascii_tolower(0x0130), 0x0130)
++        self.assertEqual(_sre.unicode_tolower(0x0130), ord('i'))
++        self.assertFalse(_sre.ascii_iscased(0x0130))
++        self.assertTrue(_sre.unicode_iscased(0x0130))
++
++    @cpython_only
++    def test_dealloc(self):
++        # issue 3299: check for segfault in debug build
++        import _sre
++        # the overflow limit is different on wide and narrow builds and it
++        # depends on the definition of SRE_CODE (see sre.h).
++        # 2**128 should be big enough to overflow on both. For smaller values
++        # a RuntimeError is raised instead of OverflowError.
++        long_overflow = 2**128
++        self.assertRaises(TypeError, re.finditer, "a", {})
++        with self.assertRaises(OverflowError):
++            _sre.compile("abc", 0, [long_overflow], 0, {}, ())
++        with self.assertRaises(TypeError):
++            _sre.compile({}, 0, [], 0, [], [])
++
++    @cpython_only
++    def test_repeat_minmax_overflow_maxrepeat(self):
++        try:
++            from _sre import MAXREPEAT
++        except ImportError:
++            self.skipTest('requires _sre.MAXREPEAT constant')
++        string = "x" * 100000
++        self.assertIsNone(re.match(r".{%d}" % (MAXREPEAT - 1), string))
++        self.assertEqual(re.match(r".{,%d}" % (MAXREPEAT - 1), string).span(),
++                         (0, 100000))
++        self.assertIsNone(re.match(r".{%d,}?" % (MAXREPEAT - 1), string))
++        self.assertRaises(OverflowError, re.compile, r".{%d}" % MAXREPEAT)
++        self.assertRaises(OverflowError, re.compile, r".{,%d}" % MAXREPEAT)
++        self.assertRaises(OverflowError, re.compile, r".{%d,}?" % MAXREPEAT)
++
++
+ class ExternalTests(unittest.TestCase):
+ 
+     def test_re_benchmarks(self):
+--- a/Lib/test/test_regrtest.py
++++ b/Lib/test/test_regrtest.py
+@@ -7,6 +7,7 @@ Note: test_regrtest cannot be run twice
+ import contextlib
+ import glob
+ import io
++import locale
+ import os.path
+ import platform
+ import re
+@@ -1518,6 +1519,41 @@ class ArgsTestCase(BaseTestCase):
+         for name in names:
+             self.assertFalse(os.path.exists(name), name)
+ 
++    def test_mp_decode_error(self):
++        # gh-101634: If a worker stdout cannot be decoded, report a failed test
++        # and a non-zero exit code.
++        if sys.platform == 'win32':
++            encoding = locale.getencoding()
++        else:
++            encoding = sys.stdout.encoding
++            if encoding is None:
++                encoding = sys.__stdout__.encoding
++                if encoding is None:
++                    self.skipTest(f"cannot get regrtest worker encoding")
++
++        nonascii = b"byte:\xa0\xa9\xff\n"
++        try:
++            nonascii.decode(encoding)
++        except UnicodeDecodeError:
++            pass
++        else:
++            self.skipTest(f"{encoding} can decode non-ASCII bytes {nonascii!a}")
++
++        code = textwrap.dedent(fr"""
++            import sys
++            # bytes which cannot be decoded from UTF-8
++            nonascii = {nonascii!a}
++            sys.stdout.buffer.write(nonascii)
++            sys.stdout.buffer.flush()
++        """)
++        testname = self.create_test(code=code)
++
++        output = self.run_tests("--fail-env-changed", "-v", "-j1", testname,
++                                exitcode=EXITCODE_BAD_TEST)
++        self.check_executed_tests(output, [testname],
++                                  failed=[testname],
++                                  randomize=True)
++
+ 
+ class TestUtils(unittest.TestCase):
+     def test_format_duration(self):
+--- a/Lib/test/test_shutil.py
++++ b/Lib/test/test_shutil.py
+@@ -2451,7 +2451,7 @@ class _ZeroCopyFileTest(object):
+     def test_same_file(self):
+         self.addCleanup(self.reset)
+         with self.get_files() as (src, dst):
+-            with self.assertRaises(Exception):
++            with self.assertRaises((OSError, _GiveupOnFastCopy)):
+                 self.zerocopy_fun(src, src)
+         # Make sure src file is not corrupted.
+         self.assertEqual(read_file(TESTFN, binary=True), self.FILEDATA)
+--- a/Lib/test/test_sqlite3/test_userfunctions.py
++++ b/Lib/test/test_sqlite3/test_userfunctions.py
+@@ -195,7 +195,6 @@ class FunctionTests(unittest.TestCase):
+         self.con.create_function("returnblob", 0, func_returnblob)
+         self.con.create_function("returnlonglong", 0, func_returnlonglong)
+         self.con.create_function("returnnan", 0, lambda: float("nan"))
+-        self.con.create_function("returntoolargeint", 0, lambda: 1 << 65)
+         self.con.create_function("return_noncont_blob", 0,
+                                  lambda: memoryview(b"blob")[::2])
+         self.con.create_function("raiseexception", 0, func_raiseexception)
+@@ -294,11 +293,6 @@ class FunctionTests(unittest.TestCase):
+         cur.execute("select returnnan()")
+         self.assertIsNone(cur.fetchone()[0])
+ 
+-    def test_func_return_too_large_int(self):
+-        cur = self.con.cursor()
+-        self.assertRaisesRegex(sqlite.DataError, "string or blob too big",
+-                               self.con.execute, "select returntoolargeint()")
+-
+     @with_tracebacks(ZeroDivisionError, name="func_raiseexception")
+     def test_func_exception(self):
+         cur = self.con.cursor()
+@@ -444,9 +438,10 @@ class FunctionTests(unittest.TestCase):
+     @with_tracebacks(OverflowError)
+     def test_func_return_too_large_int(self):
+         cur = self.con.cursor()
++        msg = "string or blob too big"
+         for value in 2**63, -2**63-1, 2**64:
+             self.con.create_function("largeint", 0, lambda value=value: value)
+-            with self.assertRaises(sqlite.DataError):
++            with self.assertRaisesRegex(sqlite.DataError, msg):
+                 cur.execute("select largeint()")
+ 
+     @with_tracebacks(UnicodeEncodeError, "surrogates not allowed", "chr")
+--- a/Lib/test/test_subprocess.py
++++ b/Lib/test/test_subprocess.py
+@@ -1690,6 +1690,14 @@ class RunFuncTestCase(BaseTestCase):
+         res = subprocess.run(args)
+         self.assertEqual(res.returncode, 57)
+ 
++    @unittest.skipUnless(mswindows, "Maybe test trigger a leak on Ubuntu")
++    def test_run_with_an_empty_env(self):
++        # gh-105436: fix subprocess.run(..., env={}) broken on Windows
++        args = [sys.executable, "-c", 'pass']
++        # Ignore subprocess errors - we only care that the API doesn't
++        # raise an OSError
++        subprocess.run(args, env={})
++
+     def test_capture_output(self):
+         cp = self.run_python(("import sys;"
+                               "sys.stdout.write('BDFL'); "
+--- a/Lib/test/test_types.py
++++ b/Lib/test/test_types.py
+@@ -226,8 +226,8 @@ class TypesTests(unittest.TestCase):
+     def test_int__format__(self):
+         def test(i, format_spec, result):
+             # just make sure we have the unified type for integers
+-            assert type(i) == int
+-            assert type(format_spec) == str
++            self.assertIs(type(i), int)
++            self.assertIs(type(format_spec), str)
+             self.assertEqual(i.__format__(format_spec), result)
+ 
+         test(123456789, 'd', '123456789')
+@@ -782,8 +782,8 @@ class UnionTests(unittest.TestCase):
+ 
+     def test_or_type_operator_with_TypeVar(self):
+         TV = typing.TypeVar('T')
+-        assert TV | str == typing.Union[TV, str]
+-        assert str | TV == typing.Union[str, TV]
++        self.assertEqual(TV | str, typing.Union[TV, str])
++        self.assertEqual(str | TV, typing.Union[str, TV])
+         self.assertIs((int | TV)[int], int)
+         self.assertIs((TV | int)[int], int)
+ 
+@@ -887,43 +887,45 @@ class UnionTests(unittest.TestCase):
+         ForwardBefore = 'Forward' | T
+         def forward_after(x: ForwardAfter[int]) -> None: ...
+         def forward_before(x: ForwardBefore[int]) -> None: ...
+-        assert typing.get_args(typing.get_type_hints(forward_after)['x']) == (int, Forward)
+-        assert typing.get_args(typing.get_type_hints(forward_before)['x']) == (int, Forward)
++        self.assertEqual(typing.get_args(typing.get_type_hints(forward_after)['x']),
++                         (int, Forward))
++        self.assertEqual(typing.get_args(typing.get_type_hints(forward_before)['x']),
++                         (int, Forward))
+ 
+     def test_or_type_operator_with_Protocol(self):
+         class Proto(typing.Protocol):
+             def meth(self) -> int:
+                 ...
+-        assert Proto | str == typing.Union[Proto, str]
++        self.assertEqual(Proto | str, typing.Union[Proto, str])
+ 
+     def test_or_type_operator_with_Alias(self):
+-        assert list | str == typing.Union[list, str]
+-        assert typing.List | str == typing.Union[typing.List, str]
++        self.assertEqual(list | str, typing.Union[list, str])
++        self.assertEqual(typing.List | str, typing.Union[typing.List, str])
+ 
+     def test_or_type_operator_with_NamedTuple(self):
+-        NT=namedtuple('A', ['B', 'C', 'D'])
+-        assert NT | str == typing.Union[NT,str]
++        NT = namedtuple('A', ['B', 'C', 'D'])
++        self.assertEqual(NT | str, typing.Union[NT, str])
+ 
+     def test_or_type_operator_with_TypedDict(self):
+         class Point2D(typing.TypedDict):
+             x: int
+             y: int
+             label: str
+-        assert Point2D | str == typing.Union[Point2D, str]
++        self.assertEqual(Point2D | str, typing.Union[Point2D, str])
+ 
+     def test_or_type_operator_with_NewType(self):
+         UserId = typing.NewType('UserId', int)
+-        assert UserId | str == typing.Union[UserId, str]
++        self.assertEqual(UserId | str, typing.Union[UserId, str])
+ 
+     def test_or_type_operator_with_IO(self):
+-        assert typing.IO | str == typing.Union[typing.IO, str]
++        self.assertEqual(typing.IO | str, typing.Union[typing.IO, str])
+ 
+     def test_or_type_operator_with_SpecialForm(self):
+-        assert typing.Any | str == typing.Union[typing.Any, str]
+-        assert typing.NoReturn | str == typing.Union[typing.NoReturn, str]
+-        assert typing.Optional[int] | str == typing.Union[typing.Optional[int], str]
+-        assert typing.Optional[int] | str == typing.Union[int, str, None]
+-        assert typing.Union[int, bool] | str == typing.Union[int, bool, str]
++        self.assertEqual(typing.Any | str, typing.Union[typing.Any, str])
++        self.assertEqual(typing.NoReturn | str, typing.Union[typing.NoReturn, str])
++        self.assertEqual(typing.Optional[int] | str, typing.Union[typing.Optional[int], str])
++        self.assertEqual(typing.Optional[int] | str, typing.Union[int, str, None])
++        self.assertEqual(typing.Union[int, bool] | str, typing.Union[int, bool, str])
+ 
+     def test_or_type_operator_with_Literal(self):
+         Literal = typing.Literal
+@@ -955,12 +957,12 @@ class UnionTests(unittest.TestCase):
+                          (Literal[1], Literal[Ints.B]))
+ 
+     def test_or_type_repr(self):
+-        assert repr(int | str) == "int | str"
+-        assert repr((int | str) | list) == "int | str | list"
+-        assert repr(int | (str | list)) == "int | str | list"
+-        assert repr(int | None) == "int | None"
+-        assert repr(int | type(None)) == "int | None"
+-        assert repr(int | typing.GenericAlias(list, int)) == "int | list[int]"
++        self.assertEqual(repr(int | str), "int | str")
++        self.assertEqual(repr((int | str) | list), "int | str | list")
++        self.assertEqual(repr(int | (str | list)), "int | str | list")
++        self.assertEqual(repr(int | None), "int | None")
++        self.assertEqual(repr(int | type(None)), "int | None")
++        self.assertEqual(repr(int | typing.GenericAlias(list, int)), "int | list[int]")
+ 
+     def test_or_type_operator_with_genericalias(self):
+         a = list[int]
 --- a/Lib/test/test_typing.py
 +++ b/Lib/test/test_typing.py
-@@ -3349,6 +3349,71 @@ class ProtocolTests(BaseTestCase):
+@@ -4,6 +4,7 @@ from collections import defaultdict
+ from functools import lru_cache, wraps
+ import inspect
+ import itertools
++import gc
+ import pickle
+ import re
+ import sys
+@@ -2643,6 +2644,104 @@ class ProtocolTests(BaseTestCase):
+         with self.assertRaises(TypeError):
+             issubclass(PG, PG[int])
+ 
++        only_classes_allowed = r"issubclass\(\) arg 1 must be a class"
++
++        with self.assertRaisesRegex(TypeError, only_classes_allowed):
++            issubclass(1, P)
++        with self.assertRaisesRegex(TypeError, only_classes_allowed):
++            issubclass(1, PG)
++        with self.assertRaisesRegex(TypeError, only_classes_allowed):
++            issubclass(1, BadP)
++        with self.assertRaisesRegex(TypeError, only_classes_allowed):
++            issubclass(1, BadPG)
++
++    def test_implicit_issubclass_between_two_protocols(self):
++        @runtime_checkable
++        class CallableMembersProto(Protocol):
++            def meth(self): ...
++
++        # All the below protocols should be considered "subclasses"
++        # of CallableMembersProto at runtime,
++        # even though none of them explicitly subclass CallableMembersProto
++
++        class IdenticalProto(Protocol):
++            def meth(self): ...
++
++        class SupersetProto(Protocol):
++            def meth(self): ...
++            def meth2(self): ...
++
++        class NonCallableMembersProto(Protocol):
++            meth: Callable[[], None]
++
++        class NonCallableMembersSupersetProto(Protocol):
++            meth: Callable[[], None]
++            meth2: Callable[[str, int], bool]
++
++        class MixedMembersProto1(Protocol):
++            meth: Callable[[], None]
++            def meth2(self): ...
++
++        class MixedMembersProto2(Protocol):
++            def meth(self): ...
++            meth2: Callable[[str, int], bool]
++
++        for proto in (
++            IdenticalProto, SupersetProto, NonCallableMembersProto,
++            NonCallableMembersSupersetProto, MixedMembersProto1, MixedMembersProto2
++        ):
++            with self.subTest(proto=proto.__name__):
++                self.assertIsSubclass(proto, CallableMembersProto)
++
++        # These two shouldn't be considered subclasses of CallableMembersProto, however,
++        # since they don't have the `meth` protocol member
++
++        class EmptyProtocol(Protocol): ...
++        class UnrelatedProtocol(Protocol):
++            def wut(self): ...
++
++        self.assertNotIsSubclass(EmptyProtocol, CallableMembersProto)
++        self.assertNotIsSubclass(UnrelatedProtocol, CallableMembersProto)
++
++        # These aren't protocols at all (despite having annotations),
++        # so they should only be considered subclasses of CallableMembersProto
++        # if they *actually have an attribute* matching the `meth` member
++        # (just having an annotation is insufficient)
++
++        class AnnotatedButNotAProtocol:
++            meth: Callable[[], None]
++
++        class NotAProtocolButAnImplicitSubclass:
++            def meth(self): pass
++
++        class NotAProtocolButAnImplicitSubclass2:
++            meth: Callable[[], None]
++            def meth(self): pass
++
++        class NotAProtocolButAnImplicitSubclass3:
++            meth: Callable[[], None]
++            meth2: Callable[[int, str], bool]
++            def meth(self): pass
++            def meth(self, x, y): return True
++
++        self.assertNotIsSubclass(AnnotatedButNotAProtocol, CallableMembersProto)
++        self.assertIsSubclass(NotAProtocolButAnImplicitSubclass, CallableMembersProto)
++        self.assertIsSubclass(NotAProtocolButAnImplicitSubclass2, CallableMembersProto)
++        self.assertIsSubclass(NotAProtocolButAnImplicitSubclass3, CallableMembersProto)
++
++    def test_isinstance_checks_not_at_whim_of_gc(self):
++        self.addCleanup(gc.enable)
++        gc.disable()
++
++        with self.assertRaisesRegex(
++            TypeError,
++            "Protocols can only inherit from other protocols"
++        ):
++            class Foo(collections.abc.Mapping, Protocol):
++                pass
++
++        self.assertNotIsInstance([], collections.abc.Mapping)
++
+     def test_protocols_issubclass_non_callable(self):
+         class C:
+             x = 1
+@@ -3349,6 +3448,71 @@ class ProtocolTests(BaseTestCase):
  
          Foo()  # Previously triggered RecursionError
  
@@ -83,6 +3373,25 @@
  
  class GenericTests(BaseTestCase):
  
+--- a/Lib/test/test_warnings/__init__.py
++++ b/Lib/test/test_warnings/__init__.py
+@@ -388,9 +388,13 @@ class FilterTests(BaseTest):
+             with self.module.catch_warnings(
+                 module=self.module, action="error", category=FutureWarning
+             ):
+-                self.module.warn("Other types of warnings are not errors")
+-                self.assertRaises(FutureWarning,
+-                                  self.module.warn, FutureWarning("msg"))
++                with support.captured_stderr() as stderr:
++                    error_msg = "Other types of warnings are not errors"
++                    self.module.warn(error_msg)
++                    self.assertRaises(FutureWarning,
++                                      self.module.warn, FutureWarning("msg"))
++                    stderr = stderr.getvalue()
++                    self.assertIn(error_msg, stderr)
+ 
+ class CFilterTests(FilterTests, unittest.TestCase):
+     module = c_warnings
 --- a/Lib/typing.py
 +++ b/Lib/typing.py
 @@ -1883,7 +1883,7 @@ class _TypingEllipsis:
@@ -94,6 +3403,432 @@
  
  _SPECIAL_NAMES = ['__abstractmethods__', '__annotations__', '__dict__', '__doc__',
                    '__init__', '__module__', '__new__', '__slots__',
+--- a/Lib/unittest/test/testmock/testasync.py
++++ b/Lib/unittest/test/testmock/testasync.py
+@@ -427,9 +427,10 @@ class AsyncArguments(IsolatedAsyncioTest
+         self.assertEqual(output, 10)
+ 
+     async def test_add_side_effect_exception(self):
++        class CustomError(Exception): pass
+         async def addition(var): pass
+-        mock = AsyncMock(addition, side_effect=Exception('err'))
+-        with self.assertRaises(Exception):
++        mock = AsyncMock(addition, side_effect=CustomError('side-effect'))
++        with self.assertRaisesRegex(CustomError, 'side-effect'):
+             await mock(5)
+ 
+     async def test_add_side_effect_coroutine(self):
+--- a/Lib/urllib/parse.py
++++ b/Lib/urllib/parse.py
+@@ -52,18 +52,18 @@ __all__ = ["urlparse", "urlunparse", "ur
+ 
+ uses_relative = ['', 'ftp', 'http', 'gopher', 'nntp', 'imap',
+                  'wais', 'file', 'https', 'shttp', 'mms',
+-                 'prospero', 'rtsp', 'rtspu', 'sftp',
++                 'prospero', 'rtsp', 'rtsps', 'rtspu', 'sftp',
+                  'svn', 'svn+ssh', 'ws', 'wss']
+ 
+ uses_netloc = ['', 'ftp', 'http', 'gopher', 'nntp', 'telnet',
+                'imap', 'wais', 'file', 'mms', 'https', 'shttp',
+-               'snews', 'prospero', 'rtsp', 'rtspu', 'rsync',
++               'snews', 'prospero', 'rtsp', 'rtsps', 'rtspu', 'rsync',
+                'svn', 'svn+ssh', 'sftp', 'nfs', 'git', 'git+ssh',
+                'ws', 'wss']
+ 
+ uses_params = ['', 'ftp', 'hdl', 'prospero', 'http', 'imap',
+-               'https', 'shttp', 'rtsp', 'rtspu', 'sip', 'sips',
+-               'mms', 'sftp', 'tel']
++               'https', 'shttp', 'rtsp', 'rtsps', 'rtspu', 'sip',
++               'sips', 'mms', 'sftp', 'tel']
+ 
+ # These are not actually used anymore, but should stay for backwards
+ # compatibility.  (They are undocumented, but have a public-looking name.)
+@@ -72,7 +72,7 @@ non_hierarchical = ['gopher', 'hdl', 'ma
+                     'telnet', 'wais', 'imap', 'snews', 'sip', 'sips']
+ 
+ uses_query = ['', 'http', 'wais', 'imap', 'https', 'shttp', 'mms',
+-              'gopher', 'rtsp', 'rtspu', 'sip', 'sips']
++              'gopher', 'rtsp', 'rtsps', 'rtspu', 'sip', 'sips']
+ 
+ uses_fragment = ['', 'ftp', 'hdl', 'http', 'gopher', 'news',
+                  'nntp', 'wais', 'https', 'shttp', 'snews',
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -1839,7 +1839,11 @@ altbininstall: $(BUILDPYTHON) @FRAMEWORK
+ 			$(DESTDIR)$(BINDIR)/python$(VERSION)$(EXE); \
+ 	fi
+ 
+-bininstall: altbininstall
++# We depend on commoninstall here to make sure the installation is already usable
++# before we possibly overwrite the global 'python3' symlink to avoid causing
++# problems for anything else trying to run 'python3' while we install, particularly
++# if we're installing in parallel with -j.
++bininstall: commoninstall altbininstall
+ 	if test ! -d $(DESTDIR)$(LIBPC); then \
+ 		echo "Creating directory $(LIBPC)"; \
+ 		$(INSTALL) -d -m $(DIRMODE) $(DESTDIR)$(LIBPC); \
+--- a/Modules/_ctypes/callbacks.c
++++ b/Modules/_ctypes/callbacks.c
+@@ -499,12 +499,22 @@ long Call_GetClassObject(REFCLSID rclsid
+ 
+     {
+         PyObject *py_rclsid = PyLong_FromVoidPtr((void *)rclsid);
++        if (py_rclsid == NULL) {
++            Py_DECREF(func);
++            PyErr_WriteUnraisable(context ? context : Py_None);
++            return E_FAIL;
++        }
+         PyObject *py_riid = PyLong_FromVoidPtr((void *)riid);
++        if (py_riid == NULL) {
++            Py_DECREF(func);
++            Py_DECREF(py_rclsid);
++            PyErr_WriteUnraisable(context ? context : Py_None);
++            return E_FAIL;
++        }
+         PyObject *py_ppv = PyLong_FromVoidPtr(ppv);
+-        if (!py_rclsid || !py_riid || !py_ppv) {
+-            Py_XDECREF(py_rclsid);
+-            Py_XDECREF(py_riid);
+-            Py_XDECREF(py_ppv);
++        if (py_ppv == NULL) {
++            Py_DECREF(py_rclsid);
++            Py_DECREF(py_riid);
+             Py_DECREF(func);
+             PyErr_WriteUnraisable(context ? context : Py_None);
+             return E_FAIL;
+--- a/Modules/_datetimemodule.c
++++ b/Modules/_datetimemodule.c
+@@ -6878,24 +6878,49 @@ _datetime_exec(PyObject *module)
+     assert(DI100Y == days_before_year(100+1));
+ 
+     us_per_ms = PyLong_FromLong(1000);
++    if (us_per_ms == NULL) {
++        goto error;
++    }
+     us_per_second = PyLong_FromLong(1000000);
++    if (us_per_second == NULL) {
++        goto error;
++    }
+     us_per_minute = PyLong_FromLong(60000000);
++    if (us_per_minute == NULL) {
++        goto error;
++    }
+     seconds_per_day = PyLong_FromLong(24 * 3600);
+-    if (us_per_ms == NULL || us_per_second == NULL ||
+-        us_per_minute == NULL || seconds_per_day == NULL) {
+-        return -1;
++    if (seconds_per_day == NULL) {
++        goto error;
+     }
+ 
+     /* The rest are too big for 32-bit ints, but even
+      * us_per_week fits in 40 bits, so doubles should be exact.
+      */
+     us_per_hour = PyLong_FromDouble(3600000000.0);
++    if (us_per_hour == NULL) {
++        goto error;
++    }
+     us_per_day = PyLong_FromDouble(86400000000.0);
++    if (us_per_day == NULL) {
++        goto error;
++    }
+     us_per_week = PyLong_FromDouble(604800000000.0);
+-    if (us_per_hour == NULL || us_per_day == NULL || us_per_week == NULL) {
+-        return -1;
++    if (us_per_week == NULL) {
++        goto error;
+     }
++
+     return 0;
++
++error:
++    Py_XDECREF(us_per_ms);
++    Py_XDECREF(us_per_second);
++    Py_XDECREF(us_per_minute);
++    Py_XDECREF(us_per_hour);
++    Py_XDECREF(us_per_day);
++    Py_XDECREF(us_per_week);
++    Py_XDECREF(seconds_per_day);
++    return -1;
+ }
+ 
+ static struct PyModuleDef datetimemodule = {
+--- a/Modules/_decimal/_decimal.c
++++ b/Modules/_decimal/_decimal.c
+@@ -3658,9 +3658,13 @@ dec_as_integer_ratio(PyObject *self, PyO
+             goto error;
+         }
+         Py_SETREF(numerator, _py_long_floor_divide(numerator, tmp));
++        if (numerator == NULL) {
++            Py_DECREF(tmp);
++            goto error;
++        }
+         Py_SETREF(denominator, _py_long_floor_divide(denominator, tmp));
+         Py_DECREF(tmp);
+-        if (numerator == NULL || denominator == NULL) {
++        if (denominator == NULL) {
+             goto error;
+         }
+     }
+--- a/Modules/_elementtree.c
++++ b/Modules/_elementtree.c
+@@ -3263,10 +3263,14 @@ expat_start_handler(XMLParserObject* sel
+         }
+         while (attrib_in[0] && attrib_in[1]) {
+             PyObject* key = makeuniversal(self, attrib_in[0]);
++            if (key == NULL) {
++                Py_DECREF(attrib);
++                Py_DECREF(tag);
++                return;
++            }
+             PyObject* value = PyUnicode_DecodeUTF8(attrib_in[1], strlen(attrib_in[1]), "strict");
+-            if (!key || !value) {
+-                Py_XDECREF(value);
+-                Py_XDECREF(key);
++            if (value == NULL) {
++                Py_DECREF(key);
+                 Py_DECREF(attrib);
+                 Py_DECREF(tag);
+                 return;
+--- a/Modules/_hashopenssl.c
++++ b/Modules/_hashopenssl.c
+@@ -384,14 +384,15 @@ py_digest_by_digestmod(PyObject *module,
+     } else {
+         _hashlibstate *state = get_hashlib_state(module);
+         // borrowed ref
+-        name_obj = PyDict_GetItem(state->constructs, digestmod);
++        name_obj = PyDict_GetItemWithError(state->constructs, digestmod);
+     }
+     if (name_obj == NULL) {
+-        _hashlibstate *state = get_hashlib_state(module);
+-        PyErr_Clear();
+-        PyErr_Format(
+-            state->unsupported_digestmod_error,
+-            "Unsupported digestmod %R", digestmod);
++        if (!PyErr_Occurred()) {
++            _hashlibstate *state = get_hashlib_state(module);
++            PyErr_Format(
++                state->unsupported_digestmod_error,
++                "Unsupported digestmod %R", digestmod);
++        }
+         return NULL;
+     }
+ 
+--- a/Modules/_pickle.c
++++ b/Modules/_pickle.c
+@@ -1116,39 +1116,49 @@ _Pickler_Write(PicklerObject *self, cons
+ static PicklerObject *
+ _Pickler_New(void)
+ {
+-    PicklerObject *self;
+-
+-    self = PyObject_GC_New(PicklerObject, &Pickler_Type);
+-    if (self == NULL)
++    PyMemoTable *memo = PyMemoTable_New();
++    if (memo == NULL) {
+         return NULL;
++    }
++
++    const Py_ssize_t max_output_len = WRITE_BUF_SIZE;
++    PyObject *output_buffer = PyBytes_FromStringAndSize(NULL, max_output_len);
++    if (output_buffer == NULL) {
++        goto error;
++    }
++
++    PicklerObject *self = PyObject_GC_New(PicklerObject, &Pickler_Type);
++    if (self == NULL) {
++        goto error;
++    }
+ 
++    self->memo = memo;
+     self->pers_func = NULL;
++    self->pers_func_self = NULL;
+     self->dispatch_table = NULL;
+-    self->buffer_callback = NULL;
++    self->reducer_override = NULL;
+     self->write = NULL;
++    self->output_buffer = output_buffer;
++    self->output_len = 0;
++    self->max_output_len = max_output_len;
+     self->proto = 0;
+     self->bin = 0;
+     self->framing = 0;
+     self->frame_start = -1;
++    self->buf_size = 0;
+     self->fast = 0;
+     self->fast_nesting = 0;
+     self->fix_imports = 0;
+     self->fast_memo = NULL;
+-    self->max_output_len = WRITE_BUF_SIZE;
+-    self->output_len = 0;
+-    self->reducer_override = NULL;
+-
+-    self->memo = PyMemoTable_New();
+-    self->output_buffer = PyBytes_FromStringAndSize(NULL,
+-                                                    self->max_output_len);
+-
+-    if (self->memo == NULL || self->output_buffer == NULL) {
+-        Py_DECREF(self);
+-        return NULL;
+-    }
++    self->buffer_callback = NULL;
+ 
+     PyObject_GC_Track(self);
+     return self;
++
++error:
++    PyMem_Free(memo);
++    Py_XDECREF(output_buffer);
++    return NULL;
+ }
+ 
+ static int
+@@ -1599,13 +1609,29 @@ _Unpickler_MemoCleanup(UnpicklerObject *
+ static UnpicklerObject *
+ _Unpickler_New(void)
+ {
+-    UnpicklerObject *self;
+-
+-    self = PyObject_GC_New(UnpicklerObject, &Unpickler_Type);
+-    if (self == NULL)
++    const int MEMO_SIZE = 32;
++    PyObject **memo = _Unpickler_NewMemo(MEMO_SIZE);
++    if (memo == NULL) {
+         return NULL;
++    }
++
++    PyObject *stack = Pdata_New();
++    if (stack == NULL) {
++        goto error;
++    }
+ 
++    UnpicklerObject *self = PyObject_GC_New(UnpicklerObject, &Unpickler_Type);
++    if (self == NULL) {
++        goto error;
++    }
++
++    self->stack = (Pdata *)stack;
++    self->memo = memo;
++    self->memo_size = MEMO_SIZE;
++    self->memo_len = 0;
+     self->pers_func = NULL;
++    self->pers_func_self = NULL;
++    memset(&self->buffer, 0, sizeof(Py_buffer));
+     self->input_buffer = NULL;
+     self->input_line = NULL;
+     self->input_len = 0;
+@@ -1623,19 +1649,14 @@ _Unpickler_New(void)
+     self->marks_size = 0;
+     self->proto = 0;
+     self->fix_imports = 0;
+-    memset(&self->buffer, 0, sizeof(Py_buffer));
+-    self->memo_size = 32;
+-    self->memo_len = 0;
+-    self->memo = _Unpickler_NewMemo(self->memo_size);
+-    self->stack = (Pdata *)Pdata_New();
+-
+-    if (self->memo == NULL || self->stack == NULL) {
+-        Py_DECREF(self);
+-        return NULL;
+-    }
+ 
+     PyObject_GC_Track(self);
+     return self;
++
++error:
++    PyMem_Free(memo);
++    Py_XDECREF(stack);
++    return NULL;
+ }
+ 
+ /* Returns -1 (with an exception set) on failure, 0 on success. This may
+@@ -1645,25 +1666,30 @@ _Unpickler_SetInputStream(UnpicklerObjec
+ {
+     /* Optional file methods */
+     if (_PyObject_LookupAttr(file, &_Py_ID(peek), &self->peek) < 0) {
+-        return -1;
++        goto error;
+     }
+     if (_PyObject_LookupAttr(file, &_Py_ID(readinto), &self->readinto) < 0) {
+-        return -1;
++        goto error;
++    }
++    if (_PyObject_LookupAttr(file, &_Py_ID(read), &self->read) < 0) {
++        goto error;
++    }
++    if (_PyObject_LookupAttr(file, &_Py_ID(readline), &self->readline) < 0) {
++        goto error;
+     }
+-    (void)_PyObject_LookupAttr(file, &_Py_ID(read), &self->read);
+-    (void)_PyObject_LookupAttr(file, &_Py_ID(readline), &self->readline);
+     if (!self->readline || !self->read) {
+-        if (!PyErr_Occurred()) {
+-            PyErr_SetString(PyExc_TypeError,
+-                            "file must have 'read' and 'readline' attributes");
+-        }
+-        Py_CLEAR(self->read);
+-        Py_CLEAR(self->readinto);
+-        Py_CLEAR(self->readline);
+-        Py_CLEAR(self->peek);
+-        return -1;
++        PyErr_SetString(PyExc_TypeError,
++                        "file must have 'read' and 'readline' attributes");
++        goto error;
+     }
+     return 0;
++
++error:
++    Py_CLEAR(self->read);
++    Py_CLEAR(self->readinto);
++    Py_CLEAR(self->readline);
++    Py_CLEAR(self->peek);
++    return -1;
+ }
+ 
+ /* Returns -1 (with an exception set) on failure, 0 on success. This may
+@@ -4833,11 +4859,12 @@ _pickle_PicklerMemoProxy_copy_impl(Pickl
+             PyObject *key, *value;
+ 
+             key = PyLong_FromVoidPtr(entry.me_key);
++            if (key == NULL) {
++                goto error;
++            }
+             value = Py_BuildValue("nO", entry.me_value, entry.me_key);
+-
+-            if (key == NULL || value == NULL) {
+-                Py_XDECREF(key);
+-                Py_XDECREF(value);
++            if (value == NULL) {
++                Py_DECREF(key);
+                 goto error;
+             }
+             status = PyDict_SetItem(new_memo, key, value);
+@@ -6033,13 +6060,21 @@ load_stack_global(UnpicklerObject *self)
+     PyObject *global_name;
+ 
+     PDATA_POP(self->stack, global_name);
++    if (global_name == NULL) {
++        return -1;
++    }
+     PDATA_POP(self->stack, module_name);
+-    if (module_name == NULL || !PyUnicode_CheckExact(module_name) ||
+-        global_name == NULL || !PyUnicode_CheckExact(global_name)) {
++    if (module_name == NULL) {
++        Py_DECREF(global_name);
++        return -1;
++    }
++    if (!PyUnicode_CheckExact(module_name) ||
++        !PyUnicode_CheckExact(global_name))
++    {
+         PickleState *st = _Pickle_GetGlobalState();
+         PyErr_SetString(st->UnpicklingError, "STACK_GLOBAL requires str");
+-        Py_XDECREF(global_name);
+-        Py_XDECREF(module_name);
++        Py_DECREF(global_name);
++        Py_DECREF(module_name);
+         return -1;
+     }
+     global = find_class(self, module_name, global_name);
 --- a/Modules/_sqlite/connection.c
 +++ b/Modules/_sqlite/connection.c
 @@ -1792,10 +1792,12 @@ collation_callback(void *context, int te
@@ -112,3 +3847,1034 @@
      }
  
      callback_context *ctx = (callback_context *)context;
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -6052,17 +6052,26 @@ sslmodule_init_errorcodes(PyObject *modu
+ 
+     errcode = error_codes;
+     while (errcode->mnemonic != NULL) {
+-        PyObject *mnemo, *key;
+-        mnemo = PyUnicode_FromString(errcode->mnemonic);
+-        key = Py_BuildValue("ii", errcode->library, errcode->reason);
+-        if (mnemo == NULL || key == NULL)
++        PyObject *mnemo = PyUnicode_FromString(errcode->mnemonic);
++        if (mnemo == NULL) {
+             return -1;
+-        if (PyDict_SetItem(state->err_codes_to_names, key, mnemo))
++        }
++        PyObject *key = Py_BuildValue("ii", errcode->library, errcode->reason);
++        if (key == NULL) {
++            Py_DECREF(mnemo);
+             return -1;
+-        if (PyDict_SetItem(state->err_names_to_codes, mnemo, key))
++        }
++        if (PyDict_SetItem(state->err_codes_to_names, key, mnemo) < 0) {
++            Py_DECREF(key);
++            Py_DECREF(mnemo);
+             return -1;
++        }
++        int rc = PyDict_SetItem(state->err_names_to_codes, mnemo, key);
+         Py_DECREF(key);
+         Py_DECREF(mnemo);
++        if (rc < 0) {
++            return -1;
++        }
+         errcode++;
+     }
+ 
+--- a/Modules/_winapi.c
++++ b/Modules/_winapi.c
+@@ -805,6 +805,17 @@ getenvironment(PyObject* environment)
+     }
+ 
+     envsize = PyList_GET_SIZE(keys);
++
++    if (envsize == 0) {
++        // A environment block must be terminated by two null characters --
++        // one for the last string and one for the block.
++        buffer = PyMem_Calloc(2, sizeof(wchar_t));
++        if (!buffer) {
++            PyErr_NoMemory();
++        }
++        goto cleanup;
++    }
++
+     if (PyList_GET_SIZE(values) != envsize) {
+         PyErr_SetString(PyExc_RuntimeError,
+             "environment changed size during iteration");
+@@ -878,7 +889,8 @@ getenvironment(PyObject* environment)
+     *p++ = L'\0';
+     assert(p == end);
+ 
+- error:
++cleanup:
++error:
+     Py_XDECREF(keys);
+     Py_XDECREF(values);
+     return buffer;
+--- a/Modules/_zoneinfo.c
++++ b/Modules/_zoneinfo.c
+@@ -581,14 +581,19 @@ zoneinfo_fromutc(PyObject *obj_self, PyO
+         }
+         else {
+             PyObject *replace = PyObject_GetAttrString(tmp, "replace");
++            Py_DECREF(tmp);
++            if (replace == NULL) {
++                return NULL;
++            }
+             PyObject *args = PyTuple_New(0);
++            if (args == NULL) {
++                Py_DECREF(replace);
++                return NULL;
++            }
+             PyObject *kwargs = PyDict_New();
+-
+-            Py_DECREF(tmp);
+-            if (args == NULL || kwargs == NULL || replace == NULL) {
+-                Py_XDECREF(args);
+-                Py_XDECREF(kwargs);
+-                Py_XDECREF(replace);
++            if (kwargs == NULL) {
++                Py_DECREF(replace);
++                Py_DECREF(args);
+                 return NULL;
+             }
+ 
+--- a/Modules/arraymodule.c
++++ b/Modules/arraymodule.c
+@@ -741,10 +741,12 @@ array_richcompare(PyObject *v, PyObject
+     k = 1;
+     for (i = 0; i < Py_SIZE(va) && i < Py_SIZE(wa); i++) {
+         vi = getarrayitem(v, i);
++        if (vi == NULL) {
++            return NULL;
++        }
+         wi = getarrayitem(w, i);
+-        if (vi == NULL || wi == NULL) {
+-            Py_XDECREF(vi);
+-            Py_XDECREF(wi);
++        if (wi == NULL) {
++            Py_DECREF(vi);
+             return NULL;
+         }
+         k = PyObject_RichCompareBool(vi, wi, Py_EQ);
+--- a/Modules/errnomodule.c
++++ b/Modules/errnomodule.c
+@@ -79,9 +79,12 @@ end:
+ static int
+ errno_exec(PyObject *module)
+ {
+-    PyObject *module_dict = PyModule_GetDict(module);
++    PyObject *module_dict = PyModule_GetDict(module);  // Borrowed ref.
++    if (module_dict == NULL) {
++        return -1;
++    }
+     PyObject *error_dict = PyDict_New();
+-    if (!module_dict || !error_dict) {
++    if (error_dict == NULL) {
+         return -1;
+     }
+     if (PyDict_SetItemString(module_dict, "errorcode", error_dict) < 0) {
+--- a/Modules/posixmodule.c
++++ b/Modules/posixmodule.c
+@@ -5691,7 +5691,7 @@ parse_envlist(PyObject* env, Py_ssize_t
+ {
+     Py_ssize_t i, pos, envc;
+     PyObject *keys=NULL, *vals=NULL;
+-    PyObject *key, *val, *key2, *val2, *keyval;
++    PyObject *key2, *val2, *keyval;
+     EXECV_CHAR **envlist;
+ 
+     i = PyMapping_Size(env);
+@@ -5716,10 +5716,14 @@ parse_envlist(PyObject* env, Py_ssize_t
+     }
+ 
+     for (pos = 0; pos < i; pos++) {
+-        key = PyList_GetItem(keys, pos);
+-        val = PyList_GetItem(vals, pos);
+-        if (!key || !val)
++        PyObject *key = PyList_GetItem(keys, pos);  // Borrowed ref.
++        if (key == NULL) {
+             goto error;
++        }
++        PyObject *val = PyList_GetItem(vals, pos);  // Borrowed ref.
++        if (val == NULL) {
++            goto error;
++        }
+ 
+ #if defined(HAVE_WEXECV) || defined(HAVE_WSPAWNV)
+         if (!PyUnicode_FSDecoder(key, &key2))
+--- a/Modules/pyexpat.c
++++ b/Modules/pyexpat.c
+@@ -1768,14 +1768,18 @@ add_error(PyObject *errors_module, PyObj
+ static int
+ add_errors_module(PyObject *mod)
+ {
++    // add_submodule() returns a borrowed ref.
+     PyObject *errors_module = add_submodule(mod, MODULE_NAME ".errors");
+     if (errors_module == NULL) {
+         return -1;
+     }
+ 
+     PyObject *codes_dict = PyDict_New();
++    if (codes_dict == NULL) {
++        return -1;
++    }
+     PyObject *rev_codes_dict = PyDict_New();
+-    if (codes_dict == NULL || rev_codes_dict == NULL) {
++    if (rev_codes_dict == NULL) {
+         goto error;
+     }
+ 
+@@ -1796,19 +1800,17 @@ add_errors_module(PyObject *mod)
+         goto error;
+     }
+ 
+-    Py_INCREF(codes_dict);
+-    if (PyModule_AddObject(errors_module, "codes", codes_dict) < 0) {
+-        Py_DECREF(codes_dict);
++    int rc = PyModule_AddObjectRef(errors_module, "codes", codes_dict);
++    Py_CLEAR(codes_dict);
++    if (rc < 0) {
+         goto error;
+     }
+-    Py_CLEAR(codes_dict);
+ 
+-    Py_INCREF(rev_codes_dict);
+-    if (PyModule_AddObject(errors_module, "messages", rev_codes_dict) < 0) {
+-        Py_DECREF(rev_codes_dict);
++    rc = PyModule_AddObjectRef(errors_module, "messages", rev_codes_dict);
++    Py_CLEAR(rev_codes_dict);
++    if (rc < 0) {
+         goto error;
+     }
+-    Py_CLEAR(rev_codes_dict);
+ 
+     return 0;
+ 
+--- a/Objects/codeobject.c
++++ b/Objects/codeobject.c
+@@ -1943,6 +1943,7 @@ code_replace_impl(PyCodeObject *self, in
+                     co_code, co_filename, co_name, co_argcount,
+                     co_posonlyargcount, co_kwonlyargcount, co_nlocals,
+                     co_stacksize, co_flags) < 0) {
++        Py_XDECREF(code);
+         return NULL;
+     }
+ 
+--- a/Objects/exceptions.c
++++ b/Objects/exceptions.c
+@@ -210,22 +210,21 @@ BaseException_add_note(PyObject *self, P
+         return NULL;
+     }
+ 
+-    if (!PyObject_HasAttr(self, &_Py_ID(__notes__))) {
+-        PyObject *new_notes = PyList_New(0);
+-        if (new_notes == NULL) {
++    PyObject *notes;
++    if (_PyObject_LookupAttr(self, &_Py_ID(__notes__), &notes) < 0) {
++        return NULL;
++    }
++    if (notes == NULL) {
++        notes = PyList_New(0);
++        if (notes == NULL) {
+             return NULL;
+         }
+-        if (PyObject_SetAttr(self, &_Py_ID(__notes__), new_notes) < 0) {
+-            Py_DECREF(new_notes);
++        if (PyObject_SetAttr(self, &_Py_ID(__notes__), notes) < 0) {
++            Py_DECREF(notes);
+             return NULL;
+         }
+-        Py_DECREF(new_notes);
+-    }
+-    PyObject *notes = PyObject_GetAttr(self, &_Py_ID(__notes__));
+-    if (notes == NULL) {
+-        return NULL;
+     }
+-    if (!PyList_Check(notes)) {
++    else if (!PyList_Check(notes)) {
+         Py_DECREF(notes);
+         PyErr_SetString(PyExc_TypeError, "Cannot add note: __notes__ is not a list");
+         return NULL;
+@@ -943,11 +942,11 @@ exceptiongroup_subset(
+     PyException_SetContext(eg, PyException_GetContext(orig));
+     PyException_SetCause(eg, PyException_GetCause(orig));
+ 
+-    if (PyObject_HasAttr(orig, &_Py_ID(__notes__))) {
+-        PyObject *notes = PyObject_GetAttr(orig, &_Py_ID(__notes__));
+-        if (notes == NULL) {
+-            goto error;
+-        }
++    PyObject *notes;
++    if (_PyObject_LookupAttr(orig, &_Py_ID(__notes__), &notes) < 0) {
++        goto error;
++    }
++    if (notes) {
+         if (PySequence_Check(notes)) {
+             /* Make a copy so the parts have independent notes lists. */
+             PyObject *notes_copy = PySequence_List(notes);
+--- a/Objects/unicodeobject.c
++++ b/Objects/unicodeobject.c
+@@ -8454,25 +8454,30 @@ PyUnicode_BuildEncodingMap(PyObject* str
+ 
+     if (need_dict) {
+         PyObject *result = PyDict_New();
+-        PyObject *key, *value;
+         if (!result)
+             return NULL;
+         for (i = 0; i < length; i++) {
+-            key = PyLong_FromLong(PyUnicode_READ(kind, data, i));
+-            value = PyLong_FromLong(i);
+-            if (!key || !value)
+-                goto failed1;
+-            if (PyDict_SetItem(result, key, value) == -1)
+-                goto failed1;
++            Py_UCS4 c = PyUnicode_READ(kind, data, i);
++            PyObject *key = PyLong_FromLong(c);
++            if (key == NULL) {
++                Py_DECREF(result);
++                return NULL;
++            }
++            PyObject *value = PyLong_FromLong(i);
++            if (value == NULL) {
++                Py_DECREF(key);
++                Py_DECREF(result);
++                return NULL;
++            }
++            int rc = PyDict_SetItem(result, key, value);
+             Py_DECREF(key);
+             Py_DECREF(value);
++            if (rc < 0) {
++                Py_DECREF(result);
++                return NULL;
++            }
+         }
+         return result;
+-      failed1:
+-        Py_XDECREF(key);
+-        Py_XDECREF(value);
+-        Py_DECREF(result);
+-        return NULL;
+     }
+ 
+     /* Create a three-level trie */
+--- a/Parser/asdl_c.py
++++ b/Parser/asdl_c.py
+@@ -602,6 +602,7 @@ class Obj2ModVisitor(PickleVisitor):
+         args = [f.name for f in prod.fields]
+         args.extend([a.name for a in prod.attributes])
+         self.emit("*out = %s(%s);" % (ast_func_name(name), self.buildArgs(args)), 1)
++        self.emit("if (*out == NULL) goto failed;", 1)
+         self.emit("return 0;", 1)
+         self.emit("failed:", 0)
+         self.emit("Py_XDECREF(tmp);", 1)
+--- a/Python/Python-ast.c
++++ b/Python/Python-ast.c
+@@ -10309,6 +10309,7 @@ obj2ast_comprehension(struct ast_state *
+         Py_CLEAR(tmp);
+     }
+     *out = _PyAST_comprehension(target, iter, ifs, is_async, arena);
++    if (*out == NULL) goto failed;
+     return 0;
+ failed:
+     Py_XDECREF(tmp);
+@@ -10727,6 +10728,7 @@ obj2ast_arguments(struct ast_state *stat
+     }
+     *out = _PyAST_arguments(posonlyargs, args, vararg, kwonlyargs, kw_defaults,
+                             kwarg, defaults, arena);
++    if (*out == NULL) goto failed;
+     return 0;
+ failed:
+     Py_XDECREF(tmp);
+@@ -10866,6 +10868,7 @@ obj2ast_arg(struct ast_state *state, PyO
+     }
+     *out = _PyAST_arg(arg, annotation, type_comment, lineno, col_offset,
+                       end_lineno, end_col_offset, arena);
++    if (*out == NULL) goto failed;
+     return 0;
+ failed:
+     Py_XDECREF(tmp);
+@@ -10988,6 +10991,7 @@ obj2ast_keyword(struct ast_state *state,
+     }
+     *out = _PyAST_keyword(arg, value, lineno, col_offset, end_lineno,
+                           end_col_offset, arena);
++    if (*out == NULL) goto failed;
+     return 0;
+ failed:
+     Py_XDECREF(tmp);
+@@ -11110,6 +11114,7 @@ obj2ast_alias(struct ast_state *state, P
+     }
+     *out = _PyAST_alias(name, asname, lineno, col_offset, end_lineno,
+                         end_col_offset, arena);
++    if (*out == NULL) goto failed;
+     return 0;
+ failed:
+     Py_XDECREF(tmp);
+@@ -11159,6 +11164,7 @@ obj2ast_withitem(struct ast_state *state
+         Py_CLEAR(tmp);
+     }
+     *out = _PyAST_withitem(context_expr, optional_vars, arena);
++    if (*out == NULL) goto failed;
+     return 0;
+ failed:
+     Py_XDECREF(tmp);
+@@ -11246,6 +11252,7 @@ obj2ast_match_case(struct ast_state *sta
+         Py_CLEAR(tmp);
+     }
+     *out = _PyAST_match_case(pattern, guard, body, arena);
++    if (*out == NULL) goto failed;
+     return 0;
+ failed:
+     Py_XDECREF(tmp);
+--- a/Python/_warnings.c
++++ b/Python/_warnings.c
+@@ -1231,25 +1231,29 @@ PyErr_WarnExplicit(PyObject *category, c
+                    const char *module_str, PyObject *registry)
+ {
+     PyObject *message = PyUnicode_FromString(text);
++    if (message == NULL) {
++        return -1;
++    }
+     PyObject *filename = PyUnicode_DecodeFSDefault(filename_str);
++    if (filename == NULL) {
++        Py_DECREF(message);
++        return -1;
++    }
+     PyObject *module = NULL;
+-    int ret = -1;
+-
+-    if (message == NULL || filename == NULL)
+-        goto exit;
+     if (module_str != NULL) {
+         module = PyUnicode_FromString(module_str);
+-        if (module == NULL)
+-            goto exit;
++        if (module == NULL) {
++            Py_DECREF(filename);
++            Py_DECREF(message);
++            return -1;
++        }
+     }
+ 
+-    ret = PyErr_WarnExplicitObject(category, message, filename, lineno,
+-                                   module, registry);
+-
+- exit:
+-    Py_XDECREF(message);
++    int ret = PyErr_WarnExplicitObject(category, message, filename, lineno,
++                                       module, registry);
+     Py_XDECREF(module);
+-    Py_XDECREF(filename);
++    Py_DECREF(filename);
++    Py_DECREF(message);
+     return ret;
+ }
+ 
+--- a/Python/bltinmodule.c
++++ b/Python/bltinmodule.c
+@@ -2165,17 +2165,29 @@ builtin_input_impl(PyObject *module, PyO
+ 
+         /* stdin is a text stream, so it must have an encoding. */
+         stdin_encoding = PyObject_GetAttr(fin, &_Py_ID(encoding));
++        if (stdin_encoding == NULL) {
++            tty = 0;
++            goto _readline_errors;
++        }
+         stdin_errors = PyObject_GetAttr(fin, &_Py_ID(errors));
+-        if (!stdin_encoding || !stdin_errors ||
+-                !PyUnicode_Check(stdin_encoding) ||
+-                !PyUnicode_Check(stdin_errors)) {
++        if (stdin_errors == NULL) {
++            tty = 0;
++            goto _readline_errors;
++        }
++        if (!PyUnicode_Check(stdin_encoding) ||
++            !PyUnicode_Check(stdin_errors))
++        {
+             tty = 0;
+             goto _readline_errors;
+         }
+         stdin_encoding_str = PyUnicode_AsUTF8(stdin_encoding);
++        if (stdin_encoding_str == NULL) {
++            goto _readline_errors;
++        }
+         stdin_errors_str = PyUnicode_AsUTF8(stdin_errors);
+-        if (!stdin_encoding_str || !stdin_errors_str)
++        if (stdin_errors_str == NULL) {
+             goto _readline_errors;
++        }
+         tmp = PyObject_CallMethodNoArgs(fout, &_Py_ID(flush));
+         if (tmp == NULL)
+             PyErr_Clear();
+@@ -2186,17 +2198,29 @@ builtin_input_impl(PyObject *module, PyO
+             const char *stdout_encoding_str, *stdout_errors_str;
+             PyObject *stringpo;
+             stdout_encoding = PyObject_GetAttr(fout, &_Py_ID(encoding));
++            if (stdout_encoding == NULL) {
++                tty = 0;
++                goto _readline_errors;
++            }
+             stdout_errors = PyObject_GetAttr(fout, &_Py_ID(errors));
+-            if (!stdout_encoding || !stdout_errors ||
+-                    !PyUnicode_Check(stdout_encoding) ||
+-                    !PyUnicode_Check(stdout_errors)) {
++            if (stdout_errors == NULL) {
++                tty = 0;
++                goto _readline_errors;
++            }
++            if (!PyUnicode_Check(stdout_encoding) ||
++                !PyUnicode_Check(stdout_errors))
++            {
+                 tty = 0;
+                 goto _readline_errors;
+             }
+             stdout_encoding_str = PyUnicode_AsUTF8(stdout_encoding);
++            if (stdout_encoding_str == NULL) {
++                goto _readline_errors;
++            }
+             stdout_errors_str = PyUnicode_AsUTF8(stdout_errors);
+-            if (!stdout_encoding_str || !stdout_errors_str)
++            if (stdout_errors_str == NULL) {
+                 goto _readline_errors;
++            }
+             stringpo = PyObject_Str(prompt);
+             if (stringpo == NULL)
+                 goto _readline_errors;
+--- a/Python/compile.c
++++ b/Python/compile.c
+@@ -1736,8 +1736,12 @@ compiler_enter_scope(struct compiler *c,
+     Py_INCREF(name);
+     u->u_name = name;
+     u->u_varnames = list2dict(u->u_ste->ste_varnames);
++    if (!u->u_varnames) {
++        compiler_unit_free(u);
++        return 0;
++    }
+     u->u_cellvars = dictbytype(u->u_ste->ste_symbols, CELL, 0, 0);
+-    if (!u->u_varnames || !u->u_cellvars) {
++    if (!u->u_cellvars) {
+         compiler_unit_free(u);
+         return 0;
+     }
+--- a/Python/import.c
++++ b/Python/import.c
+@@ -1327,6 +1327,7 @@ unmarshal_frozen_code(struct frozen_info
+     PyObject *co = PyMarshal_ReadObjectFromString(info->data, info->size);
+     if (co == NULL) {
+         /* Does not contain executable code. */
++        PyErr_Clear();
+         set_frozen_error(FROZEN_INVALID, info->nameobj);
+         return NULL;
+     }
+--- a/Python/initconfig.c
++++ b/Python/initconfig.c
+@@ -49,7 +49,7 @@ Options (and corresponding environment v
+          .pyc extension; also PYTHONOPTIMIZE=x\n\
+ -OO    : do -O changes and also discard docstrings; add .opt-2 before\n\
+          .pyc extension\n\
+--P     : don't prepend a potentially unsafe path to sys.path\n\
++-P     : don't prepend a potentially unsafe path to sys.path; also PYTHONSAFEPATH\n\
+ -q     : don't print version and copyright messages on interactive startup\n\
+ -s     : don't add user site directory to sys.path; also PYTHONNOUSERSITE\n\
+ -S     : don't imply 'import site' on initialization\n\
+@@ -132,7 +132,6 @@ static const char usage_envvars[] =
+ "PYTHONSTARTUP: file executed on interactive startup (no default)\n"
+ "PYTHONPATH   : '%lc'-separated list of directories prefixed to the\n"
+ "               default module search path.  The result is sys.path.\n"
+-"PYTHONSAFEPATH: don't prepend a potentially unsafe path to sys.path.\n"
+ "PYTHONHOME   : alternate <prefix> directory (or <prefix>%lc<exec_prefix>).\n"
+ "               The default module search path uses %s.\n"
+ "PYTHONPLATLIBDIR : override sys.platlibdir.\n"
+@@ -172,6 +171,7 @@ static const char usage_envvars[] =
+ "                          (-X int_max_str_digits=number)\n"
+ "PYTHONNOUSERSITE        : disable user site directory (-s)\n"
+ "PYTHONOPTIMIZE          : enable level 1 optimizations (-O)\n"
++"PYTHONSAFEPATH          : don't prepend a potentially unsafe path to sys.path (-P)\n"
+ "PYTHONUNBUFFERED        : disable stdout/stderr buffering (-u)\n"
+ "PYTHONVERBOSE           : trace import statements (-v)\n"
+ "PYTHONWARNINGS=arg      : warning control (-W arg)\n";
+--- a/Python/marshal.c
++++ b/Python/marshal.c
+@@ -750,23 +750,28 @@ r_string(Py_ssize_t n, RFILE *p)
+ static int
+ r_byte(RFILE *p)
+ {
+-    int c = EOF;
+-
+     if (p->ptr != NULL) {
+-        if (p->ptr < p->end)
+-            c = (unsigned char) *p->ptr++;
+-        return c;
++        if (p->ptr < p->end) {
++            return (unsigned char) *p->ptr++;
++        }
+     }
+-    if (!p->readable) {
++    else if (!p->readable) {
+         assert(p->fp);
+-        c = getc(p->fp);
++        int c = getc(p->fp);
++        if (c != EOF) {
++            return c;
++        }
+     }
+     else {
+         const char *ptr = r_string(1, p);
+-        if (ptr != NULL)
+-            c = *(const unsigned char *) ptr;
++        if (ptr != NULL) {
++            return *(const unsigned char *) ptr;
++        }
++        return EOF;
+     }
+-    return c;
++    PyErr_SetString(PyExc_EOFError,
++                    "EOF read where not expected");
++    return EOF;
+ }
+ 
+ static int
+@@ -827,10 +832,11 @@ r_PyLong(RFILE *p)
+     digit d;
+ 
+     n = r_long(p);
+-    if (PyErr_Occurred())
+-        return NULL;
+     if (n == 0)
+         return (PyObject *)_PyLong_New(0);
++    if (n == -1 && PyErr_Occurred()) {
++        return NULL;
++    }
+     if (n < -SIZE32_MAX || n > SIZE32_MAX) {
+         PyErr_SetString(PyExc_ValueError,
+                        "bad marshal data (long size out of range)");
+@@ -849,10 +855,6 @@ r_PyLong(RFILE *p)
+         d = 0;
+         for (j=0; j < PyLong_MARSHAL_RATIO; j++) {
+             md = r_short(p);
+-            if (PyErr_Occurred()) {
+-                Py_DECREF(ob);
+-                return NULL;
+-            }
+             if (md < 0 || md > PyLong_MARSHAL_BASE)
+                 goto bad_digit;
+             d += (digit)md << j*PyLong_MARSHAL_SHIFT;
+@@ -863,10 +865,6 @@ r_PyLong(RFILE *p)
+     d = 0;
+     for (j=0; j < shorts_in_top_digit; j++) {
+         md = r_short(p);
+-        if (PyErr_Occurred()) {
+-            Py_DECREF(ob);
+-            return NULL;
+-        }
+         if (md < 0 || md > PyLong_MARSHAL_BASE)
+             goto bad_digit;
+         /* topmost marshal digit should be nonzero */
+@@ -878,18 +876,17 @@ r_PyLong(RFILE *p)
+         }
+         d += (digit)md << j*PyLong_MARSHAL_SHIFT;
+     }
+-    if (PyErr_Occurred()) {
+-        Py_DECREF(ob);
+-        return NULL;
+-    }
++    assert(!PyErr_Occurred());
+     /* top digit should be nonzero, else the resulting PyLong won't be
+        normalized */
+     ob->ob_digit[size-1] = d;
+     return (PyObject *)ob;
+   bad_digit:
+     Py_DECREF(ob);
+-    PyErr_SetString(PyExc_ValueError,
+-                    "bad marshal data (digit out of range in long)");
++    if (!PyErr_Occurred()) {
++        PyErr_SetString(PyExc_ValueError,
++                        "bad marshal data (digit out of range in long)");
++    }
+     return NULL;
+ }
+ 
+@@ -912,8 +909,6 @@ r_float_str(RFILE *p)
+     const char *ptr;
+     n = r_byte(p);
+     if (n == EOF) {
+-        PyErr_SetString(PyExc_EOFError,
+-            "EOF read where object expected");
+         return -1;
+     }
+     ptr = r_string(n, p);
+@@ -992,8 +987,10 @@ r_object(RFILE *p)
+     PyObject *retval = NULL;
+ 
+     if (code == EOF) {
+-        PyErr_SetString(PyExc_EOFError,
+-                        "EOF read where object expected");
++        if (PyErr_ExceptionMatches(PyExc_EOFError)) {
++            PyErr_SetString(PyExc_EOFError,
++                            "EOF read where object expected");
++        }
+         return NULL;
+     }
+ 
+@@ -1045,7 +1042,10 @@ r_object(RFILE *p)
+ 
+     case TYPE_INT:
+         n = r_long(p);
+-        retval = PyErr_Occurred() ? NULL : PyLong_FromLong(n);
++        if (n == -1 && PyErr_Occurred()) {
++            break;
++        }
++        retval = PyLong_FromLong(n);
+         R_REF(retval);
+         break;
+ 
+@@ -1111,10 +1111,11 @@ r_object(RFILE *p)
+         {
+             const char *ptr;
+             n = r_long(p);
+-            if (PyErr_Occurred())
+-                break;
+             if (n < 0 || n > SIZE32_MAX) {
+-                PyErr_SetString(PyExc_ValueError, "bad marshal data (bytes object size out of range)");
++                if (!PyErr_Occurred()) {
++                    PyErr_SetString(PyExc_ValueError,
++                        "bad marshal data (bytes object size out of range)");
++                }
+                 break;
+             }
+             v = PyBytes_FromStringAndSize((char *)NULL, n);
+@@ -1136,10 +1137,11 @@ r_object(RFILE *p)
+         /* fall through */
+     case TYPE_ASCII:
+         n = r_long(p);
+-        if (PyErr_Occurred())
+-            break;
+         if (n < 0 || n > SIZE32_MAX) {
+-            PyErr_SetString(PyExc_ValueError, "bad marshal data (string size out of range)");
++            if (!PyErr_Occurred()) {
++                PyErr_SetString(PyExc_ValueError,
++                    "bad marshal data (string size out of range)");
++            }
+             break;
+         }
+         goto _read_ascii;
+@@ -1150,8 +1152,6 @@ r_object(RFILE *p)
+     case TYPE_SHORT_ASCII:
+         n = r_byte(p);
+         if (n == EOF) {
+-            PyErr_SetString(PyExc_EOFError,
+-                "EOF read where object expected");
+             break;
+         }
+     _read_ascii:
+@@ -1178,10 +1178,11 @@ r_object(RFILE *p)
+         const char *buffer;
+ 
+         n = r_long(p);
+-        if (PyErr_Occurred())
+-            break;
+         if (n < 0 || n > SIZE32_MAX) {
+-            PyErr_SetString(PyExc_ValueError, "bad marshal data (string size out of range)");
++            if (!PyErr_Occurred()) {
++                PyErr_SetString(PyExc_ValueError,
++                    "bad marshal data (string size out of range)");
++            }
+             break;
+         }
+         if (n != 0) {
+@@ -1203,16 +1204,18 @@ r_object(RFILE *p)
+         }
+ 
+     case TYPE_SMALL_TUPLE:
+-        n = (unsigned char) r_byte(p);
+-        if (PyErr_Occurred())
++        n = r_byte(p);
++        if (n == EOF) {
+             break;
++        }
+         goto _read_tuple;
+     case TYPE_TUPLE:
+         n = r_long(p);
+-        if (PyErr_Occurred())
+-            break;
+         if (n < 0 || n > SIZE32_MAX) {
+-            PyErr_SetString(PyExc_ValueError, "bad marshal data (tuple size out of range)");
++            if (!PyErr_Occurred()) {
++                PyErr_SetString(PyExc_ValueError,
++                    "bad marshal data (tuple size out of range)");
++            }
+             break;
+         }
+     _read_tuple:
+@@ -1238,10 +1241,11 @@ r_object(RFILE *p)
+ 
+     case TYPE_LIST:
+         n = r_long(p);
+-        if (PyErr_Occurred())
+-            break;
+         if (n < 0 || n > SIZE32_MAX) {
+-            PyErr_SetString(PyExc_ValueError, "bad marshal data (list size out of range)");
++            if (!PyErr_Occurred()) {
++                PyErr_SetString(PyExc_ValueError,
++                    "bad marshal data (list size out of range)");
++            }
+             break;
+         }
+         v = PyList_New(n);
+@@ -1296,10 +1300,11 @@ r_object(RFILE *p)
+     case TYPE_SET:
+     case TYPE_FROZENSET:
+         n = r_long(p);
+-        if (PyErr_Occurred())
+-            break;
+         if (n < 0 || n > SIZE32_MAX) {
+-            PyErr_SetString(PyExc_ValueError, "bad marshal data (set size out of range)");
++            if (!PyErr_Occurred()) {
++                PyErr_SetString(PyExc_ValueError,
++                    "bad marshal data (set size out of range)");
++            }
+             break;
+         }
+ 
+@@ -1377,20 +1382,20 @@ r_object(RFILE *p)
+ 
+             /* XXX ignore long->int overflows for now */
+             argcount = (int)r_long(p);
+-            if (PyErr_Occurred())
++            if (argcount == -1 && PyErr_Occurred())
+                 goto code_error;
+             posonlyargcount = (int)r_long(p);
+-            if (PyErr_Occurred()) {
++            if (posonlyargcount == -1 && PyErr_Occurred()) {
+                 goto code_error;
+             }
+             kwonlyargcount = (int)r_long(p);
+-            if (PyErr_Occurred())
++            if (kwonlyargcount == -1 && PyErr_Occurred())
+                 goto code_error;
+             stacksize = (int)r_long(p);
+-            if (PyErr_Occurred())
++            if (stacksize == -1 && PyErr_Occurred())
+                 goto code_error;
+             flags = (int)r_long(p);
+-            if (PyErr_Occurred())
++            if (flags == -1 && PyErr_Occurred())
+                 goto code_error;
+             code = r_object(p);
+             if (code == NULL)
+@@ -1463,6 +1468,10 @@ r_object(RFILE *p)
+             v = r_ref_insert(v, idx, flag, p);
+ 
+           code_error:
++            if (v == NULL && !PyErr_Occurred()) {
++                PyErr_SetString(PyExc_TypeError,
++                    "NULL object in marshal data for code object");
++            }
+             Py_XDECREF(code);
+             Py_XDECREF(consts);
+             Py_XDECREF(names);
+@@ -1480,9 +1489,10 @@ r_object(RFILE *p)
+     case TYPE_REF:
+         n = r_long(p);
+         if (n < 0 || n >= PyList_GET_SIZE(p->refs)) {
+-            if (n == -1 && PyErr_Occurred())
+-                break;
+-            PyErr_SetString(PyExc_ValueError, "bad marshal data (invalid reference)");
++            if (!PyErr_Occurred()) {
++                PyErr_SetString(PyExc_ValueError,
++                    "bad marshal data (invalid reference)");
++            }
+             break;
+         }
+         v = PyList_GET_ITEM(p->refs, n);
+--- a/Python/pythonrun.c
++++ b/Python/pythonrun.c
+@@ -1138,15 +1138,13 @@ print_exception_notes(struct exception_p
+         return 0;
+     }
+ 
+-    if (!PyObject_HasAttr(value, &_Py_ID(__notes__))) {
+-        return 0;
+-    }
+-    PyObject *notes = PyObject_GetAttr(value, &_Py_ID(__notes__));
+-    if (notes == NULL) {
+-        return -1;
++    PyObject *notes;
++    int res = _PyObject_LookupAttr(value, &_Py_ID(__notes__), &notes);
++    if (res <= 0) {
++        return res;
+     }
+     if (!PySequence_Check(notes)) {
+-        int res = 0;
++        res = 0;
+         if (write_indented_margin(ctx, f) < 0) {
+             res = -1;
+         }
+--- a/Python/specialize.c
++++ b/Python/specialize.c
+@@ -1500,9 +1500,9 @@ specialize_py_call(PyFunctionObject *fun
+     }
+     int argcount = code->co_argcount;
+     int defcount = func->func_defaults == NULL ? 0 : (int)PyTuple_GET_SIZE(func->func_defaults);
+-    assert(defcount <= argcount);
+     int min_args = argcount-defcount;
+-    if (nargs > argcount || nargs < min_args) {
++    // GH-105840: min_args is negative when somebody sets too many __defaults__!
++    if (min_args < 0 || nargs > argcount || nargs < min_args) {
+         SPECIALIZATION_FAIL(CALL, SPEC_FAIL_WRONG_NUMBER_ARGUMENTS);
+         return -1;
+     }
+--- a/Python/suggestions.c
++++ b/Python/suggestions.c
+@@ -147,14 +147,14 @@ calculate_suggestions(PyObject *dir,
+ 
+     for (int i = 0; i < dir_size; ++i) {
+         PyObject *item = PyList_GET_ITEM(dir, i);
++        if (_PyUnicode_Equal(name, item)) {
++            continue;
++        }
+         Py_ssize_t item_size;
+         const char *item_str = PyUnicode_AsUTF8AndSize(item, &item_size);
+         if (item_str == NULL) {
+             return NULL;
+         }
+-        if (PyUnicode_CompareWithASCIIString(name, item_str) == 0) {
+-            continue;
+-        }
+         // No more than 1/3 of the involved characters should need changed.
+         Py_ssize_t max_distance = (name_size + item_size + 3) * MOVE_COST / 6;
+         // Don't take matches we've already beaten.
+@@ -225,19 +225,19 @@ offer_suggestions_for_name_error(PyNameE
+     PyCodeObject *code = PyFrame_GetCode(frame);
+     assert(code != NULL && code->co_localsplusnames != NULL);
+     PyObject *varnames = _PyCode_GetVarnames(code);
++    Py_DECREF(code);
+     if (varnames == NULL) {
+         return NULL;
+     }
+     PyObject *dir = PySequence_List(varnames);
+     Py_DECREF(varnames);
+-    Py_DECREF(code);
+     if (dir == NULL) {
+         return NULL;
+     }
+ 
+     PyObject *suggestions = calculate_suggestions(dir, name);
+     Py_DECREF(dir);
+-    if (suggestions != NULL) {
++    if (suggestions != NULL|| PyErr_Occurred()) {
+         return suggestions;
+     }
+ 
+@@ -247,7 +247,7 @@ offer_suggestions_for_name_error(PyNameE
+     }
+     suggestions = calculate_suggestions(dir, name);
+     Py_DECREF(dir);
+-    if (suggestions != NULL) {
++    if (suggestions != NULL || PyErr_Occurred()) {
+         return suggestions;
+     }
+ 
+--- a/Python/sysmodule.c
++++ b/Python/sysmodule.c
+@@ -2360,15 +2360,21 @@ _PySys_AddXOptionWithError(const wchar_t
+     const wchar_t *name_end = wcschr(s, L'=');
+     if (!name_end) {
+         name = PyUnicode_FromWideChar(s, -1);
++        if (name == NULL) {
++            goto error;
++        }
+         value = Py_True;
+         Py_INCREF(value);
+     }
+     else {
+         name = PyUnicode_FromWideChar(s, name_end - s);
++        if (name == NULL) {
++            goto error;
++        }
+         value = PyUnicode_FromWideChar(name_end + 1, -1);
+-    }
+-    if (name == NULL || value == NULL) {
+-        goto error;
++        if (value == NULL) {
++            goto error;
++        }
+     }
+     if (PyDict_SetItem(opts, name, value) < 0) {
+         goto error;
+@@ -3014,20 +3020,26 @@ err_occurred:
+ static int
+ sys_add_xoption(PyObject *opts, const wchar_t *s)
+ {
+-    PyObject *name, *value;
++    PyObject *name, *value = NULL;
+ 
+     const wchar_t *name_end = wcschr(s, L'=');
+     if (!name_end) {
+         name = PyUnicode_FromWideChar(s, -1);
++        if (name == NULL) {
++            goto error;
++        }
+         value = Py_True;
+         Py_INCREF(value);
+     }
+     else {
+         name = PyUnicode_FromWideChar(s, name_end - s);
++        if (name == NULL) {
++            goto error;
++        }
+         value = PyUnicode_FromWideChar(name_end + 1, -1);
+-    }
+-    if (name == NULL || value == NULL) {
+-        goto error;
++        if (value == NULL) {
++            goto error;
++        }
+     }
+     if (PyDict_SetItem(opts, name, value) < 0) {
+         goto error;
+--- a/Tools/c-analyzer/c_parser/preprocessor/common.py
++++ b/Tools/c-analyzer/c_parser/preprocessor/common.py
+@@ -1,6 +1,7 @@
+ import contextlib
+ import distutils.ccompiler
+ import logging
++import os
+ import shlex
+ import subprocess
+ import sys
+@@ -40,7 +41,12 @@ def run_cmd(argv, *,
+     kw.pop('kwargs')
+     kwargs.update(kw)
+ 
+-    proc = subprocess.run(argv, **kwargs)
++    # Remove LANG environment variable: the C parser doesn't support GCC
++    # localized messages
++    env = dict(os.environ)
++    env.pop('LANG', None)
++
++    proc = subprocess.run(argv, env=env, **kwargs)
+     return proc.stdout
+ 
+ 
+--- a/Tools/clinic/clinic.py
++++ b/Tools/clinic/clinic.py
+@@ -460,7 +460,7 @@ class PythonLanguage(Language):
+ 
+ def permute_left_option_groups(l):
+     """
+-    Given [1, 2, 3], should yield:
++    Given [(1,), (2,), (3,)], should yield:
+        ()
+        (3,)
+        (2, 3)
+@@ -475,7 +475,7 @@ def permute_left_option_groups(l):
+ 
+ def permute_right_option_groups(l):
+     """
+-    Given [1, 2, 3], should yield:
++    Given [(1,), (2,), (3,)], should yield:
+       ()
+       (1,)
+       (1, 2)

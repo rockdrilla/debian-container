@@ -63,7 +63,8 @@ ifeq ($(with_pgo),yes)
   export DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),9)
 endif
 
-build_dir = $(CURDIR)/debian.build
+export DEB_SRC_TOPDIR = $(CURDIR)
+export DEB_BUILD_DIR = $(CURDIR)/debian.build
 INSTALL_SHARED = $(CURDIR)/debian/tmp.shared
 export HOME = $(CURDIR)/debian/tmp.home
 
@@ -132,7 +133,7 @@ endif
 
 .NOTPARALLEL:
 
-DH_ARGS = --sourcedir=$(CURDIR) --builddir=$(build_dir)
+DH_ARGS = --sourcedir=$(CURDIR) --builddir=$(DEB_BUILD_DIR)
 
 %:
 	dh $@ --buildsystem=autoconf
@@ -158,9 +159,9 @@ shared_python = $(call x_python, $(INSTALL_SHARED)/$(PYTHON_PREFIX) , lib , bin/
 
 define deb_python_configure
 
-	rm -rf $(build_dir) ; mkdir -p $(build_dir)
+	rm -rf $(DEB_BUILD_DIR) ; mkdir -p $(DEB_BUILD_DIR)
 
-	cd $(build_dir) ; \
+	cd $(DEB_BUILD_DIR) ; \
 	OPT=' ' \
 	MKDIR_P='/bin/mkdir -p' \
 	$(config_site) \
@@ -173,9 +174,9 @@ define deb_python_configure
 
 	sed -i -E \
 		-e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
-	$(build_dir)/Makefile
+	$(DEB_BUILD_DIR)/Makefile
 
-	f='$(build_dir)/runpython.sh' ; \
+	f='$(DEB_BUILD_DIR)/runpython.sh' ; \
 	: > "$$f" ; \
 	echo '#!/bin/sh' >> "$$f" ; \
 	echo 'export PYTHONPATH=$(INSTALL_SHARED)/$(PYTHON_PREFIX)/lib/python$(PYTHON_BASE_VERSION)/site-packages' >> "$$f" ; \
@@ -184,7 +185,7 @@ define deb_python_configure
 
 endef
 
-test_python = $(call x_python, $(build_dir) , , python , env -u PYTHONHOME )
+test_python = $(call x_python, $(DEB_BUILD_DIR) , , python , env -u PYTHONHOME )
 
 define deb_python_build
 
@@ -211,7 +212,7 @@ define deb_python_build
 endef
 
 deb_python_test = \
-	env -C '$(build_dir)' \
+	env -C '$(DEB_BUILD_DIR)' \
 	CONTAINER_PYTHON_COMPAT=1 \
 	NPROC=$(NPROC_MAKE) \
 	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)'
@@ -293,7 +294,7 @@ define buildrepro_fix
 	$(strip $(1))
 
  	sed -i \
- 		-e 's|$(build_dir)/..|$(fake_srcdir)|g' \
+ 		-e 's|$(DEB_BUILD_DIR)/..|$(fake_srcdir)|g' \
  		-e 's|$(CURDIR)|$(fake_srcdir)|g' \
  	$(strip $(1))
 
@@ -462,6 +463,9 @@ endef
 override_dh_auto_build:
 	$(call deb_python_configure, $(CONFIGURE_FLAGS_SHARED) )
 	$(call deb_python_build)
+	$(call remove_pycache, $(DEB_BUILD_DIR) )
+	$(strip $(deb_python_test)) || $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),true,false)
+	$(call remove_pycache, $(DEB_BUILD_DIR) )
 
 	rm -rf debian/tmp $(INSTALL_SHARED)
 	$(call deb_python_install)
@@ -503,6 +507,9 @@ endif
 
 	$(call deb_python_build)
 
+	: # ensurepip: revert build-time patch
+	patch -p1 -R < debian/patches/ensurepip.patch
+
 ifneq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	$(strip $(deb_python_test)) || :
 endif
@@ -534,6 +541,15 @@ override_dh_install:
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-dev )
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-full )
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION) )
+
+	: # move dist-packages/pkg_resources to base package
+	s=debian/container-python-$(PYTHON_BASE_VERSION)-full ; \
+	d=debian/container-python-$(PYTHON_BASE_VERSION) ; \
+	s=$$s/$(PYTHON_MODULES)/dist-packages ; \
+	d=$$d/$(PYTHON_MODULES)/dist-packages ; \
+	mkdir -p $$d ; \
+	tar -C $$s -cf - pkg_resources | tar -C $$d -xf - ; \
+	rm -rf $$s/pkg_resources
 
 	: # move non-native platform files (if any)
 	s=debian/container-python-$(PYTHON_BASE_VERSION)-full ; \
