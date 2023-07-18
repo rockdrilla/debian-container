@@ -28,14 +28,13 @@ downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
-## disabled
-# opts=component=pip-dask-benchmarks,\
-# repack,pgpmode=none,\
-# filenamemangle=s/\.zip$/.tar.gz/,\
-# downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
-#   https://github.com/dask/dask-benchmarks/tree/@{DASK_BENCH_GIT_REF}/ \
-#   .+/(.+)@ARCHIVE_EXT@ \
-# ignore
+opts=component=pip-dask-benchmarks,\
+repack,pgpmode=none,\
+filenamemangle=s/\.zip$/.tar.gz/,\
+downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
+  https://github.com/dask/dask-benchmarks/tree/@{DASK_BENCH_GIT_REF}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
+ignore
 
 # for use with proxy
 
@@ -67,7 +66,6 @@ ignore
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
 
-## disabled
 # opts=component=pip-dask-benchmarks,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
