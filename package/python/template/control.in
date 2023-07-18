@@ -3,9 +3,9 @@ Section: python
 Priority: optional
 Maintainer: @{DEB_MAINTAINER}
 Build-Depends: debhelper-compat (= 13),
+               g++-@{gcc_latest}, @{pgo_reuse_build_dep}
                autoconf-archive,
                blt-dev,
-               g++-@{gcc_latest},
                jq,
                libbluetooth-dev,
                libbz2-dev,

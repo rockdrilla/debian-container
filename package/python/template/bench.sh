@@ -2,7 +2,19 @@
 
 set -f
 
-: "${DEB_SRC_TOPDIR:?}"
+: "${DEB_SRC_TOPDIR:?}" "${DEB_PGO_FROM_BUILD:?}" "${DEB_PGO_FROM_PKG:?}"
+
+while [ "${DEB_PGO_REUSE}" = yes ] ; do
+	[ -d "/${DEB_PGO_FROM_PKG}" ] || break
+
+	find ./ -name '*.gcda' -printf '%P\0' \
+	| sort -zuV | xargs -0r rm -fv
+
+	tar -C "/${DEB_PGO_FROM_PKG}" -cf - . \
+	| tar -xvf -
+
+	exit 0
+done
 
 flush_pycache() {
 	find "${DEB_SRC_TOPDIR}" -name __pycache__ -type d -exec rm -rf '{}' '+'
@@ -12,7 +24,11 @@ flush_pycache() {
 end_script() {
 	flush_pycache
 
-	find ./ -name '*.gcda' -type f -exec ls -lt {} +
+	mkdir -p "${DEB_PGO_FROM_BUILD}"
+
+	find ./ -name '*.gcda' -printf '%P\0' \
+	| sort -zuV | tar --null -T - -cf - \
+	| tar -C "${DEB_PGO_FROM_BUILD}" -xvf -
 
 	exit 0
 }

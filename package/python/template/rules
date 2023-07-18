@@ -60,12 +60,33 @@ include debian/rules.gcc-pgo
 
 ifeq ($(with_pgo),yes)
   DEB_PGO_LEVEL := $(patsubst pgo_level=%,%,$(filter pgo_level=%,$(DEB_BUILD_OPTIONS)))
-  export DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),9)
+  export DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),max)
+endif
+
+ifeq ($(pgo_reuse)$(pgo_src_id),yes)
+  # try reuse latest available package
+  pgo_src_id := $(strip $(shell apt-cache -a show container-python-$(PYTHON_VERSION)-pgo | mawk '$$1 == "Version:" {print $$2} {next}' | sort -rV | head -n 1 || true))
+endif
+
+ifeq ($(pgo_src_id),)
+  pgo_reuse := no
+  pgo_reuse_build_dep :=$(empty)
+else
+  pgo_reuse_build_dep :=$(shell printf '%s' 'container-python-$(PYTHON_VERSION)-pgo (= $(pgo_src_id)) <pgo_reuse>,')
+endif
+
+ifeq ($(with_pgo)$(pgo_src_id),yes)
+  # set source id for current build
+  pgo_src_id := $(DEB_TSVER)
 endif
 
 export DEB_SRC_TOPDIR = $(CURDIR)
 INSTALL_SHARED = $(CURDIR)/debian/tmp.shared
 export HOME = $(CURDIR)/debian/tmp.home
+
+export DEB_PGO_REUSE = $(pgo_reuse)
+export DEB_PGO_FROM_BUILD = $(CURDIR)/debian/pgo
+export DEB_PGO_FROM_PKG = $(PYTHON_PREFIX)/pgo-$(PYTHON_VERSION)
 
 builtin_ext = \
   _abc _ast _asyncio _bisect _blake2 _collections _contextvars _csv _ctypes \
@@ -144,6 +165,13 @@ endif
 %:
 	dh $@ --buildsystem=autoconf
 
+execute_after_dh_clean:
+ifeq ($(with_pgo)$(pgo_reuse),yesno)
+	[ -s debian/control ] || exit 0 ; \
+	grep -Fxq 'Package: container-python-$(PYTHON_VERSION)-pgo' debian/control || \
+	{ echo ; cat debian/control.pgo ; } >> debian/control
+endif
+
 override_dh_autoreconf:
 	dh_autoreconf autoreconf -- -fiv -Werror
 
@@ -158,8 +186,9 @@ execute_before_dh_auto_configure:
 	: # verify DEB_BUILD_OPTIONS
 	@echo "# DEB_BUILD_OPTIONS = $${DEB_BUILD_OPTIONS}" >&2
 
-override_dh_auto_configure:
 	mkdir -p $(HOME)
+
+override_dh_auto_configure:
 
 shared_python = $(call x_python, $(INSTALL_SHARED)/$(PYTHON_PREFIX) , lib , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
 
@@ -543,7 +572,6 @@ override_dh_auto_build:
 	$(call deb_python_test, $(CURDIR)/debian/build/binary , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
 
 override_dh_auto_test:
-	:
 
 override_dh_auto_install:
 	$(call deb_python_install, $(CURDIR)/debian/build/binary )
@@ -589,23 +617,38 @@ override_dh_install:
 	    find $$s/ -iname '*.exe' -delete ; \
 	fi
 
+ifeq ($(with_pgo)$(pgo_reuse),yesno)
+	d=debian/container-python-$(PYTHON_VERSION)-pgo/$(DEB_PGO_FROM_PKG) ; \
+	mkdir -p $$d ; \
+	tar -C '$(DEB_PGO_FROM_BUILD)' -cf - . \
+	| tar -C $$d -xf -
+endif
+
 # if there're files left - dh_missing will do the job (raise error)
 
 override_dh_strip_nondeterminism:
-	dh_strip_nondeterminism $(addprefix --exclude=,.exe .png .whl)
+	dh_strip_nondeterminism $(addprefix --exclude=,.exe .gcda .png .whl)
 
 execute_after_dh_fixperms:
 	find debian/ -path '*/bin/*' -type f -exec chmod 0755 '{}' +
 	find debian/ -path '*/share/thin-ci.sh' -type f -exec chmod 0755 '{}' +
 
 override_dh_dwz:
-	dh_dwz $(addprefix --exclude=,.exe)
+	dh_dwz $(addprefix --exclude=,.exe .gcda)
 
 override_dh_strip:
-	dh_strip $(addprefix --exclude=,.exe)
+	dh_strip $(addprefix --exclude=,.exe .gcda)
 
+DH_GENCTRL_COMMON = -Tdebian/pip.substvars -Tdebian/substvars
+DH_GENCTRL_PGO = $(if $(filter no,$(pgo_reuse)),-DX-Pgo-Level=$(DEB_PGO_LEVEL))
 override_dh_gencontrol:
-	dh_gencontrol -- -Tdebian/pip.substvars -Tdebian/substvars
+	dh_gencontrol -- $(DH_GENCTRL_COMMON)
+ifeq ($(with_pgo),yes)
+	dh_gencontrol -a -- -DX-Pgo-Source-Id=$(pgo_src_id) $(DH_GENCTRL_PGO) $(DH_GENCTRL_COMMON)
+  ifeq ($(pgo_reuse),no)
+	dh_gencontrol --package=container-python-$(PYTHON_VERSION)-pgo -- -v$(DEB_TSVER) -UX-Pgo-Source-Id $(DH_GENCTRL_PGO) $(DH_GENCTRL_COMMON)
+  endif
+endif
 
 # sync with Debian (periodically)
 execute_before_dh_builddeb:

@@ -25,6 +25,7 @@ ARG PYTHON_VERSION
 ARG PYTHON_BASE_VERSION
 
 ARG DEB_BUILD_OPTIONS
+ARG DEB_BUILD_PROFILES
 
 COPY /package/.template/                      /tmp/debian/
 COPY /package/python/template/                /tmp/debian/
