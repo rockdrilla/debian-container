@@ -68,17 +68,16 @@ INSTALL_SHARED = $(CURDIR)/debian/tmp.shared
 export HOME = $(CURDIR)/debian/tmp.home
 
 builtin_ext = \
-  _abc _ast _asyncio _bisect _blake2 _collections _contextvars _csv _datetime \
-  _decimal _functools _heapq _json _locale _md5 _multiprocessing _opcode \
-  _operator _pickle _posixshmem _posixsubprocess _queue _random _sha1 _sha3 \
-  _sha256 _sha512 _socket _stat _statistics _stringio _struct _tracemalloc \
-  _typing _zoneinfo array atexit binascii cmath fcntl grp itertools math mmap \
-  select spwd syslog time unicodedata zlib
+  _abc _ast _asyncio _bisect _blake2 _collections _contextvars _csv _ctypes \
+  _datetime _decimal _elementtree _functools _heapq _json _locale _md5 \
+  _multibytecodec _multiprocessing _opcode _operator _pickle _posixshmem \
+  _posixsubprocess _queue _random _sha1 _sha256 _sha3 _sha512 _socket _stat \
+  _statistics _stringio _struct _tracemalloc _typing _zoneinfo array atexit \
+  binascii cmath fcntl grp itertools math mmap pyexpat select spwd syslog \
+  time unicodedata zlib
 
 builtin_ext__list =$(strip $(foreach ext,$(sort $(strip $(builtin_ext))),$(ext)$(space)))
 builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
-
-include debian/rules.postconf
 
 CONFIGURE_FLAGS = \
 	--prefix=/$(PYTHON_PREFIX) \
@@ -92,7 +91,6 @@ CONFIGURE_FLAGS = \
 	--disable-dependency-tracking \
 	--enable-ipv6 \
 	--with-computed-gotos \
-	--with-system-expat \
 	--with-system-ffi \
 	--enable-loadable-sqlite-extensions \
 	--with-dbmliborder=bdb:gdbm \
@@ -165,6 +163,14 @@ override_dh_auto_configure:
 
 shared_python = $(call x_python, $(INSTALL_SHARED)/$(PYTHON_PREFIX) , lib , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
 
+define deb_python_preconf
+
+	sed -En '/^#($(builtin_ext__re))\s/p' Modules/Setup \
+	| sed -E 's/^#//;s/-Wl,-Bdynamic//;s/-Wl,-Bstatic//' \
+	>> $(strip $(1))/Modules/Setup.local
+
+endef
+
 define deb_python_configure
 
 	rm -rf $(strip $(1)) ; mkdir -p $(strip $(1))
@@ -174,6 +180,11 @@ define deb_python_configure
 	| tar --null -T - -cf - \
 	| tar -C $(strip $(1)) -xf -
 
+	: # build quirk
+	ln -s . $(strip $(1))/build
+
+	$(call deb_python_preconf, $(1) )
+
 	env -C $(strip $(1)) \
 	  -u LD_LIBRARY_PATH \
 	  -u LD_PRELOAD \
@@ -181,8 +192,6 @@ define deb_python_configure
 	  MKDIR_P='/bin/mkdir -p' \
 	  $(config_site) \
 	./configure $(strip $(CONFIGURE_FLAGS) $(2))
-
-	$(call deb_python_postconf, $(1) )
 
 	sed -i -E \
 		-e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
@@ -202,9 +211,6 @@ test_python = $(call x_python, $(1) , , python , env -u PYTHONHOME )
 
 define deb_python_build
 
-	: # apply build-time quirks
-	env -C $(strip $(1)) patch -p1 < $(CURDIR)/debian/patches/build-time-quirks.patch
-
 	build_ret=0 ; \
 	export DEB_PYTHON_BUILD_DIR='$(strip $(1))' ; \
 	for i in $$( seq 1 3 ) ; do \
@@ -216,9 +222,6 @@ define deb_python_build
 	  break ; \
 	done ; \
 	[ "$${build_ret}" = 0 ] || exit $${build_ret}
-
-	: # revert build-time quirks
-	env -C $(strip $(1)) patch -p1 -R < $(CURDIR)/debian/patches/build-time-quirks.patch
 
 endef
 
@@ -363,6 +366,11 @@ define deb_python_install
 	dh_auto_install --sourcedir=$(strip $(1)) --builddir=$(strip $(1))
 
 	rm -rf $(strip $(1))
+
+	: # revert build-time quirks
+	env -C debian/tmp/$(PYTHON_MODULES) \
+	patch -p2 -R < $(CURDIR)/debian/patches/quirks/distutils-build.patch
+
 	$(call remove_pycache, debian/tmp )
 
 	: # remove manpages
@@ -495,6 +503,10 @@ override_dh_auto_build:
 	$(call deb_python_build, $(CURDIR)/debian/build/shared , DEB_PGO_LEVEL=0 )
 	$(call deb_python_test, $(CURDIR)/debian/build/shared , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
 
+	: # revert build-time quirks
+	env -C $(CURDIR)/debian/build/shared \
+	patch -p1 -R < $(CURDIR)/debian/patches/quirks/ensurepip.patch
+
 	rm -rf $(INSTALL_SHARED)
 	$(call deb_python_install, $(CURDIR)/debian/build/shared )
 
@@ -509,6 +521,8 @@ override_dh_auto_build:
 	done ; \
 	find "$${wheel_dir}/" -name '*.whl' -ls
 
+	$(call remove_pycache, $(CURDIR) )
+
 	: # preserve shared install
 	mv debian/tmp $(INSTALL_SHARED)
 
@@ -518,8 +532,6 @@ override_dh_auto_build:
 	dst="$${top}/site-packages" ; \
 	rm -rf "$${dst}" ; \
 	mv "$${src}" "$${dst}"
-
-	$(call remove_pycache, $(CURDIR) )
 
 	: # propagate modified "ensurepip" to sources
 	rm -rf Lib/ensurepip ; \

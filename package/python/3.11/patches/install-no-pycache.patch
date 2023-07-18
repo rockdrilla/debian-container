@@ -1,6 +1,6 @@
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -2125,33 +2125,6 @@ libinstall:	all $(srcdir)/Modules/xxmodu
+@@ -2115,33 +2115,6 @@ libinstall:	all $(srcdir)/Modules/xxmodu
  		$(INSTALL_DATA) $(srcdir)/Modules/xxmodule.c \
  			$(DESTDIR)$(LIBDEST)/distutils/tests ; \
  	fi
@@ -34,3 +34,12 @@
  	-PYTHONPATH=$(DESTDIR)$(LIBDEST) $(RUNSHARED) \
  		$(PYTHON_FOR_BUILD) -m lib2to3.pgen2.driver $(DESTDIR)$(LIBDEST)/lib2to3/Grammar.txt
  	-PYTHONPATH=$(DESTDIR)$(LIBDEST) $(RUNSHARED) \
+@@ -2263,7 +2236,7 @@ libainstall: all python-config
+ # Install the dynamically loadable modules
+ # This goes into $(exec_prefix)
+ sharedinstall: all
+-	$(RUNSHARED) $(PYTHON_FOR_BUILD) $(srcdir)/setup.py install \
++	$(RUNSHARED) $(PYTHON_FOR_BUILD) $(srcdir)/setup.py --verbose install --no-compile \
+ 	   	--prefix=$(prefix) \
+ 		--install-scripts=$(BINDIR) \
+ 		--install-platlib=$(DESTSHARED) \

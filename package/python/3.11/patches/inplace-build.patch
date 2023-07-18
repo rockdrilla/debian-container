@@ -1,0 +1,21 @@
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -2441,9 +2441,7 @@ clean-retain-profile: pycremoval
+ 	find . -name '*.so.[0-9]*.[0-9]*' -exec rm -f {} ';'
+ 	find . -name '*.wasm' -exec rm -f {} ';'
+ 	find . -name '*.lst' -exec rm -f {} ';'
+-	find build -name 'fficonfig.h' -exec rm -f {} ';' || true
+-	find build -name '*.py' -exec rm -f {} ';' || true
+-	find build -name '*.py[co]' -exec rm -f {} ';' || true
++	find . -name '*.py[co]' -exec rm -f {} ';' || true
+ 	-rm -f pybuilddir.txt
+ 	-rm -f Lib/lib2to3/*Grammar*.pickle
+ 	-rm -f _bootstrap_python
+@@ -2453,7 +2451,6 @@ clean-retain-profile: pycremoval
+ 	-rm -f Python/deepfreeze/*.[co]
+ 	-rm -f Python/frozen_modules/*.h
+ 	-rm -f Python/frozen_modules/MANIFEST
+-	-find build -type f -a ! -name '*.gc??' -exec rm -f {} ';'
+ 	-rm -f Include/pydtrace_probes.h
+ 	-rm -f profile-gen-stamp
+ 

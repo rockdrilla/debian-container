@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 # never test them (always failing, maybe due to PGO+LTO)
-TEST_EXCLUDES = test___all__ test_distutils test_email test_lib2to3 test_pyexpat test_selectors
+TEST_EXCLUDES = test___all__ test_distutils test_email test_lib2to3 test_selectors
 
 # Debian 12 Bookworm, Python 3.11 - fine
 # others - fail

@@ -18,14 +18,18 @@ debian/setup-modules.diff
 debian/sysconfigdata-name.diff
 debian/test-no-random-order.diff
 
-sort-build-objects.patch
-distutils-build.patch
-disable-network-tests.patch
-install-no-pycache.patch
-container-python-compat-switch.patch
-hybrid-layout.patch
+inplace-build.patch
 lto-pgo-flags.patch
 pgo-extra-pass.patch
+sort-build-objects.patch
+build-shared-mods.patch
+install-no-pycache.patch
+disable-network-tests.patch
+container-python-compat-switch.patch
+hybrid-layout.patch
+
+quirks/distutils-build.patch
+quirks/ensurepip.patch
 
 # shared patches
 pyperformance.patch
