@@ -19,15 +19,15 @@ debian/sysconfigdata-name.diff
 debian/test-no-random-order.diff
 
 sort-build-objects.patch
-reenable-tests.patch
+distutils-build.patch
+disable-network-tests.patch
 install-no-pycache.patch
 container-python-compat-switch.patch
 hybrid-layout.patch
 lto-pgo-flags.patch
 pgo-extra-pass.patch
-ensurepip.patch
 
 # shared patches
 pyperformance.patch
 numpy.patch
-# dask-benchmarks.patch
+dask-benchmarks.patch

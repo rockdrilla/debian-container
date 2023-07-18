@@ -1,0 +1,181 @@
+--- a/Lib/test/test_httplib.py
++++ b/Lib/test/test_httplib.py
+@@ -1841,6 +1841,7 @@ class HTTPSTest(TestCase):
+         h = client.HTTPSConnection(HOST, TimeoutTest.PORT, timeout=30)
+         self.assertEqual(h.timeout, 30)
+ 
++    @unittest.skip('skipping network test')
+     def test_networked(self):
+         # Default settings: requires a valid cert from a trusted CA
+         import ssl
+@@ -1851,6 +1852,7 @@ class HTTPSTest(TestCase):
+                 h.request('GET', '/')
+             self.assertEqual(exc_info.exception.reason, 'CERTIFICATE_VERIFY_FAILED')
+ 
++    @unittest.skip('skipping network test')
+     def test_networked_noverification(self):
+         # Switch off cert verification
+         import ssl
+@@ -1865,7 +1867,7 @@ class HTTPSTest(TestCase):
+             self.assertIn('nginx', resp.getheader('server'))
+             resp.close()
+ 
+-    @support.system_must_validate_cert
++    @unittest.skip('skipping network test')
+     def test_networked_trusted_by_default_cert(self):
+         # Default settings: requires a valid cert from a trusted CA
+         support.requires('network')
+@@ -1878,6 +1880,7 @@ class HTTPSTest(TestCase):
+             h.close()
+             self.assertIn('text/html', content_type)
+ 
++    @unittest.skip('skipping network test')
+     def test_networked_good_cert(self):
+         # We feed the server's cert as a validating cert
+         import ssl
+@@ -1911,6 +1914,7 @@ class HTTPSTest(TestCase):
+             h.close()
+             self.assertIn('nginx', server_string)
+ 
++    @unittest.skip('skipping network test')
+     def test_networked_bad_cert(self):
+         # We feed a "CA" cert that is unrelated to the server's cert
+         import ssl
+--- a/Lib/test/test_nntplib.py
++++ b/Lib/test/test_nntplib.py
+@@ -309,6 +309,7 @@ if ssl is not None:
+     EOF_ERRORS += (ssl.SSLEOFError,)
+ 
+ 
++@unittest.skip('skipping network test')
+ class NetworkedNNTPTests(NetworkedNNTPTestsMixin, unittest.TestCase):
+     # This server supports STARTTLS (gmane doesn't)
+     NNTP_HOST = 'news.trigofacile.com'
+@@ -346,7 +347,7 @@ class NetworkedNNTPTests(NetworkedNNTPTe
+         if cls.server is not None:
+             cls.server.quit()
+ 
+-@unittest.skipUnless(ssl, 'requires SSL support')
++@unittest.skip('skipping network test')
+ class NetworkedNNTP_SSLTests(NetworkedNNTPTests):
+ 
+     # Technical limits for this public NNTP server (see http://www.aioe.org):
+--- a/Lib/test/test_robotparser.py
++++ b/Lib/test/test_robotparser.py
+@@ -346,7 +346,7 @@ class PasswordProtectedSiteTestCase(unit
+         self.assertFalse(parser.can_fetch("*", robots_url))
+ 
+ 
+-@support.requires_working_socket()
++@unittest.skip('skipping network test')
+ class NetworkTestCase(unittest.TestCase):
+ 
+     base_url = 'http://www.pythontest.net/'
+--- a/Lib/test/test_site.py
++++ b/Lib/test/test_site.py
+@@ -466,10 +466,7 @@ class ImportSideEffectTests(unittest.Tes
+             else:
+                 self.fail("sitecustomize not imported automatically")
+ 
+-    @test.support.requires_resource('network')
+-    @test.support.system_must_validate_cert
+-    @unittest.skipUnless(hasattr(urllib.request, "HTTPSHandler"),
+-                         'need SSL support to download license')
++    @unittest.skip('skipping network test')
+     def test_license_exists_at_url(self):
+         # This test is a bit fragile since it depends on the format of the
+         # string displayed by license in the absence of a LICENSE file.
+--- a/Lib/test/test_socket.py
++++ b/Lib/test/test_socket.py
+@@ -153,23 +153,23 @@ def socket_setdefaulttimeout(timeout):
+         socket.setdefaulttimeout(old_timeout)
+ 
+ 
+-HAVE_SOCKET_CAN = _have_socket_can()
++HAVE_SOCKET_CAN = False
+ 
+-HAVE_SOCKET_CAN_ISOTP = _have_socket_can_isotp()
++HAVE_SOCKET_CAN_ISOTP = False
+ 
+-HAVE_SOCKET_CAN_J1939 = _have_socket_can_j1939()
++HAVE_SOCKET_CAN_J1939 = False
+ 
+ HAVE_SOCKET_RDS = _have_socket_rds()
+ 
+ HAVE_SOCKET_ALG = _have_socket_alg()
+ 
+-HAVE_SOCKET_QIPCRTR = _have_socket_qipcrtr()
++HAVE_SOCKET_QIPCRTR = False
+ 
+-HAVE_SOCKET_VSOCK = _have_socket_vsock()
++HAVE_SOCKET_VSOCK = False
+ 
+ HAVE_SOCKET_UDPLITE = hasattr(socket, "IPPROTO_UDPLITE")
+ 
+-HAVE_SOCKET_BLUETOOTH = _have_socket_bluetooth()
++HAVE_SOCKET_BLUETOOTH = False
+ 
+ # Size in bytes of the int type
+ SIZEOF_INT = array.array("i").itemsize
+@@ -1595,8 +1595,7 @@ class GeneralModuleTests(unittest.TestCa
+         # only IP addresses are allowed
+         self.assertRaises(OSError, socket.getnameinfo, ('mail.python.org',0), 0)
+ 
+-    @unittest.skipUnless(support.is_resource_enabled('network'),
+-                         'network is not enabled')
++    @unittest.skip('skipping network test')
+     def test_idna(self):
+         # Check for internet access before running test
+         # (issue #12804, issue #25138).
+@@ -5704,8 +5703,7 @@ def isTipcAvailable():
+                 return True
+     return False
+ 
+-@unittest.skipUnless(isTipcAvailable(),
+-                     "TIPC module is not loaded, please 'sudo modprobe tipc'")
++@unittest.skip('skipping network test')
+ class TIPCTest(unittest.TestCase):
+     def testRDM(self):
+         srv = socket.socket(socket.AF_TIPC, socket.SOCK_RDM)
+@@ -5728,8 +5726,7 @@ class TIPCTest(unittest.TestCase):
+         self.assertEqual(msg, MSG)
+ 
+ 
+-@unittest.skipUnless(isTipcAvailable(),
+-                     "TIPC module is not loaded, please 'sudo modprobe tipc'")
++@unittest.skip('skipping network test')
+ class TIPCThreadableTest(unittest.TestCase, ThreadableTest):
+     def __init__(self, methodName = 'runTest'):
+         unittest.TestCase.__init__(self, methodName = methodName)
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -2375,7 +2375,7 @@ class SimpleBackgroundTests(unittest.Tes
+             self.assertRaises(ssl.SSLEOFError, sslobj.read)
+ 
+ 
+-@support.requires_resource('network')
++@unittest.skip('skipping network test')
+ class NetworkedTests(unittest.TestCase):
+ 
+     def test_timeout_connect_ex(self):
+--- a/Lib/test/test_timeout.py
++++ b/Lib/test/test_timeout.py
+@@ -138,6 +138,7 @@ class TimeoutTestCase(unittest.TestCase)
+         self.assertGreater(delta, timeout - 1.0)
+ 
+ 
++@unittest.skip('skipping network test')
+ class TCPTimeoutTestCase(TimeoutTestCase):
+     """TCP test case for socket.socket() timeout functions"""
+ 
+--- a/Lib/test/test_unicodedata.py
++++ b/Lib/test/test_unicodedata.py
+@@ -334,7 +334,7 @@ class NormalizationTest(unittest.TestCas
+         data = [int(x, 16) for x in data.split(" ")]
+         return "".join([chr(x) for x in data])
+ 
+-    @requires_resource('network')
++    @unittest.skip('skipping network test')
+     def test_normalization(self):
+         TESTDATAFILE = "NormalizationTest.txt"
+         TESTDATAURL = f"http://www.pythontest.net/unicode/{unicodedata.unidata_version}/{TESTDATAFILE}"

@@ -1,31 +1,24 @@
 #!/usr/bin/make -f
 
-# NB: "XX" in the beginning of list is MANDATORY
-builtin_ext = XX \
- _abc _ast _bisect _blake2 _collections _csv _datetime _elementtree \
- _functools _heapq _locale _md5 _opcode _operator _pickle \
- _posixsubprocess _random _sha1 _sha3 _sha256 _sha512 _socket _stat \
- _stringio _struct _tracemalloc array atexit binascii cmath fcntl grp \
- itertools math pyexpat select spwd syslog time unicodedata zlib
-
-builtin_ext__list =$(strip $(foreach ext,$(builtin_ext),$(ext)$(space)))
-builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
+python_postconf_files = \
+  Modules/Setup.local \
+  Modules/Setup
 
 define deb_python_postconf
 
-	sed -En '/^#($(builtin_ext__re))/p' Modules/Setup \
+	sed -En '/^#($(builtin_ext__re))\s/p' Modules/Setup \
 	| sed -E 's/^#//;s/-Wl,-Bdynamic//;s/-Wl,-Bstatic//' \
-	>> $(DEB_BUILD_DIR)/Modules/Setup.local
+	>> $(strip $(1))/Modules/Setup.local
 
 	: # unconditionally run makesetup
-	cd $(DEB_BUILD_DIR) && \
-	$(CURDIR)/Modules/makesetup \
-	  -c $(CURDIR)/Modules/config.c.in \
+	env -C $(strip $(1)) \
+	Modules/makesetup \
+	  -c Modules/config.c.in \
 	  -s Modules \
-	  Modules/Setup.local $(CURDIR)/Modules/Setup
-	mv $(DEB_BUILD_DIR)/config.c $(DEB_BUILD_DIR)/Modules/
+	  $(strip $(python_postconf_files))
+	mv $(strip $(1))/config.c $(strip $(1))/Modules/
 
-	: # and fix the timestamps
-	$(MAKE) -C $(DEB_BUILD_DIR) Makefile Modules/config.c
+	: # fix the timestamps
+	$(MAKE) -C $(strip $(1)) Makefile Modules/config.c
 
 endef

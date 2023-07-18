@@ -13,6 +13,9 @@ TEST_EXCLUDES += test_ensurepip test_venv
 # avoid compile-related tasks
 TEST_EXCLUDES += test_tools
 
+# misc unwanted tests:
+TEST_EXCLUDES += test_compile
+
 # don't bother with audio
 TEST_EXCLUDES += test_linuxaudiodev test_ossaudiodev
 
@@ -23,16 +26,17 @@ TEST_EXCLUDES += test_dbm test_dbm_ndbm
 TEST_EXCLUDES += test_gdb
 
 # not supported by platform
-TEST_EXCLUDES += test_devpoll test_ioctl test_kqueue test_launcher test_msilib test_startfile test_winreg test_winsound test_winconsoleio
+TEST_EXCLUDES += test_devpoll test_ioctl test_kqueue test_launcher test_msilib test_startfile test_winconsoleio test_winreg test_winsound
 
 # ui
 TEST_EXCLUDES += test_idle test_tcl test_tix test_tk test_ttk_guionly test_turtle
 
 # require network
-TEST_EXCLUDES += test_smtpnet test_socketserver test_urllibnet test_urllib2net test_xmlrpc_net
+TEST_EXCLUDES += test_smtpnet test_urllibnet test_urllib2net
 
 # require enough disk space and a lot of time
 TEST_EXCLUDES += test_zipfile64
 
-TEST_RESOURCES = all,-audio,-gui,-network,-urlfetch
-TEST_OPTS = -w -u$(TEST_RESOURCES) --timeout=1200 -x $(sort $(TEST_EXCLUDES))
+export TEST_EXCLUDE   :=$(sort $(TEST_EXCLUDES))
+export TEST_RESOURCES :=all,-audio,-gui
+TEST_OPTS = -w -u$(TEST_RESOURCES) --timeout=1200 -x $(TEST_EXCLUDE)

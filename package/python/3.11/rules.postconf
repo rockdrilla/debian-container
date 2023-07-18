@@ -2,6 +2,8 @@
 
 python_postconf_files = \
   Modules/Setup.local \
+  Modules/Setup.bootstrap \
+  Modules/Setup.stdlib \
   Modules/Setup
 
 define deb_python_postconf

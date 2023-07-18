@@ -64,9 +64,19 @@ ifeq ($(with_pgo),yes)
 endif
 
 export DEB_SRC_TOPDIR = $(CURDIR)
-export DEB_BUILD_DIR = $(CURDIR)/debian.build
 INSTALL_SHARED = $(CURDIR)/debian/tmp.shared
 export HOME = $(CURDIR)/debian/tmp.home
+
+builtin_ext = \
+  _abc _ast _asyncio _bisect _blake2 _collections _contextvars _csv _datetime \
+  _decimal _functools _heapq _json _locale _md5 _multiprocessing _opcode \
+  _operator _pickle _posixshmem _posixsubprocess _queue _random _sha1 _sha3 \
+  _sha256 _sha512 _socket _stat _statistics _stringio _struct _tracemalloc \
+  _typing _zoneinfo array atexit binascii cmath fcntl grp itertools math mmap \
+  select spwd syslog time unicodedata zlib
+
+builtin_ext__list =$(strip $(foreach ext,$(sort $(strip $(builtin_ext))),$(ext)$(space)))
+builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
 
 include debian/rules.postconf
 
@@ -133,8 +143,6 @@ endif
 
 .NOTPARALLEL:
 
-DH_ARGS = --sourcedir=$(CURDIR) --builddir=$(DEB_BUILD_DIR)
-
 %:
 	dh $@ --buildsystem=autoconf
 
@@ -159,24 +167,29 @@ shared_python = $(call x_python, $(INSTALL_SHARED)/$(PYTHON_PREFIX) , lib , bin/
 
 define deb_python_configure
 
-	rm -rf $(DEB_BUILD_DIR) ; mkdir -p $(DEB_BUILD_DIR)
+	rm -rf $(strip $(1)) ; mkdir -p $(strip $(1))
 
-	cd $(DEB_BUILD_DIR) ; \
-	OPT=' ' \
-	MKDIR_P='/bin/mkdir -p' \
-	$(config_site) \
-	env -u LD_LIBRARY_PATH -u LD_PRELOAD \
-	$(CURDIR)/configure \
-	  $(CONFIGURE_FLAGS) \
-	  $(strip $(1))
+	find $(CURDIR) -mindepth 1 -maxdepth 1 -printf '%P\0' \
+	| grep -zEv '^(\.pc|debian|pip-.+)$$' | sort -zu \
+	| tar --null -T - -cf - \
+	| tar -C $(strip $(1)) -xf -
 
-	$(call deb_python_postconf)
+	env -C $(strip $(1)) \
+	  -u LD_LIBRARY_PATH \
+	  -u LD_PRELOAD \
+	  OPT=' ' \
+	  MKDIR_P='/bin/mkdir -p' \
+	  $(config_site) \
+	./configure $(strip $(CONFIGURE_FLAGS) $(2))
+
+	$(call deb_python_postconf, $(1) )
 
 	sed -i -E \
 		-e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
-	$(DEB_BUILD_DIR)/Makefile
+	$(strip $(1))/Makefile
 
-	f='$(DEB_BUILD_DIR)/runpython.sh' ; \
+	: # only applies to 2nd stage build
+	f='$(strip $(1))/runpython.sh' ; \
 	: > "$$f" ; \
 	echo '#!/bin/sh' >> "$$f" ; \
 	echo 'export PYTHONPATH=$(INSTALL_SHARED)/$(PYTHON_PREFIX)/lib/python$(PYTHON_BASE_VERSION)/site-packages' >> "$$f" ; \
@@ -185,14 +198,18 @@ define deb_python_configure
 
 endef
 
-test_python = $(call x_python, $(DEB_BUILD_DIR) , , python , env -u PYTHONHOME )
+test_python = $(call x_python, $(1) , , python , env -u PYTHONHOME )
 
 define deb_python_build
 
+	: # apply build-time quirks
+	env -C $(strip $(1)) patch -p1 < $(CURDIR)/debian/patches/build-time-quirks.patch
+
 	build_ret=0 ; \
+	export DEB_PYTHON_BUILD_DIR='$(strip $(1))' ; \
 	for i in $$( seq 1 3 ) ; do \
 	  set +e ; \
-	  dh_auto_build $(DH_ARGS) ; \
+	  $(strip $(2) dh_auto_build) --sourcedir=$(strip $(1)) --builddir=$(strip $(1)) ; \
 	  build_ret=$$? ; \
 	  set -e ; \
 	  [ "$${build_ret}" = 0 ] || continue ; \
@@ -200,22 +217,35 @@ define deb_python_build
 	done ; \
 	[ "$${build_ret}" = 0 ] || exit $${build_ret}
 
-	$(test_python) -c 'from _multiprocessing import SemLock' || true
-	$(test_python) -c 'import _decimal'
-	$(test_python) -c 'import math, cmath'
-
-	: # verify site packages paths
-	$(test_python) -c 'import site; print(site.getusersitepackages())'
-	$(test_python) -c 'import site; print(site.getsitepackages())'
-	$(test_python) -m site
+	: # revert build-time quirks
+	env -C $(strip $(1)) patch -p1 -R < $(CURDIR)/debian/patches/build-time-quirks.patch
 
 endef
 
-deb_python_test = \
-	env -C '$(DEB_BUILD_DIR)' \
+define deb_python_test
+
+	: # basic checks
+	$(call test_python, $(1) ) -c 'from _multiprocessing import SemLock' $(if $(strip $(2)),|| $(strip $(2)))
+	$(call test_python, $(1) ) -c 'import _decimal' $(if $(strip $(2)),|| $(strip $(2)))
+	$(call test_python, $(1) ) -c 'import math, cmath' $(if $(strip $(2)),|| $(strip $(2)))
+
+	: # verify site packages paths
+	$(call test_python, $(1) ) -c 'import site; print(site.getusersitepackages())'
+	$(call test_python, $(1) ) -c 'import site; print(site.getsitepackages())'
+	$(call test_python, $(1) ) -m site
+
+	$(call remove_pycache, $(1) )
+
+	: # run standard test suite
+	env -C $(strip $(1)) \
 	CONTAINER_PYTHON_COMPAT=1 \
 	NPROC=$(NPROC_MAKE) \
-	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)'
+	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)' $(if $(strip $(2)),|| $(strip $(2)))
+
+	$(call remove_pycache, $(1) )
+
+endef
+
 
 define remove_pycache
 
@@ -294,7 +324,6 @@ define buildrepro_fix
 	$(strip $(1))
 
  	sed -i \
- 		-e 's|$(DEB_BUILD_DIR)/..|$(fake_srcdir)|g' \
  		-e 's|$(CURDIR)|$(fake_srcdir)|g' \
  	$(strip $(1))
 
@@ -316,11 +345,9 @@ endef
 # "aio" stands for "all-in-one"
 define buildrepro_aio
 
-	$(call buildrepro_backup,$(strip $(1)))
-
-	$(call buildrepro_fix,$(strip $(1)))
-
-	$(call buildrepro_compare,$(strip $(1)))
+	$(call buildrepro_backup, $(1) )
+	$(call buildrepro_fix, $(1) )
+	$(call buildrepro_compare, $(1) )
 
 endef
 
@@ -330,8 +357,12 @@ limb_python = $(call x_python, $(CURDIR)/debian/tmp/$(PYTHON_PREFIX) , lib , bin
 
 define deb_python_install
 
-	dh_auto_install $(DH_ARGS)
+	rm -rf debian/tmp
 
+	DEB_PYTHON_BUILD_DIR='$(strip $(1))' \
+	dh_auto_install --sourcedir=$(strip $(1)) --builddir=$(strip $(1))
+
+	rm -rf $(strip $(1))
 	$(call remove_pycache, debian/tmp )
 
 	: # remove manpages
@@ -351,8 +382,7 @@ define deb_python_install
 	find "$$d/" -path '*/lib/*/tests' -type d -exec rm -rf '{}' '+'
 
 	: # restore builtin testsuite
-	tar -xf debian/test.tar ; \
-	rm -f debian/test.tar
+	tar -xf debian/test.tar ; rm -f debian/test.tar
 
 	: # copy pip.conf
 	mkdir -p debian/tmp/$(PYTHON_PREFIX)/share
@@ -433,7 +463,7 @@ define deb_python_install
 	  -e 's/^_SETUPTOOLS_VERSION\s*=\s*.+/_SETUPTOOLS_VERSION = "'"$${ver_setuptools}"'"/' \
 	debian/tmp/$(PYTHON_MODULES)/ensurepip/__init__.py
 
-	$(call remove_pycache, $(if $(strip $(1)),$(strip $(1)),$(CURDIR)/debian/tmp) )
+	$(call remove_pycache, debian/tmp )
 
 	: # file name mangling
 	cd debian/tmp/$(PYTHON_PREFIX)/bin ; \
@@ -461,14 +491,12 @@ define deb_python_install
 endef
 
 override_dh_auto_build:
-	$(call deb_python_configure, $(CONFIGURE_FLAGS_SHARED) )
-	$(call deb_python_build)
-	$(call remove_pycache, $(DEB_BUILD_DIR) )
-	$(strip $(deb_python_test)) || $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)),true,false)
-	$(call remove_pycache, $(DEB_BUILD_DIR) )
+	$(call deb_python_configure, $(CURDIR)/debian/build/shared , $(CONFIGURE_FLAGS_SHARED) )
+	$(call deb_python_build, $(CURDIR)/debian/build/shared , DEB_PGO_LEVEL=0 )
+	$(call deb_python_test, $(CURDIR)/debian/build/shared , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
 
-	rm -rf debian/tmp $(INSTALL_SHARED)
-	$(call deb_python_install)
+	rm -rf $(INSTALL_SHARED)
+	$(call deb_python_install, $(CURDIR)/debian/build/shared )
 
 	: # adjust ensurepip: download fresh wheels
 	wheel_dir='debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled' ; \
@@ -491,11 +519,6 @@ override_dh_auto_build:
 	rm -rf "$${dst}" ; \
 	mv "$${src}" "$${dst}"
 
-ifeq ($(with_pgo),yes)
-	$(shared_python) -m pip install $(CURDIR)/pip-pyperformance
-	$(shared_python) -m pip install -r debian/req-bench.txt
-endif
-
 	$(call remove_pycache, $(CURDIR) )
 
 	: # propagate modified "ensurepip" to sources
@@ -503,22 +526,15 @@ endif
 	tar -C $(INSTALL_SHARED)/$(PYTHON_MODULES) -cf - ensurepip \
 	| tar -C Lib -xf -
 
-	$(call deb_python_configure, $(CONFIGURE_FLAGS_BINARY) )
-
-	$(call deb_python_build)
-
-	: # ensurepip: revert build-time patch
-	patch -p1 -R < debian/patches/ensurepip.patch
-
-ifneq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	$(strip $(deb_python_test)) || :
-endif
+	$(call deb_python_configure, $(CURDIR)/debian/build/binary , $(CONFIGURE_FLAGS_BINARY) )
+	$(call deb_python_build, $(CURDIR)/debian/build/binary )
+	$(call deb_python_test, $(CURDIR)/debian/build/binary , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
 
 override_dh_auto_test:
-	$(strip $(deb_python_test))
+	:
 
 override_dh_auto_install:
-	$(call deb_python_install)
+	$(call deb_python_install, $(CURDIR)/debian/build/binary )
 
 	$(call remove_pycache, $(CURDIR) )
 

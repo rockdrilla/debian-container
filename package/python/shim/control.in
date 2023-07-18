@@ -15,7 +15,6 @@ Multi-Arch: allowed
 Depends: ${misc:Depends},
          container-python-@{PYTHON_BASE_VERSION},
 Provides: python@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
-          libpython@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
           libpython@{PYTHON_BASE_VERSION}-minimal (= @{PYTHON_VERSION}),
           libpython@{PYTHON_BASE_VERSION}-stdlib (= @{PYTHON_VERSION}),
           python@{PYTHON_BASE_VERSION}-distutils (= @{PYTHON_VERSION}),
