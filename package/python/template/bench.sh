@@ -4,18 +4,6 @@ set -f
 
 : "${DEB_SRC_TOPDIR:?}" "${DEB_PGO_FROM_BUILD:?}" "${DEB_PGO_FROM_PKG:?}"
 
-while [ "${DEB_PGO_REUSE}" = yes ] ; do
-	[ -d "/${DEB_PGO_FROM_PKG}" ] || exit 1
-
-	find ./ -name '*.gcda' -printf '%P\0' \
-	| sort -zuV | xargs -0r rm -fv
-
-	tar -C "/${DEB_PGO_FROM_PKG}" -cf - . \
-	| tar -xvf -
-
-	exit 0
-done
-
 flush_pycache() {
 	find "${DEB_SRC_TOPDIR}" -name __pycache__ -type d -exec rm -rf '{}' '+'
 	find "${DEB_SRC_TOPDIR}" -name '*.py[co]' -ls -delete
@@ -51,6 +39,18 @@ do_python_tests() {
 
 do_python_tests "$@"
 end_if_level 0
+
+while [ "${DEB_PGO_REUSE}" = yes ] ; do
+	[ -d "/${DEB_PGO_FROM_PKG}" ] || exit 1
+
+	find ./ -name '*.gcda' -printf '%P\0' \
+	| sort -zuV | xargs -0r rm -fv
+
+	tar -C "/${DEB_PGO_FROM_PKG}" -cf - . \
+	| tar -xvf -
+
+	exit 0
+done
 
 do_python_tests "$@" --pgo-extended --use=${TEST_RESOURCES} --exclude ${TEST_EXCLUDE}
 end_if_level 1
