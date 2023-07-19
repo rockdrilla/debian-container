@@ -116,6 +116,7 @@ CONFIGURE_FLAGS = \
 	--enable-loadable-sqlite-extensions \
 	--with-dbmliborder=bdb:gdbm \
 	--with-ssl-default-suites=openssl \
+	$(if $(filter yes,$(with_lto)),--with-lto) \
 
 
 CONFIGURE_FLAGS_SHARED = \
@@ -123,7 +124,6 @@ CONFIGURE_FLAGS_SHARED = \
 
 
 CONFIGURE_FLAGS_BINARY = \
-	$(if $(filter yes,$(with_lto)),--with-lto) \
 	$(if $(filter yes,$(with_pgo)),--enable-optimizations) \
 
 
