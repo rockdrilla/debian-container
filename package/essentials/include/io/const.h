@@ -12,11 +12,11 @@
 #include <limits.h>
 
 #ifndef PATH_MAX
-#define PATH_MAX 4096
+#define PATH_MAX  4096
 #endif
 
 #ifndef FILENAME_MAX
-#define FILENAME_MAX 4096
+#define FILENAME_MAX  4096
 #endif
 
 #include "../misc/ext-c-end.h"

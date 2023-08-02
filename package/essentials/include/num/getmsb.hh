@@ -10,11 +10,13 @@
 #include "getmsb.h"
 
 template<typename T>
-static CC_FORCE_INLINE \
+static \
+CC_FORCE_INLINE \
 T getmsb_t(T a);
 
 #define _GETMSB_T_DEFINE_FUNC(n, T) \
-	template<> CC_FORCE_INLINE \
+	template<> \
+	CC_FORCE_INLINE \
 	T getmsb_t<T>(T a) \
 	{ \
 		return getmsb ## n (a); \

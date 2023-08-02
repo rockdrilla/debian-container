@@ -12,8 +12,8 @@
 
 #include "../misc/ext-c-begin.h"
 
-#include "mountinfo.h"
 #include "cgroup.h"
+#include "mountinfo.h"
 
 typedef struct {
 	char root[PATH_MAX],
@@ -27,30 +27,28 @@ int _cgv2_mountinfo(const procfs_mountinfo_entry * entry, _cgv2_walk * state)
 	if (strcmp(entry->fs_type, "cgroup2") != 0)
 		return 0;
 
-	strcpy(state->root,        entry->root);
-	strcpy(state->mount_point, entry->mount_point);
+	(void) strcpy(state->root,        entry->root);
+	(void) strcpy(state->mount_point, entry->mount_point);
 	return 1;
 }
 
 static
 int _cgv2_cgroup(const procfs_cgroup_entry * entry, _cgv2_walk * state)
 {
-	if (entry->id != 0)
-		return 0;
-	if (entry->controllers[0])
-		return 0;
+	if (entry->id)             return 0;
+	if (entry->controllers[0]) return 0;
 
 	do {
 		if (strcmp(state->root, "/") == 0) break;
 		if (strcmp(state->root, entry->path) == 0) break;
 
-		// many thanks to Podman for wasting approx. 4 hours of my life
+		/* many thanks to Podman for wasting approx. 4 hours of my life */
 		if (strncmp(state->root, "/../", 4) == 0) break;
 
 		return 0;
 	} while (0);
 
-	strcpy(state->path, entry->path);
+	(void) strcpy(state->path, entry->path);
 	return 1;
 }
 
@@ -58,18 +56,20 @@ static
 int get_cgroup_v2_path(pid_t pid, char * buf)
 {
 	_cgv2_walk state;
+	procfs_mountinfo_callback callback1 = (procfs_mountinfo_callback) _cgv2_mountinfo;
+	procfs_cgroup_callback    callback2 = (procfs_cgroup_callback)    _cgv2_cgroup;
 
-	memset(&state, 0, sizeof(state));
+	(void) memset(&state, 0, sizeof(state));
 
-	if (!procfs_mountinfo_walk(pid, (procfs_mountinfo_callback) _cgv2_mountinfo, &state))
+	if (!procfs_mountinfo_walk(pid, callback1, &state))
 		return 0;
 
-	if (!procfs_cgroup_walk(pid, (procfs_cgroup_callback) _cgv2_cgroup, &state))
+	if (!procfs_cgroup_walk(pid, callback2, &state))
 		return 0;
 
-	strcpy(buf, state.mount_point);
+	(void) strcpy(buf, state.mount_point);
 	if (strcmp(state.root, "/") == 0)
-		strcat(buf, state.path);
+		(void) strcat(buf, state.path);
 
 	return 1;
 }

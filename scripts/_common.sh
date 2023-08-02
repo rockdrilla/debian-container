@@ -38,8 +38,9 @@ build_artifacts_volumes() {
 }
 
 default_D_S_T='
-	debian:bullseye:11:stable:latest
-	debian:bookworm:12:testing
+	debian:bullseye:11:oldstable
+	debian:bookworm:12:stable:latest
+	debian:trixie:13:testing
 	debian:sid:unstable
 	ubuntu:focal:20.04:lts
 	ubuntu:jammy:22.04:stable:latest

@@ -11,17 +11,12 @@
 
 #include "../misc/memfun.hh"
 #include "../num/getmsb.hh"
+#include "../num/minmax.hh"
 
 namespace uvector {
 
 template<typename value_t, typename index_t = size_t, unsigned int growth_factor = 0>
 struct base {
-
-	virtual index_t used(void) const = 0;
-	virtual index_t allocated(void) const = 0;
-
-	virtual index_t append(const value_t * source) = 0;
-	virtual index_t append(const value_t & source) = 0;
 
 	static constexpr int     r_ptr_bits = sizeof(size_t) * CHAR_BIT;
 	static constexpr int     r_idx_bits = sizeof(index_t) * CHAR_BIT;
@@ -39,26 +34,30 @@ struct base {
 	static constexpr int idx_bits   = r_idx_bits - fence_bits;
 	static constexpr int wfall_bits = idx_bits - 1;
 
-	typedef struct {
-		union {
+	typedef struct { union {
 		char     bytes[align_size];
 		value_t  value;
-		} _;
-	} value_align_t;
+	} _; } value_align_t;
 
-	CC_INLINE
-	static size_t offset_of(index_t index) {
+	static
+	CC_FORCE_INLINE
+	size_t offset_of(index_t index)
+	{
 		return (size_t) memfun_ptr_offset_ex(nullptr, align_size, index);
 	}
 
-	CC_INLINE
-	static bool is_inv(index_t index) {
-		return ((index >> idx_bits) != 0);
+	static
+	CC_FORCE_INLINE
+	bool is_inv(index_t index)
+	{
+		return (!!(index >> idx_bits));
 	}
 
-	CC_INLINE
-	static bool is_wfall(index_t index) {
-		return ((index >> wfall_bits) != 0);
+	static
+	CC_FORCE_INLINE
+	bool is_wfall(index_t index)
+	{
+		return (!!(index >> wfall_bits));
 	}
 
 };

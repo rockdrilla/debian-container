@@ -6,14 +6,14 @@ set -f
 
 reparse_ld_preload() {
 	tr ' :' '\0' \
-	| grep -zEv '^(.+/|)libnprocfix\.so$' \
+	| grep -zEv '^(.+/|)libincontainer\.so$' \
 	| paste -zsd':' \
 	| tr -d '\0'
 }
 
 # normalize LD_PRELOAD:
 # - normalize separators
-# - strip libnprocfix.so (if any)
+# - strip libincontainer.so (if any)
 if [ -n "${LD_PRELOAD}" ] ; then
 	__old="${LD_PRELOAD}"
 	unset LD_PRELOAD
@@ -27,6 +27,6 @@ if [ -n "${LD_PRELOAD}" ] ; then
 	unset __old __new
 fi
 
-export LD_PRELOAD="libnprocfix.so${LD_PRELOAD:+:$LD_PRELOAD}"
+export LD_PRELOAD="libincontainer.so${LD_PRELOAD:+:$LD_PRELOAD}"
 
 exec "$@"

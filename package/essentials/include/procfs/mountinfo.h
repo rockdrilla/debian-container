@@ -25,7 +25,6 @@ typedef struct {
 	    parent_id,
 	    major,
 	    minor;
-
 	char * root,
 	     * mount_point,
 	     * mount_options,
@@ -40,38 +39,35 @@ typedef int (* procfs_mountinfo_callback ) (const procfs_mountinfo_entry * entry
 static
 int procfs_mountinfo_walk(pid_t pid, const procfs_mountinfo_callback callback, void * state)
 {
-	if (!callback) return 0;
-
-	FILE * f = NULL;
-
-	if (pid > 0) {
-		/* "/proc/" + "/mountinfo" - 16, "%d" - up to 10 */
-		char procfs_path[32];
-		snprintf(procfs_path, sizeof(procfs_path), "/proc/%d/mountinfo", pid);
-		f = fopen(procfs_path, "r");
-	} else
-		f = fopen("/proc/self/mountinfo", "r");
-
-	if (!f) return 0;
-
-	/* split up to entry.optional */
-	const unsigned int n_part = 7;
-	char * part[n_part];
-
-	procfs_mountinfo_entry entry;
-
+	const unsigned int n_part = 7; /* split up to entry.optional */
 	const int n_buf = PATH_MAX /* entry.root */
 	                + PATH_MAX /* entry.mount_point */
 	                + PATH_MAX /* entry.mount_options */
 	                + PATH_MAX /* entry.super_options */
 	                + PATH_MAX /* remaining fields */;
-	char buf[n_buf];
 
+	procfs_mountinfo_entry entry;
+	FILE * f = NULL;
+	char * part[n_part];
+	char buf[n_buf];
+	char * sep;
 	int result = 0;
 
-	char * sep;
-	while (fgets_trim(buf, n_buf, f)) {
-		memset(&entry, 0, sizeof(entry));
+	if (!callback) return 0;
+
+	if (pid > 0) {
+		/* "/proc/" + "/mountinfo" - 16, "%d" - up to 10 */
+		char procfs_path[32];
+		(void) snprintf(procfs_path, sizeof(procfs_path), "/proc/%d/mountinfo", pid);
+		f = fopen(procfs_path, "r");
+	}
+	else
+		f = fopen("/proc/self/mountinfo", "r");
+
+	if (!f) return 0;
+
+	while (fgets_noeol(buf, n_buf, f)) {
+		(void) memset(&entry, 0, sizeof(entry));
 
 		if (split_string(buf, ' ', n_part, part) != n_part)
 			continue;
@@ -91,14 +87,14 @@ int procfs_mountinfo_walk(pid_t pid, const procfs_mountinfo_callback callback, v
 		entry.minor = read_int_str(10, part[1]);
 
 		sep = find_token(entry.optional, ' ', "-");
-		if (sep == NULL) continue;
+		if (!sep) continue;
 
 		if (sep == entry.optional)
 			entry.optional = NULL;
 		else
 			entry.optional[sep - entry.optional - 1] = 0;
 
-		sep += 2; // go to next token
+		sep += 2; /* go to next token */
 
 		if (split_string(sep, ' ', 3, part) != 3)
 			continue;
@@ -108,13 +104,16 @@ int procfs_mountinfo_walk(pid_t pid, const procfs_mountinfo_callback callback, v
 		entry.super_options = part[2];
 
 		int result_cb = callback(&entry, state);
-		if (result_cb == 0) continue;
-		if (result_cb < 0)  break;
-		if (result_cb > 0)  result = 1;
+		if (!result_cb) continue;
+		else
+		if (result_cb < 0) break;
+		else
+		if (result_cb > 0) result = 1;
+
 		if (result_cb == 1) break;
 	}
 
-	fclose(f);
+	(void) fclose(f);
 
 	return result;
 }

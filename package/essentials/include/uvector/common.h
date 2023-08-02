@@ -10,8 +10,8 @@
 #define HEADER_INCLUDED_UVECTOR_COMMON 1
 
 #include "../misc/cc-inline.h"
-#include "../misc/memfun.h"
 #include "../misc/kustom.h"
+#include "../misc/memfun.h"
 #include "../num/getmsb.h"
 
 #define UVECTOR_NAME(t, k)  KUSTOM_NAME(uvector, t, k)
@@ -111,25 +111,29 @@ static const int UVECTOR_NAME(ptr, bits) = sizeof(size_t) * CHAR_BIT;
 
 
 #define _UVECTOR_PROC__INDEX(user_t, index_t, value_t) \
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	size_t \
 	UVECTOR_PROC(user_t, offset_of) (index_t index) { \
 		return (size_t) memfun_ptr_offset_ex(NULL, UVECTOR_NAME(user_t, align_size), index); \
 	} \
 	\
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	value_t * \
 	UVECTOR_PROC_INT(user_t, ptr_of) (const user_t * vector, index_t index) { \
 		return (value_t *) memfun_ptr_offset_ex(vector->ptr, UVECTOR_NAME(user_t, align_size), index); \
 	} \
 	\
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	int \
 	UVECTOR_PROC(user_t, is_inv) (index_t index) { \
 		return ((index >> UVECTOR_NAME(user_t, idx_bits)) != 0); \
 	} \
 	\
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	int \
 	UVECTOR_PROC_INT(user_t, is_wfall) (index_t index) { \
 		return ((index >> UVECTOR_NAME(user_t, wfall_bits)) != 0); \
@@ -157,9 +161,8 @@ static const int UVECTOR_NAME(ptr, bits) = sizeof(size_t) * CHAR_BIT;
 		if (UVECTOR_CALL_INT(user_t, is_wfall, vector->allocated)) { \
 			if (!uaddl(vector->allocated, count, &_new)) \
 				return 0; \
-		} else { \
+		} else \
 			_new = vector->allocated + count; \
-		} \
 		if (UVECTOR_CALL(user_t, is_inv, _new)) \
 			return 0; \
 		return UVECTOR_CALL_INT(user_t, grow_by_bytes, vector, UVECTOR_CALL(user_t, offset_of, count)); \
@@ -203,7 +206,8 @@ static const int UVECTOR_NAME(ptr, bits) = sizeof(size_t) * CHAR_BIT;
 		return UVECTOR_CALL_INT(user_t, ptr_of, vector, index); \
 	} \
 	\
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	void \
 	UVECTOR_PROC_INT(user_t, set_by_ptr) (user_t * vector, index_t index, const value_t * source) { \
 		void * item = UVECTOR_CALL_INT(user_t, ptr_of, vector, index); \
@@ -233,7 +237,8 @@ static const int UVECTOR_NAME(ptr, bits) = sizeof(size_t) * CHAR_BIT;
 
 
 #define _UVECTOR_PROC__BY_VAL(user_t, index_t, value_t) \
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	value_t \
 	UVECTOR_PROC_INT(user_t, get_by_val) (const user_t * vector, index_t index) { \
 		value_t * item = UVECTOR_CALL_INT(user_t, ptr_of, vector, index); \
@@ -255,7 +260,8 @@ static const int UVECTOR_NAME(ptr, bits) = sizeof(size_t) * CHAR_BIT;
 		return UVECTOR_CALL_INT(user_t, get_by_val, vector, index); \
 	} \
 	\
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	void \
 	UVECTOR_PROC_INT(user_t, set_by_val) (user_t * vector, index_t index, value_t value) { \
 		value_t * item = UVECTOR_CALL_INT(user_t, ptr_of, vector, index); \

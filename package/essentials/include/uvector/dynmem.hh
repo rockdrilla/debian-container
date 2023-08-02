@@ -31,34 +31,46 @@ protected:
 	index_t _used = 0, _allocated = 0;
 	value_align_t * _ptr = nullptr;
 
-	CC_INLINE
-	void flush_self(void) {
-		memset(this, 0, sizeof(*this));
+	CC_FORCE_INLINE
+	void _flush_self(void)
+	{
+		(void) memset(this, 0, sizeof(*this));
 	}
 
-	CC_INLINE
-	const value_t * ptr_of(index_t index) const {
+	CC_FORCE_INLINE
+	const value_t * _get_ptr(index_t index)
+	const {
 		return (const value_t *) memfun_ptr_offset_ex(_ptr, align_size, index);
 	}
 
-	CC_INLINE
-	const value_t & get_raw(index_t index) const {
+	CC_FORCE_INLINE
+	const value_t & _get_val(index_t index)
+	const {
 		return _ptr[index]._.value;
 	}
 
 	CC_INLINE
-	void set_by_ptr(index_t index, const value_t * source) {
-		auto item = (value_t *) ptr_of(index);
-		if (!item) return;
+	bool _set_ptr(index_t index, const value_t * source)
+	{
+		auto item = (value_t *) _get_ptr(index);
+		if (!item) return false;
 
 		if (source)
 			(void) memcpy(item, source, item_size);
 		else
 			(void) memset(item, 0, item_size);
+		return true;
 	}
 
-	int _grow_by_bytes(size_t bytes) {
-		size_t _new = _base::offset_of(_allocated);
+	CC_INLINE
+	index_t _append(const value_t * source)
+	{
+		return (_set_ptr(_used, source)) ? (_used++) : idx_inv;
+	}
+
+	int _grow_by_bytes(size_t bytes)
+	{
+		size_t _new = offset_of(_allocated);
 		auto nptr = memfun_t_realloc_ex(_ptr, &_new, bytes);
 		if ((!nptr) || (!_new)) return 0;
 
@@ -71,120 +83,134 @@ protected:
 		return 2;
 	}
 
-	int _grow_by_count(index_t count) {
+	int _grow_by_count(index_t count)
+	{
 		size_t _new = 0;
-		if (_base::is_wfall(_allocated)) {
+		if (is_wfall(_allocated)) {
 			if (!uaddl(_allocated, count, &_new))
 				return 0;
-		} else {
-			_new = _allocated + count;
 		}
+		else
+			_new = _allocated + count;
 
 		if (is_inv(_new)) return 0;
 
-		return _grow_by_bytes(_base::offset_of(count));
+		return _grow_by_bytes(offset_of(count));
 	}
 
 public:
 
-	static CC_INLINE
-	bool is_inv(index_t index) {
-		return ((index >> idx_bits) != 0);
+	static
+	CC_FORCE_INLINE
+	size_t offset_of(index_t index)
+	{
+		return _base::offset_of(index);
 	}
 
-	dynmem() {
-		flush_self();
+	static
+	CC_FORCE_INLINE
+	bool is_inv(index_t index)
+	{
+		return _base::is_inv(index);
+	}
+
+	static
+	CC_FORCE_INLINE
+	bool is_wfall(index_t index)
+	{
+		return _base::is_wfall(index);
+	}
+
+	dynmem()
+	{
+		_flush_self();
 	}
 
 	template<unsigned int source_growth>
-	dynmem(const dynmem<value_t, index_t, source_growth> & source) {
-		flush_self();
+	dynmem(const dynmem<value_t, index_t, source_growth> & source)
+	{
+		_flush_self();
 
-		if (!grow_by_count(source.used())) return;
+		if (!grow_by_count(source.used()))
+			return;
 
 		_used = source.used();
 		if (_used)
-			(void) memcpy(_ptr, source.get(0), _base::offset_of(_used));
+			(void) memcpy(_ptr, source.get(0), offset_of(_used));
 	}
 
-	dynmem(index_t reserve_count) {
-		flush_self();
+	dynmem(index_t reserve_count)
+	{
+		_flush_self();
 		grow_by_count(reserve_count);
 	}
 
 	dynmem & operator = (const dynmem & other) = default;
 
-	void free(void) {
-		memfun_t_free(_ptr, _base::offset_of(_used));
-		flush_self();
+	void free(void)
+	{
+		memfun_t_free(_ptr, offset_of(_used));
+		_flush_self();
 	}
 
-	CC_INLINE
-	index_t used(void) const {
+	CC_FORCE_INLINE
+	index_t used(void)
+	const {
 		return _used;
 	}
 
-	CC_INLINE
-	index_t allocated(void) const {
+	CC_FORCE_INLINE
+	index_t allocated(void)
+	const {
 		return _allocated;
 	}
 
-	const value_t * get(index_t index) const {
-		if (index >= _used) return nullptr;
-
-		return ptr_of(index);
+	const value_t * get(index_t index)
+	const {
+		return (index < used()) ? _get_ptr(index) : nullptr;
 	}
 
 	bool set(index_t index, const value_t * source) {
-		if (index >= _used) return false;
-
-		set_by_ptr(index, source);
-		return true;
+		return (index < used()) ? _set_ptr(index, source) : false;
 	}
 
-	const value_t get_val(index_t index) const {
-		if (index >= _used) {
-			value_t _default[1] = {};
-			return _default[0];
-		}
+	const value_t get_val(index_t index)
+	const {
+		if (index < used())
+			return _get_val(index);
 
-		return get_raw(index);
+		value_t _default[1] = {};
+		return _default[0];
 	}
 
-	const value_t get_val(index_t index, const value_t & fallback) const {
-		if (index >= _used) return fallback;
-
-		return get_raw(index);
+	const value_t get_val(index_t index, const value_t & fallback)
+	const {
+		return (index < used()) ? _get_val(index) : fallback;
 	}
 
-	bool set(index_t index, const value_t & source) {
-		if (index >= _used) return false;
-
-		set_by_ptr(index, &source);
-		return true;
+	bool set(index_t index, const value_t & source)
+	{
+		return (index < used()) ? _set_ptr(index, &source) : false;
 	}
 
-	index_t append(const value_t * source) {
-		if (!grow_auto()) return idx_inv;
-
-		set_by_ptr(_used, source);
-		return (_used++);
+	index_t append(const value_t * source)
+	{
+		return (grow_auto()) ? _append(source) : idx_inv;
 	}
 
-	index_t append(const value_t & source) {
-		if (!grow_auto()) return idx_inv;
-
-		set_by_ptr(_used, &source);
-		return (_used++);
+	index_t append(const value_t & source)
+	{
+		return (grow_auto()) ? _append(&source) : idx_inv;
 	}
 
 	template<unsigned int source_growth>
-	index_t append(const dynmem<value_t, index_t, source_growth> & source, index_t begin, index_t count) {
+	index_t append(const dynmem<value_t, index_t, source_growth> & source, index_t begin, index_t count)
+	{
 		if (begin >= source.used()) return 0;
 
-		index_t end = begin + count;
-		if (end > source.used())
-			count = source.used() - begin;
+		index_t end = source.used();
+		end = min(end, begin + count);
+		count = end - begin;
 
 		index_t i, k = idx_inv;
 		for (i = begin; i < end; i++) {
@@ -197,56 +223,69 @@ public:
 	}
 
 	template<unsigned int source_growth>
-	index_t append(const dynmem<value_t, index_t, source_growth> & source) {
+	index_t append(const dynmem<value_t, index_t, source_growth> & source)
+	{
 		return append(source, 0, source.used());
 	}
 
-	int grow_by_bytes(size_t bytes) {
+	int grow_by_bytes(size_t bytes)
+	{
 		if (!bytes) return 0;
-		if (_allocated >= idx_max) return 0;
+		if (idx_max < allocated()) return 0;
 
 		return _grow_by_bytes(bytes);
 	}
 
-	int grow_by_count(index_t count) {
+	int grow_by_count(index_t count)
+	{
 		if (!count) return 0;
-		if (_base::is_wfall(count)) return 0;
-		if (_allocated >= idx_max) return 0;
+		if (is_wfall(count)) return 0;
+		if (allocated() >= idx_max) return 0;
 
 		return _grow_by_count(count);
 	}
 
-	int grow_auto(void) {
-		if (_used < _allocated)
-			return 1;
-
-		return grow_by_bytes(growth);
+	int grow_auto(void)
+	{
+		return (used() < allocated()) ? 1 : grow_by_bytes(growth);
 	}
 
-	void walk(void (*visitor)(index_t, const value_t *)) const {
-		for (index_t i = 0; i < _used; i++) {
-			visitor(i, ptr_of(i));
+	index_t walk(bool (*visitor)(index_t, const value_t *))
+	const {
+		index_t i = 0;
+		for (; i < used(); i++) {
+			if (!visitor(i, get(i))) break;
 		}
-	}
-
-	template<typename T = void>
-	void walk(void (*visitor)(index_t, const value_t *, T *), T * state) const {
-		for (index_t i = 0; i < _used; i++) {
-			visitor(i, ptr_of(i), state);
-		}
-	}
-
-	void rwalk(void (*visitor)(index_t, const value_t *)) const {
-		for (index_t i = _used; (i--) != 0; ) {
-			visitor(i, ptr_of(i));
-		}
+		return i;
 	}
 
 	template<typename T = void>
-	void rwalk(void (*visitor)(index_t, const value_t *, T *), T * state) const {
-		for (index_t i = _used; (i--) != 0; ) {
-			visitor(i, ptr_of(i), state);
+	index_t walk(bool (*visitor)(index_t, const value_t *, T *), T * state)
+	const {
+		index_t i = 0;
+		for (; i < used(); i++) {
+			if (!visitor(i, get(i), state)) break;
 		}
+		return i;
+	}
+
+	index_t rwalk(bool (*visitor)(index_t, const value_t *))
+	const {
+		index_t i = used();
+		while ((i--)) {
+			if (!visitor(i, get(i))) break;
+		}
+		return i;
+	}
+
+	template<typename T = void>
+	index_t rwalk(bool (*visitor)(index_t, const value_t *, T *), T * state)
+	const {
+		index_t i = used();
+		while ((i--)) {
+			if (!visitor(i, get(i), state)) break;
+		}
+		return i;
 	}
 
 };

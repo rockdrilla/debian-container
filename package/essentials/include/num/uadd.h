@@ -31,10 +31,11 @@
   #endif /* __builtin_uaddll_overflow */
 #endif /* __has_builtin */
 
-// TODO: write fair enough fallback version
+/* TODO: write fair enough fallback version */
 
 #define _UADD_DEFINE_FUNC(n, t) \
-	static CC_INLINE \
+	static \
+	CC_INLINE \
 	int uadd ## n (t a, t b, t * r) { \
 		t res = a + b; \
 		if (a > b) { \

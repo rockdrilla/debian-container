@@ -31,10 +31,11 @@
   #endif /* __builtin_umulll_overflow */
 #endif /* __has_builtin */
 
-// TODO: write fair enough fallback version
+/* TODO: write fair enough fallback version */
 
 #define _UMUL_DEFINE_FUNC(n, t) \
-	static CC_INLINE \
+	static \
+	CC_INLINE \
 	int umul ## n (t a, t b, t * r) { \
 		t res = a * b; \
 		if (a > b) { \

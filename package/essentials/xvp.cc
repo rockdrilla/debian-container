@@ -20,9 +20,17 @@
 #define _GNU_SOURCE
 #endif
 
+#ifndef __STDC_WANT_LIB_EXT1__
+#define __STDC_WANT_LIB_EXT1__  1
+#endif
+
+#ifndef _LARGEFILE_SOURCE
 #define _LARGEFILE_SOURCE
+#endif
+
+#ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
-#define __STDC_WANT_LIB_EXT1__ 1
+#endif
 
 #include <cerrno>
 #include <climits>
@@ -44,51 +52,60 @@
 
 #include "include/io/const.h"
 #include "include/io/log-stderr.h"
+#include "include/misc/cc-inline.h"
+
 #include "include/uvector/uvector.hh"
 
 #define XVP_OPTS "a:cfhinsu"
 
-static void usage(int retcode)
+static
+void usage(int retcode)
 {
-	(void) fputs(
-	"xvp 0.3.0\n"
+	static const char usage_msg[] =
+	"xvp 0.3.1\n"
 	"Usage: xvp [-a <arg0>] [-cfhinsu] <program> [..<common args>] {<arg file>|-}\n"
-	" -a <arg0> - arg0 (set argv[0] for <program> to <arg0>)\n"
-	" -c        - clean env (run <program> with empty environment)\n"
-	" -h        - help (show this message)\n"
-	" -i        - info (print limits and do nothing)\n"
-	" -n        - no wait (run as much processes at once as possible)\n"
-	" -f        - force (force _single_ <program> execution or return error)\n"
-	" -s        - strict (stop after first failed child process)\n"
-	" -u        - unlink (delete <arg file> if it's regular file)\n"
+	" -h  - help: show this message\n"
+	" -a  - arg0: set argv[0] for <program> to <arg0>\n"
+	" -c  - clean env: run <program> with empty environment\n"
+	" -i  - info: print limits and do nothing\n"
+	" -n  - no wait: run as much processes at once as possible\n"
+	" -f  - force: force _single_ <program> execution or return error\n"
+	" -s  - strict: stop after first failed child process\n"
+	" -u  - unlink: delete <arg file> if it's regular file\n"
 	"\n"
-	" <arg file> - file with NUL-separated arguments or stdin if \"-\" was specified\n"
+	" <arg file>  - file with NUL-separated arguments or stdin if \"-\" was specified\n"
 	"\n"
 	" Notes:\n"
 	" - options \"-n\" and \"-s\" are mutually exclusive;\n"
 	" - option \"-u\" is ignored if reading from stdin.\n"
-	, stderr);
+	;
+
+	(void) write(STDERR_FILENO, usage_msg, sizeof(usage_msg));
 
 	exit(retcode);
 }
 
+static const char * log_pfx = "xvp:";
+
 static struct {
 	char * Arg0;
-	uint8_t
-	  _Script_stdin,
-	  Clean_env,
-	  Force_once,
-	  Info_only,
-	  No_wait,
-	  Strict,
-	  Unlink_argfile
-	;
+	uint8_t _Script_stdin,
+	        Clean_env,
+	        Force_once,
+	        Info_only,
+	        No_wait,
+	        Strict,
+	        Unlink_argfile;
 } opt;
 
 static const char * callee = nullptr;
 static const char * script = nullptr;
 
-static void parse_opts(int argc, char * argv[]);
+#define do_log(...)  log_stderr_ex(log_pfx, NULL, __VA_ARGS__)
+static void do_log_error(int error_num, const char * where);
+static void do_log_path_error(int error_num, const char * where, const char * name);
+
+static void parse_opts(int argc, char * const * argv);
 static void prepare(int argc, char * argv[]);
 static void run(void);
 
@@ -96,7 +113,7 @@ int main(int argc, char * argv[])
 {
 	if (argc < 2) usage(0);
 
-	parse_opts(argc, argv);
+	parse_opts(argc, (char * const *) argv);
 	prepare(argc, argv);
 	run();
 
@@ -104,15 +121,15 @@ int main(int argc, char * argv[])
 }
 
 static int handle_file_type(uint32_t type, const char * arg);
-static void dump_error(int error_num, const char * where);
-static void dump_path_error(int error_num, const char * where, const char * name);
 
-static void parse_opts(int argc, char * argv[])
+static
+void parse_opts(int argc, char * const * argv)
 {
+	int o;
+
 	memset(&opt, 0, sizeof(opt));
 
-	int o;
-	while ((o = getopt(argc, (char * const *) argv, "++" XVP_OPTS)) != -1) {
+	while ((o = getopt(argc, argv, "++" XVP_OPTS)) != -1) {
 		switch (o) {
 		case 'h':
 			usage(0);
@@ -154,18 +171,21 @@ static void parse_opts(int argc, char * argv[])
 		usage(EINVAL);
 }
 
-static size_t get_env_size(void)
+static
+size_t get_env_size(void)
 {
 	static size_t x = 0;
 	if (x) return x;
 
-	for (char ** p = environ; *p; ++p)
+	for (char ** p = environ; p && *p; ++p) {
 		x += strlen(*p) + 1;
+	}
 
 	return x;
 }
 
-static size_t get_arg_max(void)
+static
+size_t get_arg_max(void)
 {
 	static size_t x = 0;
 	if (x) return x;
@@ -181,11 +201,11 @@ static size_t get_arg_max(void)
 
 #ifdef RLIMIT_STACK
 	struct rlimit stack_limit;
-	if (getrlimit(RLIMIT_STACK, &stack_limit) == 0)
+	if (!getrlimit(RLIMIT_STACK, &stack_limit))
 		return x = (stack_limit.rlim_cur / 4);
 #endif
 
-	// differs from "findutils" variant
+	/* differs from "findutils" variant */
 	return x = (LONG_MAX >> 1);
 }
 
@@ -194,33 +214,42 @@ static uvector::str<> argv_init, argv_curr;
 
 static struct stat f_stat;
 
-// differs from "findutils" variant
+/* differs from "findutils" variant */
 static constexpr size_t argc_padding = 4;
 
-static size_t get_argv_fullsize(const uvector::str<> * argv)
+static
+CC_INLINE
+size_t get_argv_fullsize(const uvector::str<> * argv)
 {
 	return argv->used() + argv->count() * sizeof(size_t);
 }
 
-static bool is_argv_full(const uvector::str<> * argv) {
-	if (argv->count() > argc_max)
+static
+CC_INLINE
+bool is_argv_full(const uvector::str<> * argv) {
+	if (argv->count() >= argc_max)
 		return true;
-	if (get_argv_fullsize(argv) > size_args)
+
+	if (get_argv_fullsize(argv) >= size_args)
 		return true;
 
 	return false;
 }
 
-static bool is_argv_full(const uvector::str<> * argv, size_t extra_arg_length) {
+static
+CC_INLINE
+bool is_argv_full(const uvector::str<> * argv, size_t extra_arg_length) {
 	if (argv->count() >= argc_max)
 		return true;
+
 	if ((get_argv_fullsize(argv) + extra_arg_length + 1) >= size_args)
 		return true;
 
 	return false;
 }
 
-static void prepare(int argc, char * argv[])
+static
+void prepare(int argc, char * argv[])
 {
 	callee = argv[optind];
 	script = argv[argc - 1];
@@ -230,17 +259,17 @@ static void prepare(int argc, char * argv[])
 	}
 
 	size_env = get_env_size();
-	{
-		size_t x = roundbyl(size_env, memfun_page_default);
+	size_t x = roundbyl(size_env, memfun_page_default);
 
-		const uint32_t POSIX_ENV_HEADROOM = memfun_page_default / 2;
-		if ((x - size_env) <= POSIX_ENV_HEADROOM)
-			x += memfun_page_default;
+	const uint32_t POSIX_ENV_HEADROOM = memfun_page_default / 2;
+	if ((x - size_env) <= POSIX_ENV_HEADROOM)
+		x += memfun_page_default;
 
-		size_env = x;
-
-		if (opt.Clean_env) size_env = POSIX_ENV_HEADROOM;
+	size_env = x;
+	if (opt.Clean_env) {
+		size_env = POSIX_ENV_HEADROOM;
 	}
+
 	size_args = get_arg_max() - size_env;
 	argc_max = (size_args / sizeof(size_t)) - argc_padding;
 	size_args -= argc_padding * sizeof(size_t);
@@ -251,25 +280,43 @@ static void prepare(int argc, char * argv[])
 	}
 
 	if (is_argv_full(&argv_init)) {
-		dump_error(E2BIG, "prepare()");
+		do_log_error(E2BIG, "prepare()");
 		exit(E2BIG);
 	}
 }
 
-static void do_exec(void)
+static
+CC_INLINE
+void do_sleep(void)
 {
-	if (argv_curr.count() == argv_init.count()) return;
+	static int init = 0;
+	static struct timespec sleep_ts;
+
+	if (!init) {
+		sleep_ts.tv_sec  = 0;
+		sleep_ts.tv_nsec = 1;
+		init = 1;
+	}
+
+	(void) nanosleep(&sleep_ts, NULL);
+}
+
+static
+void do_exec(void)
+{
+	if (argv_curr.count() == argv_init.count())
+		return;
 
 	argv_init.free();
 
 	if (opt._Script_stdin) {
 		int fd_null = open("/dev/null", O_RDONLY);
 		if (fd_null >= 0) {
-			dup2(fd_null, 0);
-			if (fd_null) close(fd_null);
-		} else {
-			close(0);
+			(void) dup2(fd_null, 0);
+			(void) close(fd_null);
 		}
+		else
+			(void) close(0);
 	}
 
 	auto argv = argv_curr.to_ptrlist<char * const>();
@@ -277,72 +324,77 @@ static void do_exec(void)
 	while (!err) {
 		if (opt.Clean_env) {
 			char * envp[] = { nullptr };
-			execvpe(callee, argv, envp);
+			(void) execvpe(callee, argv, envp);
 		}
 		else
-			execvp(callee, argv);
+			(void) execvp(callee, argv);
 
-		// execution follows here in case of errors
+		/* execution follows here in case of errors */
 		err = errno;
 
 		if (opt.No_wait) {
 			opt.No_wait = 0;
 			err = 0;
-			wait(nullptr);
-			usleep(1000);
+
+			(void) wait(nullptr);
+			do_sleep();
 		}
 	}
-	
-	dump_error(err, "execvp(3)");
+
+	do_log_error(err, "do_exec()::execvp(3)");
 	exit(err);
 }
 
-static int compare_stats(const struct stat * stat1, const struct stat * stat2)
+static
+CC_INLINE
+int compare_stats(const struct stat * s1, const struct stat * s2)
 {
-	if (stat1->st_dev != stat2->st_dev) return 0;
-	if (stat1->st_ino != stat2->st_ino) return 0;
+	if (s1->st_dev != s2->st_dev) return 0;
+	if (s1->st_ino != s2->st_ino) return 0;
 
-	auto mode1 = stat1->st_mode & S_IFMT;
-	auto mode2 = stat2->st_mode & S_IFMT;
-	if (mode1 != mode2) return 0;
+	auto m1 = s1->st_mode & S_IFMT;
+	auto m2 = s2->st_mode & S_IFMT;
 
-	return 1;
+	return (m1 == m2);
 }
 
-static void delete_script(void)
+static
+void delete_script(void)
 {
 	if (opt._Script_stdin) return;
 	if (!opt.Unlink_argfile) return;
+
 	opt.Unlink_argfile = 0;
 
 	struct stat l_stat;
-	memset(&l_stat, 0, sizeof(l_stat));
+	(void) memset(&l_stat, 0, sizeof(l_stat));
 	if (lstat(script, &l_stat) < 0) {
-		dump_path_error(errno, "lstat(2)", script);
+		do_log_path_error(errno, "delete_script()::lstat(2)", script);
 		return;
 	}
 
 	if (!compare_stats(&f_stat, &l_stat)) return;
 
-	if (IFTODT(l_stat.st_mode) != DT_REG) return;
+	if (DT_REG != IFTODT(l_stat.st_mode)) return;
 
-	unlink(script);
+	(void) unlink(script);
 }
 
-static void run(void)
+static
+void run(void)
 {
-	size_t s_buf_arg  = 32 * memfun_page_size();
+	size_t s_buf_arg = 32 * memfun_page_size();
 
 	if (opt.Info_only) {
-		fprintf(stderr, "System page size: %lu\n", memfun_page_size());
-		fprintf(stderr, "Maximum (single) argument length: %lu\n", s_buf_arg);
-		fprintf(stderr, "Environment size, as is: %lu\n", get_env_size());
-		fprintf(stderr, "Environment size, round: %lu\n", size_env);
-		fprintf(stderr, "Maximum arguments length, system:  %lu\n", get_arg_max());
-		fprintf(stderr, "Maximum arguments length, current: %lu\n", size_args);
-		fprintf(stderr, "Initial arguments length:          %lu\n", get_argv_fullsize(&argv_init));
-		fprintf(stderr, "Maximum argument count: %lu\n", argc_max);
-		fprintf(stderr, "Initial argument count: %u\n", argv_init.count());
+		(void) fprintf(stderr, "System page size: %lu\n", memfun_page_size());
+		(void) fprintf(stderr, "Maximum (single) argument length: %lu\n", s_buf_arg);
+		(void) fprintf(stderr, "Environment size, as is: %lu\n", get_env_size());
+		(void) fprintf(stderr, "Environment size, round: %lu\n", size_env);
+		(void) fprintf(stderr, "Maximum arguments length, system:  %lu\n", get_arg_max());
+		(void) fprintf(stderr, "Maximum arguments length, current: %lu\n", size_args);
+		(void) fprintf(stderr, "Initial arguments length:          %lu\n", get_argv_fullsize(&argv_init));
+		(void) fprintf(stderr, "Maximum argument count: %lu\n", argc_max);
+		(void) fprintf(stderr, "Initial argument count: %u\n", argv_init.count());
 		return;
 	}
 
@@ -359,7 +411,7 @@ static void run(void)
 	pid_t child;
 	siginfo_t child_info;
 
-	size_t s_buf_read = s_buf_arg + memfun_page_size(); // s_buf_arg + one extra page
+	size_t s_buf_read = s_buf_arg + memfun_page_size(); /* s_buf_arg + one extra page */
 	auto buf_arg  = memfun_t_alloc<char>(s_buf_arg);
 	auto buf_read = memfun_t_alloc<char>(s_buf_read);
 	if ((!buf_arg) || (!buf_read)) {
@@ -376,21 +428,21 @@ static void run(void)
 		goto _run_err;
 	}
 
-	if (opt._Script_stdin) {
+	if (opt._Script_stdin)
 		fd = 0;
-	} else {
+	else {
 		fd = open(script, O_RDONLY | O_CLOEXEC);
 		if (fd < 0) {
 			err = errno;
-			dump_path_error(err, "open(2)", script);
+			do_log_path_error(err, "run()::open(2)", script);
 			exit(err);
 		}
 	}
 
-	memset(&f_stat, 0, sizeof(f_stat));
+	(void) memset(&f_stat, 0, sizeof(f_stat));
 	if (fstat(fd, &f_stat) < 0) {
 		err = errno;
-		dump_path_error(err, "fstat(2)", script);
+		do_log_path_error(err, "run()::fstat(2)", script);
 		exit(err);
 	}
 	f_stat.st_mode &= S_IFMT;
@@ -401,13 +453,13 @@ static void run(void)
 	}
 
 	while (!opt._Script_stdin) {
-		memset(&tmp_stat, 0, sizeof(tmp_stat));
+		(void) memset(&tmp_stat, 0, sizeof(tmp_stat));
 		if (fstat(0, &tmp_stat) < 0) break;
 
 		if (!compare_stats(&f_stat, &tmp_stat)) break;
 
 		opt._Script_stdin = 1;
-		close(fd);
+		(void) close(fd);
 		fd = 0;
 	}
 
@@ -493,7 +545,7 @@ static void run(void)
 		}
 
 		child = fork();
-		if (child == 0) do_exec();
+		if (!child) do_exec();
 		if (child == -1) {
 			err = errno;
 			if (!err) err = ENOMEM;
@@ -505,34 +557,36 @@ static void run(void)
 		if (!opt.No_wait) {
 			err = ECHILD;
 
-			// wait for child
+			/* wait for child */
 			do {
-				usleep(1);
+				do_sleep();
+
 				(void) memset(&child_info, 0, sizeof(child_info));
-				if (0 != waitid(P_PID, child, &child_info, WEXITED | WSTOPPED | WCONTINUED)) {
+				if (waitid(P_PID, child, &child_info, WEXITED | WSTOPPED | WCONTINUED))
+					break;
+
+				switch (child_info.si_code) {
+				case CLD_KILLED:    break;
+				case CLD_DUMPED:    break;
+				case CLD_TRAPPED:   break;
+				case CLD_STOPPED:   break;
+				case CLD_CONTINUED: break;
+				case CLD_EXITED:
+					err = child_info.si_status;
+					break;
+				default:
+					log_stderr("xvp: child process %d has been turned into unknown state (siginfo_t.si_code=%d)",
+					           child, child_info.si_code);
+					child = 0;
 					break;
 				}
 
 				if (!opt.Strict) {
-					if (child_info.si_code == CLD_EXITED)
-						err = child_info.si_status;
-
 					switch (child_info.si_code) {
-					case CLD_STOPPED:
-						// -fallthrough
-					case CLD_CONTINUED:
-						break;
-					case CLD_EXITED:
-						// -fallthrough
-					case CLD_KILLED:
-						// -fallthrough
-					case CLD_DUMPED:
-						// -fallthrough
+					case CLD_EXITED: /* -fallthrough */
+					case CLD_KILLED: /* -fallthrough */
+					case CLD_DUMPED: /* -fallthrough */
 					case CLD_TRAPPED:
-						child = 0;
-						break;
-					default:
-						log_stderr("xvp: child process %d has been turned into unknown state (siginfo_t.si_code=%d)", child, child_info.si_code);
 						child = 0;
 						break;
 					}
@@ -545,11 +599,11 @@ static void run(void)
 						log_stderr("xvp: child process %d has been continued", child);
 						break;
 					case CLD_EXITED:
-						err = child_info.si_status;
-						if (err == 0) {
+						if (!err) {
 							child = 0;
 							break;
 						}
+
 						log_stderr("xvp: child process %d has exited with non-null return code: %d", child, err);
 						goto _run_out;
 					case CLD_KILLED:
@@ -561,20 +615,17 @@ static void run(void)
 					case CLD_TRAPPED:
 						log_stderr("xvp: child process %d has been trapped by signal %d", child, child_info.si_status);
 						goto _run_out;
-					default:
-						log_stderr("xvp: child process %d has been turned into unknown state (siginfo_t.si_code=%d)", child, child_info.si_code);
-						goto _run_out;
 					}
 				}
 			} while (child);
 		}
 
-		// do rest of work
+		/* do rest of work */
 		exec_ready = 0;
 
-		// refine current argv
+		/* refine current argv */
 		argv_curr.free();
-		argv_curr.append(argv_init);
+		(void) argv_curr.append(argv_init);
 		if (!argv_curr.allocated()) {
 			err = errno;
 			if (!err) err = ENOMEM;
@@ -582,28 +633,31 @@ static void run(void)
 		}
 	}
 
-	close(fd); fd = -1;
+	(void) close(fd);
+	fd = -1;
 
 	delete_script();
 
-	memset(&child_info, 0, sizeof(child_info));
-	waitid(P_ALL, 0, &child_info, WEXITED);
-	usleep(1);
+	(void) memset(&child_info, 0, sizeof(child_info));
+	(void) waitid(P_ALL, 0, &child_info, WEXITED);
+	do_sleep();
 
 	do_exec();
 	exit(err);
 
 _run_out:
-	if (fd >= 0) close(fd);
+	if (fd >= 0)
+		(void) close(fd);
 
 	delete_script();
 
 _run_err:
-	dump_error(err, "run()");
+	do_log_error(err, "run()");
 	exit(err);
 }
 
-static int handle_file_type(uint32_t type, const char * arg)
+static
+int handle_file_type(uint32_t type, const char * arg)
 {
 	const char * e_type = nullptr;
 	switch (type) {
@@ -619,16 +673,20 @@ static int handle_file_type(uint32_t type, const char * arg)
 
 	if (!e_type) return 1;
 
-	fprintf(stderr, "xvp: <arg file> %s is type of %s\n", arg, e_type);
+	(void) fprintf(stderr, "xvp: <arg file> %s is type of %s\n", arg, e_type);
 	return 0;
 }
 
-static void dump_error(int error_num, const char * where)
+static
+CC_INLINE
+void do_log_error(int error_num, const char * where)
 {
-	log_stderr_error_ex("xvp:", error_num, "%s", where);
+	log_stderr_error_ex(log_pfx, error_num, "%s", where);
 }
 
-static void dump_path_error(int error_num, const char * where, const char * name)
+static
+CC_INLINE
+void do_log_path_error(int error_num, const char * where, const char * name)
 {
-	log_stderr_path_error_ex("xvp:", name, error_num, "%s", where);
+	log_stderr_path_error_ex(log_pfx, name, error_num, "%s", where);
 }

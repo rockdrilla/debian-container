@@ -3,8 +3,10 @@ SHELL       :=/bin/sh
 .SHELLFLAGS :=-ec
 MAKEFLAGS   +=--no-print-directory
 
-BIN = is-elf ufind xvp nproc.container
-SHLIB = libnprocfix.so
+BIN = is-elf ufind xvp nproc.container uptime.container
+SHLIB = libincontainer.so
+
+CFLAGS += -g -flto=1 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none
 
 CPPFLAGS += -Wextra
 
@@ -18,7 +20,7 @@ NO_WARN_CXX = class-memaccess
 CXXFLAGS += $(addprefix -Wno-,$(NO_WARN_CXX))
 
 .DEFAULT: all
-.PHONY: all install clean
+.PHONY: all install clean clean-pgo
 all: $(BIN) $(SHLIB)
 
 install:
@@ -33,11 +35,11 @@ xvp: xvp.cc.o
 
 nproc.container: nproc.c.o
 
-libnprocfix.so: CFLAGS  += -fPIC
-libnprocfix.so: LDFLAGS += -shared -Wl,--no-as-needed -ldl
-libnprocfix.so: nprocfix.shlib.c.o
+uptime.container: uptime.cc.o
 
-nprocfix.shallow: nprocfix.shallow.c.o
+libincontainer.so: CFLAGS  += -fPIC
+libincontainer.so: LDFLAGS += -shared -Wl,--no-as-needed,-ldl
+libincontainer.so: shlib.incontainer.c.o
 
 $(BIN) $(SHLIB):
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
@@ -49,4 +51,7 @@ $(BIN) $(SHLIB):
 	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $^
 
 clean:
-	rm -vf $(wildcard *.o) $(BIN) $(SHLIB)
+	$(if $(wildcard *.o $(BIN) $(SHLIB)),rm -vf $(wildcard *.o $(BIN) $(SHLIB)),true)
+
+clean-pgo:
+	$(if $(wildcard *.gcda),rm -vf $(wildcard *.gcda),true)

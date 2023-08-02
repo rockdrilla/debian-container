@@ -20,9 +20,10 @@
 #define GETMSB_MACRO64(v)  ( (((v) & ULLONG_MAX) == 0) ? 0 : _GETMSB64(v) )
 
 #define _GETMSB_DEFINE_FUNC(n, t) \
-	static CC_INLINE \
+	static \
+	CC_INLINE \
 	int getmsb ## n (t v) { \
-		if (v == 0) return 0; \
+		if (!v) return 0; \
 		return popcnt ## n (set_lower ## n (v)); \
 	}
 

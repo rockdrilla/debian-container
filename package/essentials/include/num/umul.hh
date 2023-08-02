@@ -10,11 +10,13 @@
 #include "umul.h"
 
 template<typename T1, typename T2 = T1>
-static CC_FORCE_INLINE \
+static \
+CC_FORCE_INLINE \
 int umul_t(T1 a, T2 b, T1 * r);
 
 #define _UMUL_T_DEFINE_COMPAT_FUNC(n, T1, T2) \
-	template<> CC_FORCE_INLINE \
+	template<> \
+	CC_FORCE_INLINE \
 	int umul_t<T1>(T1 a, T2 b, T1 * r) \
 	{ \
 		return umul ## n (a, b, r); \

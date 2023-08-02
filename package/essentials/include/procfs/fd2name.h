@@ -20,15 +20,17 @@ uint32_t procfs_fd2name(int fd, char * buffer, uint32_t buffer_size)
 {
 	/* "/proc/self/fd/" - 14, "%d" - up to 10 */
 	char procfs_link[32];
+	ssize_t x;
 
-	if (fd < 0) return 0;
+	if (fd < 0)  return 0;
+	if (!buffer) return 0;
 
-	snprintf(procfs_link, sizeof(procfs_link), "/proc/self/fd/%d", fd);
-	ssize_t result = readlink(procfs_link, buffer, buffer_size - 1);
-	if (result <= 0) return 0;
-	buffer[result] = 0;
-
-	return result;
+	(void) memset(procfs_link, 0, sizeof(procfs_link));
+	(void) snprintf(procfs_link, sizeof(procfs_link) - 1, "/proc/self/fd/%d", fd);
+	x = readlink(procfs_link, buffer, buffer_size - 1);
+	x = (x > 0) ? x : 0;
+	buffer[x] = 0;
+	return x;
 }
 
 #include "../misc/ext-c-end.h"

@@ -56,7 +56,8 @@ UVECTOR_PROC(string_v, dup) (string_v * destination, const string_v * source)
 	return 1;
 }
 
-static CC_FORCE_INLINE
+static
+CC_FORCE_INLINE
 unsigned int
 UVECTOR_PROC(string_v, count) (const string_v * vector)
 {
@@ -101,7 +102,8 @@ UVECTOR_PROC(string_v, append_fixed) (string_v * vector, const char * string, un
 	return idx;
 }
 
-static CC_FORCE_INLINE
+static
+CC_FORCE_INLINE
 unsigned int
 UVECTOR_PROC(string_v, append) (string_v * vector, const char * string)
 {

@@ -20,7 +20,8 @@
 #endif
 
 #define _MIN_POSITIVE_DEFINE_FUNC(n, t) \
-	static CC_INLINE \
+	static \
+	CC_INLINE \
 	t min_positive ## n (t a, t b) { \
 		if (a < 1) return max(b, 0); \
 		if (b < 1) return max(a, 0); \

@@ -19,7 +19,7 @@ if [ "$0" != "$c" ] ; then
 	while read -r i ; do
 		[ -n "$i" ] || continue
 		case "$i" in
-		PATH=*) continue ;;
+		PATH=* | LD_PRELOAD=* ) continue ;;
 		esac
 		export "${i?}"
 	done <<-EOF

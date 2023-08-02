@@ -9,14 +9,20 @@
 
 #include "../misc/ext-c-begin.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
 static
-char * fgets_trim(char * s, int n, FILE * stream)
+char * fgets_noeol(char * s, int size, FILE * stream)
 {
-	s = fgets(s, n, stream);
 	if (!s) return NULL;
+	if (!stream) return NULL;
+
+	errno = 0;
+	s = fgets(s, size, stream);
+	if (!s) return NULL;
+
 	s[strcspn(s, "\r\n")] = 0;
 	return s;
 }

@@ -20,6 +20,7 @@ debian)
 	case "${suite}" in
 	11) suite=bullseye ;;
 	12) suite=bookworm ;;
+	13) suite=trixie ;;
 	esac
 ;;
 ubuntu)

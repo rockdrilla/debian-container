@@ -11,7 +11,7 @@ if [ -z "${ZAP_TREE}" ] ; then
 
 	# intrusive parallelism
 	if [ -z "${NPROC}" ] ; then
-		NPROC=$(nproc)
+		NPROC=$(nproc.container || nproc)
 		NPROC=$(( NPROC + (NPROC + 1)/2 ))
 	fi
 

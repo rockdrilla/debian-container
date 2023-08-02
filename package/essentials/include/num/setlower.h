@@ -18,9 +18,9 @@
 #define _SETLOWER_b(v)     ( (v) << 1 )
 #define _SETLOWER_x(a, b)  ( ((a) | (b)) >> 1 )
 
-// 32 - 3 = 29
+/* 32 - 3 = 29 */
 #define __SETLOWER32(v)  DUMB_RECURSE_29(_SETLOWER_x, _SETLOWER_a(v), _SETLOWER_b(v))
-// 64 - 3 = 61
+/* 64 - 3 = 61 */
 #define __SETLOWER64(v)  DUMB_RECURSE_61(_SETLOWER_x, _SETLOWER_a(v), _SETLOWER_b(v))
 
 #define _SETLOWER32(v)  (__SETLOWER32((v) & UINT_MAX))
@@ -30,11 +30,13 @@
 #define SET_LOWER_MACRO64(v)  ( (((v) & ULLONG_MAX) == 0) ? 0 : _SETLOWER64(v) )
 
 #define _SETLOWER_DEFINE_FUNC(n, t) \
-	static CC_INLINE \
+	static \
+	CC_INLINE \
 	t set_lower ## n (t v) { \
-		if (v == 0) return 0; \
-		t a = v | (v - 1) | (v >> 1); \
-		t b = v << 1; \
+		t a, b; \
+		if (!v) return 0; \
+		a = v | (v - 1) | (v >> 1); \
+		b = v << 1; \
 		for (unsigned int i = 0; i < ((sizeof(t) * CHAR_BIT) - 3); i++) { \
 			a = (a | b) >> 1; \
 		} \

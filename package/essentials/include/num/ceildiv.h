@@ -14,7 +14,8 @@
 #include "../misc/cc-inline.h"
 
 #define _CEILDIV_DEFINE_FUNC(n, t) \
-	static CC_INLINE \
+	static \
+	CC_INLINE \
 	t ceildiv ## n (t a, t b) { \
 		n ## div_t qr = n ## div(a, b); \
 		return qr.quot + ((qr.rem) ? 1 : 0); \

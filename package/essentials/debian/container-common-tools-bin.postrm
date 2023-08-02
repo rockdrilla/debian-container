@@ -4,11 +4,14 @@ set -e
 
 case "$1" in
 remove)
-	for b in /usr/bin/nproc /bin/nproc ; do
-		[ -e "$b.real" ] || continue
-		rm -fv "$b"
-		dpkg-divert --package '#PACKAGE#' --rename --remove "$b"
-	done ; unset b
+	for b in uptime ; do
+		for f in "/usr/bin/$b" "/bin/$b" ; do
+			[ -e "$f.real" ] || continue
+			! [ -h "$f" ] || rm -fv "$f"
+			dpkg-query -S "$f" 2>/dev/null || continue
+			dpkg-divert --package '#PACKAGE#' --rename --remove "$f"
+		done
+	done ; unset b f
 ;;
 esac
 

@@ -29,7 +29,8 @@
 
 
 #define _UHASH_PROC_KEY__TYPE0(user_t, key_t) \
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	key_t \
 	UHASH_PROC_INT(user_t, key) (const user_t * hash, const UHASH_NAME(user_t, node) * node) { \
 		return node->key; \
@@ -43,7 +44,8 @@
 		return &(node->key); \
 	} \
 	\
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	void \
 	UHASH_PROC_INT(user_t, set_key) (user_t * hash, UHASH_NAME(user_t, node) * node, key_t key) { \
 		node->key = key; \
@@ -59,7 +61,8 @@
 
 
 #define _UHASH_PROC__INIT_NODE__TYPE0(user_t, key_t) \
-	static CC_FORCE_INLINE \
+	static \
+	CC_FORCE_INLINE \
 	void \
 	UHASH_PROC_INT(user_t, init_node) (user_t * hash, UHASH_NAME(user_t, node) * node, key_t key, int value) { \
 		node->depth = 1; \

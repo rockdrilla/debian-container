@@ -30,84 +30,23 @@ protected:
 	char * _ptr = nullptr;
 	dynmem<size_t, index_t> _offsets;
 
-	CC_INLINE
-	void flush_self(void) {
-		memset(this, 0, sizeof(*this));
+	CC_FORCE_INLINE
+	void _flush_self(void)
+	{
+		(void) memset(this, 0, sizeof(*this));
 	}
 
 	CC_INLINE
-	const char * _get(index_t index) const {
+	const char * _get(index_t index)
+	const {
 		return memfun_t_ptr_offset(_ptr, _offsets.get_val(index));
 	}
 
-public:
-
-	static CC_INLINE
-	bool is_inv(index_t index) {
-		return ((index >> idx_bits) != 0);
-	}
-
-	str() {
-		flush_self();
-	}
-
-	str(const str & source) {
-		flush_self();
-
-		_used = _allocated = source._used;
-		_ptr = memfun_t_alloc_ex<char>(&_allocated);
-		if (!_ptr) {
-			flush_self();
-			return;
-		}
-
-		_offsets = dynmem<size_t, index_t>(source._offsets);
-		if (!_offsets.allocated()) {
-			memfun_t_free(_ptr, 0);
-			flush_self();
-			return;
-		}
-
-		memcpy(_ptr, source.get(0), _used);
-	}
-
-	str & operator = (const str & other) = default;
-
-	void free(void) {
-		_offsets.free();
-		memfun_free(_ptr, _used);
-		flush_self();
-	}
-
-	CC_INLINE
-	size_t used(void) const {
-		return _used;
-	}
-
-	CC_INLINE
-	size_t allocated(void) const {
-		return _allocated;
-	}
-
-	CC_INLINE
-	index_t count(void) const {
-		return _offsets.used();
-	}
-
-	const char * get(index_t index) const {
-		if (index >= count()) return nullptr;
-
-		return _get(index);
-	}
-
-	template<typename T = unsigned int>
-	index_t append(const char * string, T length) {
-		if (!string) return idx_inv;
-		if (length < 0) return idx_inv;
-
+	index_t _append(const char * string, size_t length)
+	{
 		size_t new_used = roundbyl(_used + length + 1, sizeof(size_t));
-		if (new_used > _allocated) {
-			auto nptr = memfun_t_realloc_ex(_ptr, &(_allocated), length + 1);
+		if (new_used > allocated()) {
+			auto nptr = memfun_t_realloc_ex(_ptr, &_allocated, length + 1);
 			if (!nptr) return idx_inv;
 
 			_ptr = nptr;
@@ -124,17 +63,95 @@ public:
 		return idx;
 	}
 
+public:
+
+	static
+	CC_FORCE_INLINE
+	bool is_inv(index_t index)
+	{
+		return _base::is_inv(index);
+	}
+
+	str()
+	{
+		_flush_self();
+	}
+
+	str(const str & source)
+	{
+		_flush_self();
+
+		_used = _allocated = source._used;
+		_ptr = memfun_t_alloc_ex<char>(&_allocated);
+		if (!_ptr) {
+			_flush_self();
+			return;
+		}
+
+		_offsets = dynmem<size_t, index_t>(source._offsets);
+		if (!_offsets.allocated()) {
+			memfun_t_free(_ptr, 0);
+			_flush_self();
+			return;
+		}
+
+		memcpy(_ptr, source.get(0), _used);
+	}
+
+	str & operator = (const str & other) = default;
+
+	void free(void)
+	{
+		_offsets.free();
+		memfun_free(_ptr, _used);
+		_flush_self();
+	}
+
+	CC_FORCE_INLINE
+	size_t used(void)
+	const {
+		return _used;
+	}
+
+	CC_FORCE_INLINE
+	size_t allocated(void)
+	const {
+		return _allocated;
+	}
+
+	CC_FORCE_INLINE
+	index_t count(void)
+	const {
+		return _offsets.used();
+	}
+
+	const char * get(index_t index)
+	const {
+		return (index < used()) ? _get(index) : nullptr;
+	}
+
+	template<typename T = unsigned int>
+	index_t append(const char * string, T length)
+	{
+		if (!string) return idx_inv;
+		if (length < 0) return idx_inv;
+
+		return _append(string, length);
+	}
+
 	CC_INLINE
-	index_t append(const char * string) {
+	index_t append(const char * string)
+	{
 		return append<size_t>(string, (string) ? strlen(string) : 0);
 	}
 
-	index_t append(const str & source, index_t begin, index_t count) {
+	index_t append(const str & source, index_t begin, index_t count)
+	{
 		if (begin >= source.count()) return 0;
 
-		index_t end = begin + count;
-		if (end > source.used())
-			count = source.used() - begin;
+		index_t end = source.used();
+		end = min(end, begin + count);
+		count = end - begin;
 
 		index_t i, k = idx_inv;
 		for (i = begin; i < end; i++) {
@@ -146,12 +163,14 @@ public:
 		return count;
 	}
 
-	index_t append(const str & source) {
+	index_t append(const str & source)
+	{
 		return append(source, 0, source.count());
 	}
 
 	template<typename T = const char * const>
-	T * to_ptrlist(void) const {
+	T * to_ptrlist(void)
+	const {
 		auto ptrlist = (const char **) memfun_alloc((_offsets.used() + 1) * sizeof(char *));
 		if (!ptrlist) return nullptr;
 
@@ -162,30 +181,42 @@ public:
 		return (T *) ptrlist;
 	}
 
-	void walk(void (*visitor)(index_t, const char *)) const {
-		for (index_t i = 0; i < _used; i++) {
-			visitor(i, get(i));
+	index_t walk(bool (*visitor)(index_t, const char *))
+	const {
+		index_t i = 0;
+		for (; i < used(); i++) {
+			if (!visitor(i, get(i))) break;
 		}
+		return i;
 	}
 
 	template<typename T = void>
-	void walk(void (*visitor)(index_t, const char *, T *), T * state) const {
-		for (index_t i = 0; i < _used; i++) {
-			visitor(i, get(i), state);
+	index_t walk(bool (*visitor)(index_t, const char *, T *), T * state)
+	const {
+		index_t i = 0;
+		for (; i < used(); i++) {
+			if (!visitor(i, get(i), state)) break;
 		}
+		return i;
 	}
 
-	void rwalk(void (*visitor)(index_t, const char *)) const {
-		for (index_t i = _used; (i--) != 0; ) {
-			visitor(i, get(i));
+	index_t rwalk(bool (*visitor)(index_t, const char *))
+	const {
+		index_t i = used();
+		while ((i--)) {
+			if (!visitor(i, get(i))) break;
 		}
+		return i;
 	}
 
 	template<typename T = void>
-	void rwalk(void (*visitor)(index_t, const char *, T *), T * state) const {
-		for (index_t i = _used; (i--) != 0; ) {
-			visitor(i, get(i), state);
+	index_t rwalk(bool (*visitor)(index_t, const char *, T *), T * state)
+	const {
+		index_t i = used();
+		while ((i--)) {
+			if (!visitor(i, get(i), state)) break;
 		}
+		return i;
 	}
 
 };

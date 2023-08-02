@@ -15,12 +15,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "cc-inline.h"
 #include "../num/degree2.h"
 #include "../num/popcnt.h"
 #include "../num/roundby.h"
 #include "../num/uadd.h"
 #include "../num/umul.h"
+#include "cc-inline.h"
 
 #define _MEMFUN_PAGE_DEFAULT           4096
 #define _MEMFUN_BLOCK_DEFAULT          8192
@@ -81,7 +81,8 @@ size_t memfun_page_size(void)
 	return x = memfun_page_default;
 }
 #else
-static CC_FORCE_INLINE
+static
+CC_FORCE_INLINE
 size_t memfun_page_size(void)
 {
 	return memfun_page_default;
@@ -119,12 +120,13 @@ static const unsigned int memfun_growth_factor
 = _MEMFUN_GROWTH_FACTOR_DEFAULT;
 #endif /* MEMFUN_GROWTH_FACTOR */
 
-// n2d = next 2' degree
+/* n2d = next 2' degree */
 
 #define _MEMFUN_N2D_DUMB(x) \
 	( ((x)<<1) & ~((x)|((x)>>1)|((x)>>2)|((x)>>3)|((x)>>4)|((x)>>5)) )
 
-static CC_FORCE_INLINE
+static
+CC_FORCE_INLINE
 size_t _memfun_n2d_dumb(size_t x)
 {
 	return (x<<1) & ~(x|(x>>1)|(x>>2)|(x>>3)|(x>>4)|(x>>5));
@@ -138,24 +140,26 @@ size_t _memfun_n2d_dumb(size_t x)
 		    ? ROUNDBY_MACRO(length, sizeof(size_t)) \
 		    : _MEMFUN_N2D_DUMB(length) \
 	) )
-// ^- using _MEMFUN_N2D_DUMB instead of DEGREE2_NEXT_MACRO64 due to value "knowledge"
+/* ^- using _MEMFUN_N2D_DUMB instead of DEGREE2_NEXT_MACRO64 due to value "knowledge" */
 
 static
 size_t memfun_align(size_t length)
 {
 	if (!length) return 0;
 
-	if (popcntl(length) == 1) return length;
+	if (popcntl(length) == 1)
+		return length;
 
 	if (length > sizeof(size_t))
 		return roundbyl(length, sizeof(size_t));
 
-	// using _memfun_n2d_dumb() instead of degree2_nextl() due to value "knowledge"
-//	return degree2_nextl(length);
+	/* using _memfun_n2d_dumb() instead of degree2_nextl() due to value "knowledge" */
+	// return degree2_nextl(length);
 	return _memfun_n2d_dumb(length);
 }
 
-static CC_FORCE_INLINE
+static
+CC_FORCE_INLINE
 size_t memfun_block_align(size_t length)
 {
 	if (!length) return 0;
@@ -172,7 +176,7 @@ size_t memfun_block_align(size_t length)
 static
 size_t memfun_calc_growth(size_t item_size)
 {
-	// waterfall
+	/* waterfall */
 	static size_t x = 0;
 	if (!x) x = memfun_block_size() >> memfun_growth_factor;
 
@@ -191,7 +195,7 @@ size_t memfun_calc_growth(size_t item_size)
 static
 size_t memfun_calc_growth_ex(size_t item_size, unsigned char growth_factor)
 {
-	// waterfall
+	/* waterfall */
 	if (item_size > (memfun_block_size() >> growth_factor))
 		return memfun_block_align(item_size << growth_factor);
 
@@ -201,9 +205,10 @@ size_t memfun_calc_growth_ex(size_t item_size, unsigned char growth_factor)
 static
 int memfun_want_realloc_raw(size_t length, size_t extend, size_t * new_length)
 {
+	size_t result = 0;
+
 	if (!extend) return 0;
 
-	size_t result = 0;
 	if (!uaddl(length, extend, &result))
 		return 0;
 
@@ -216,9 +221,10 @@ int memfun_want_realloc_raw(size_t length, size_t extend, size_t * new_length)
 static
 int memfun_want_realloc(size_t length, size_t extend, size_t * new_length)
 {
+	size_t a, b;
+
 	if (!extend) return 0;
 
-	size_t a, b;
 	a = memfun_block_align(length);
 	if (length > a) return 0;
 
@@ -238,21 +244,26 @@ int memfun_want_realloc(size_t length, size_t extend, size_t * new_length)
 static
 void * memfun_alloc_ex(size_t * length)
 {
+	size_t len;
+	void * ptr;
+
 	if (!length) return NULL;
 
-	size_t len = memfun_block_align(*length);
-	void * ptr = (MEMFUN_MALLOC(len));
+	len = memfun_block_align(*length);
+	ptr = (MEMFUN_MALLOC(len));
 	if (!ptr) return NULL;
 
 #if MEMFUN_MALLOC_DIRTY
-	if (len) memset(ptr, 0, len);
+	if (len)
+		(void) memset(ptr, 0, len);
 #endif
 
 	*length = len;
 	return ptr;
 }
 
-static CC_FORCE_INLINE
+static
+CC_FORCE_INLINE
 void * memfun_alloc(size_t length)
 {
 	size_t len = length;
@@ -260,7 +271,7 @@ void * memfun_alloc(size_t length)
 }
 
 static
-void * memfun_ptr_offset(void * ptr, size_t offset)
+void * memfun_ptr_offset(const void * ptr, size_t offset)
 {
 	void * nptr = NULL;
 	if (!uaddl((size_t) ptr, offset, (size_t *) &nptr))
@@ -269,7 +280,7 @@ void * memfun_ptr_offset(void * ptr, size_t offset)
 }
 
 static
-void * memfun_ptr_offset_ex(void * ptr, size_t item_size, size_t item_count)
+void * memfun_ptr_offset_ex(const void * ptr, size_t item_size, size_t item_count)
 {
 	size_t _off;
 	if (!umull(item_size, item_count, &_off))
@@ -286,7 +297,8 @@ void * _memfun_realloc(void * ptr, size_t _old, size_t _new)
 #if MEMFUN_REALLOC_DIRTY
 	if (_new > _old) {
 		void * dirty = memfun_ptr_offset(nptr, _old);
-		if (dirty) memset(dirty, 0, _new - _old);
+		if (dirty)
+			(void) memset(dirty, 0, _new - _old);
 	}
 #endif
 
@@ -296,10 +308,10 @@ void * _memfun_realloc(void * ptr, size_t _old, size_t _new)
 static
 void * memfun_realloc_ex(void * ptr, size_t * length, size_t extend)
 {
+	size_t _old = 0, _new = 0;
 	if (!length) return ptr;
 
-	size_t _old = memfun_block_align(*length);
-	size_t _new = 0;
+	_old = memfun_block_align(*length);
 	if (!memfun_want_realloc(_old, extend, &_new))
 		return ptr;
 
@@ -308,7 +320,8 @@ void * memfun_realloc_ex(void * ptr, size_t * length, size_t extend)
 	return _memfun_realloc(ptr, _old, _new);
 }
 
-static CC_FORCE_INLINE
+static
+CC_FORCE_INLINE
 void * memfun_realloc(void * ptr, size_t length, size_t extend)
 {
 	size_t old = length;
@@ -321,7 +334,8 @@ void memfun_free(void * ptr, size_t length)
 	if (!ptr) return;
 
 #if MEMFUN_FREE_SECURE
-	if (length) memset(ptr, 0, length);
+	if (length)
+		(void) memset(ptr, 0, length);
 #endif
 
 	(void) MEMFUN_FREE(ptr);

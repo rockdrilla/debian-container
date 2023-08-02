@@ -32,7 +32,7 @@ if [ "$0" != "$c" ] ; then
 	while read -r i ; do
 		[ -n "$i" ] || continue
 		case "$i" in
-		PATH=*) continue ;;
+		PATH=* | LD_PRELOAD=* ) continue ;;
 		esac
 		export "${i?}"
 	done <<-EOF
@@ -119,7 +119,7 @@ mkdir -p /etc/container/dpkg-filter/
 update-ca-certificates --fresh
 
 # cleanup
-apt-remove ca-certificates-java
+apt-remove ca-certificates-java default-jre-headless
 apt-autoremove
 
 # drop setuid/setgid

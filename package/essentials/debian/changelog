@@ -1,3 +1,9 @@
+container-essentials (20230803) stable; urgency=medium
+
+  * Major update.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Thu, 03 Aug 2023 02:20:00 +0300
+
 container-essentials (20230710) stable; urgency=medium
 
   * Bump version.

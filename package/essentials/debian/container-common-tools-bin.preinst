@@ -4,12 +4,14 @@ set -e
 
 case "$1" in
 install | upgrade)
-	for b in /usr/bin/nproc /bin/nproc ; do
-		[ -e "$b" ] || continue
-		if [ -h "$b" ] ; then continue ; fi
-		dpkg-divert --package '#PACKAGE#' --divert "$b.real" --rename "$b"
-		ln -sv /bin/nproc.container "$b"
-	done ; unset b
+	for b in uptime ; do
+		for f in "/usr/bin/$b" "/bin/$b" ; do
+			! [ -e "$f.real" ] || continue
+			dpkg-query -S "$f" 2>/dev/null || continue
+			dpkg-divert --package '#PACKAGE#' --divert "$f.real" --rename "$f"
+			ln -sv "/bin/$b.container" "$f"
+		done
+	done ; unset b f
 ;;
 esac
 
