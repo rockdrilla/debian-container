@@ -42,9 +42,6 @@ configure)
 
 	# precompile Python bytecode (no matter what packages were installed with it)
 	${python_bin}/python -m compileall -q ${lib}
-
-	# install compatibility symlink for shared library
-	ln -sv /@{PYTHON_PREFIX}/lib/libpython@{PYTHON_BASE_VERSION}.so.@{PYTHON_SO_ABI} /usr/lib/@{DEB_HOST_MULTIARCH}/
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

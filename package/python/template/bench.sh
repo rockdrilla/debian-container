@@ -4,6 +4,10 @@ set -f
 
 : "${DEB_SRC_TOPDIR:?}" "${DEB_PGO_FROM_BUILD:?}" "${DEB_PGO_FROM_PKG:?}"
 
+flush_pgo() {
+	find ./ -name '*.gcda' -delete
+}
+
 flush_pycache() {
 	find "${DEB_SRC_TOPDIR}" -name __pycache__ -type d -exec rm -rf '{}' '+'
 	find "${DEB_SRC_TOPDIR}" -name '*.py[co]' -ls -delete
@@ -29,6 +33,8 @@ end_if_level() {
 unset CONTAINER_PYTHON_COMPAT
 
 ## default testsuite
+
+flush_pgo
 
 do_python_tests() {
 	# run in subshell

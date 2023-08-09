@@ -1,14 +1,5 @@
 --- a/configure.ac
 +++ b/configure.ac
-@@ -8,7 +8,7 @@ dnl
- # Set VERSION so we only need to edit in one place (i.e., here)
- m4_define(PYTHON_VERSION, 3.9)
- 
--AC_PREREQ([2.69])
-+AC_PREREQ([2.71])
- 
- AC_INIT([python],[PYTHON_VERSION],[https://bugs.python.org/])
- 
 @@ -56,7 +56,7 @@ else
  fi
  
@@ -18,15 +9,30 @@
  
  AC_CANONICAL_HOST
  AC_SUBST(build)
-@@ -669,6 +669,7 @@ AC_PROG_CC
+@@ -659,6 +659,12 @@ AC_PROG_CC
  AC_PROG_CPP
  AC_PROG_GREP
  AC_PROG_SED
 +AC_PROG_EGREP
++
++# checks for UNIX variants that set C preprocessor variables
++# may set _GNU_SOURCE, __EXTENSIONS__, _POSIX_PTHREAD_SEMANTICS,
++# _POSIX_SOURCE, _POSIX_1_SOURCE, and more
++AC_USE_SYSTEM_EXTENSIONS
  
  AC_SUBST(CXX)
  AC_SUBST(MAINCC)
-@@ -2213,8 +2214,11 @@ dnl struct {char *name; int *addr; char *doc;} desc = spam(foo, "something");
+@@ -907,9 +913,6 @@ LDFLAGS="$save_LDFLAGS"
+ AC_SUBST(NO_AS_NEEDED)
+ 
+ 
+-# checks for UNIX variants that set C preprocessor variables
+-AC_USE_SYSTEM_EXTENSIONS
+-
+ AC_MSG_CHECKING([for the Android API level])
+ cat >> conftest.c <<EOF
+ #ifdef __ANDROID__
+@@ -2210,8 +2213,11 @@ dnl struct {char *name; int *addr; char
  dnl ]], [[;]])],[cpp_type=ansi],[AC_DEFINE(HAVE_OLD_CPP) cpp_type=traditional])
  dnl AC_MSG_RESULT($cpp_type)
  
@@ -39,7 +45,7 @@
  AC_CHECK_HEADERS(asm/types.h crypt.h conio.h direct.h dlfcn.h errno.h \
  fcntl.h grp.h \
  ieeefp.h io.h langinfo.h libintl.h process.h pthread.h \
-@@ -4230,8 +4234,13 @@ fi
+@@ -4244,8 +4250,13 @@ fi
  
  AC_CHECK_FUNCS(getnameinfo)
  

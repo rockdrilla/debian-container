@@ -15,9 +15,6 @@ if [ "$1" != "upgrade" ]; then
 	# remove precompiled Python bytecode
 	find ${lib}/ -name __pycache__ -type d -exec rm -rf '{}' '+'
 	find ${lib}/ -name '*.py[co]' -ls -delete
-
-	# remove compatibility symlink for shared library
-	rm -fv /usr/lib/@{DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.so.@{PYTHON_SO_ABI}
 fi
 
 #DEBHELPER#

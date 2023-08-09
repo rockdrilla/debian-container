@@ -1,5 +1,6 @@
 # git-branch.patch
-# backport-3.10.patch
+
+autoconf.patch
 
 # these patches are borrowed from Debian
 # I'd like to say many thanks to the maintainers for their work :)

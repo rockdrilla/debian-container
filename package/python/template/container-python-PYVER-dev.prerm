@@ -16,10 +16,6 @@ if [ "$1" != "upgrade" ]; then
 	update-alternatives --remove \
 	  python-config-@{PYTHON_BASE_VERSION} \
 	  ${python_bin}/python-config
-
-	# remove compatibility symlinks for static library and headers
-	rm -fv /usr/lib/@{DEB_HOST_MULTIARCH}/libpython@{PYTHON_BASE_VERSION}.a
-	rm -fv /usr/include/python@{PYTHON_BASE_VERSION}
 fi
 
 #DEBHELPER#
