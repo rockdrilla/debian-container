@@ -33,6 +33,13 @@ Images on Docker.io:
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-buildd/tags)
 
+Build helper image - `image/buildd/` ([dockerfile](image/buildd/Dockerfile))
+
+Images on Docker.io:
+[Debian](https://hub.docker.com/r/rockdrilla/debian-buildd-helper/tags)
+|
+[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-buildd-helper/tags)
+
 ### python - minimal/standard
 
 Python image/packages - `image/python/` ([dockerfile](image/python/Dockerfile))

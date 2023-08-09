@@ -25,7 +25,14 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
 	export DISTRO SUITE
 
-	scripts/build-image.sh image/buildd/ \
-	  "${IMAGE_PATH}/${DISTRO}-buildd:${SUITE}${IMAGE_TAG_SUFFIX}" \
-	  ${tags}
+	export BUILDD_IMAGE="${DISTRO}-buildd:${SUITE}${IMAGE_TAG_SUFFIX}"
+	helper_image="${IMAGE_PATH}/${DISTRO}-buildd-helper:${SUITE}${IMAGE_TAG_SUFFIX}"
+
+	BUILD_IMAGE_TARGET="buildd" \
+	scripts/build-image.sh image/buildd/ "${IMAGE_PATH}/${BUILDD_IMAGE}" ${tags}
+
+	BUILD_IMAGE_TARGET="buildd-helper" \
+	BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS} BUILDD_IMAGE" \
+	scripts/build-image.sh image/buildd/ "${helper_image}" ${tags}
+
 done
