@@ -31,9 +31,8 @@ COPY /package/nodejs/template/                 /tmp/debian/
 COPY /package/nodejs/${NODEJS_MAJOR_VERSION}/  /tmp/debian/
 
 # "/ciep.env" ensures that container limits and env are taken in account
-RUN set -a ; eval $(/ciep.env) ; set +a ; \
-    apt-update ; \
-    deb-src-export ${_SRC_DIR} /tmp/debian ; \
+RUN apt-update ; \
+    /ciep.env deb-src-export ${_SRC_DIR} /tmp/debian ; \
     cleanup ; \
     # linkage with "build-pkg" layer
     touch /tmp/dsc
@@ -71,13 +70,12 @@ RUN [ -z "${CI}" ] || exit 0; \
       exit 0 ; \
     fi
 
+# "/ciep.env" ensures that container limits and env are taken in account
 RUN [ -e /tmp/dsc ] || exit 0 ; \
-    # "/ciep.env" ensures that container limits and env are taken in account
-    set -a ; eval $(/ciep.env) ; set +a ; \
     apt-update ; \
     build_start=$(date -R) ; \
     set +e ; \
-    deb-src-build ${_SRC_DIR}/container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.dsc ${_PKG_DIR} ; \
+    /ciep.env deb-src-build ${_SRC_DIR}/container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \
