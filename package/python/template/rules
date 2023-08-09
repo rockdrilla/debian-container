@@ -9,6 +9,8 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
+include debian/rules.common-defs
+
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
 
 # Ubuntu mangles png files by default, which can break some files.
@@ -22,11 +24,6 @@ include debian/rules.pkg-info
 PYTHON_SO_ABI = 1.0
 
 PYTHON_VERSION ?= $(DEB_VERSION_UPSTREAM)
-
-empty :=
-space :=$(empty) $(empty)
-comma :=,
-xsedx :=$(shell printf '\027')
 
 PYTHON_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(PYTHON_VERSION)))
 PYTHON_MINOR_VERSION = $(word 2,$(subst .,$(space),$(PYTHON_VERSION)))
@@ -56,29 +53,9 @@ endif
 include debian/rules.gcc-latest-ver
 include debian/rules.gcc-flags
 include debian/rules.gcc-lto
+
+DEB_PGO_PACKAGE = container-python-$(PYTHON_VERSION)-pgo
 include debian/rules.gcc-pgo
-
-ifeq ($(with_pgo),yes)
-  DEB_PGO_LEVEL := $(patsubst pgo_level=%,%,$(filter pgo_level=%,$(DEB_BUILD_OPTIONS)))
-  export DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),max)
-endif
-
-ifeq ($(pgo_reuse)$(pgo_src_id),yes)
-  # try reuse latest available package
-  pgo_src_id := $(strip $(shell apt-cache -a show container-python-$(PYTHON_VERSION)-pgo | mawk '$$1 == "Version:" {print $$2} {next}' | sort -rV | head -n 1 || true))
-endif
-
-ifeq ($(pgo_src_id),)
-  pgo_reuse := no
-  pgo_reuse_build_dep :=$(empty)
-else
-  pgo_reuse_build_dep :=$(shell printf '%s' 'container-python-$(PYTHON_VERSION)-pgo (= $(pgo_src_id)) <pgo_reuse>,')
-endif
-
-ifeq ($(with_pgo)$(pgo_src_id),yes)
-  # set source id for current build
-  pgo_src_id := $(DEB_TSVER)
-endif
 
 export DEB_SRC_TOPDIR = $(CURDIR)
 INSTALL_SHARED = $(CURDIR)/debian/tmp.shared
@@ -168,7 +145,7 @@ endif
 execute_after_dh_clean:
 ifeq ($(with_pgo)$(pgo_reuse),yesno)
 	[ -s debian/control ] || exit 0 ; \
-	grep -Fxq 'Package: container-python-$(PYTHON_VERSION)-pgo' debian/control || \
+	grep -Fxq 'Package: $(DEB_PGO_PACKAGE)' debian/control || \
 	{ echo ; cat debian/control.pgo ; } >> debian/control
 endif
 
@@ -618,7 +595,7 @@ override_dh_install:
 	fi
 
 ifeq ($(with_pgo)$(pgo_reuse),yesno)
-	d=debian/container-python-$(PYTHON_VERSION)-pgo/$(DEB_PGO_FROM_PKG) ; \
+	d=debian/$(DEB_PGO_PACKAGE)/$(DEB_PGO_FROM_PKG) ; \
 	mkdir -p $$d ; \
 	tar -C '$(DEB_PGO_FROM_BUILD)' -cf - . \
 	| tar -C $$d -xf -
@@ -640,13 +617,12 @@ override_dh_strip:
 	dh_strip $(addprefix --exclude=,.exe .gcda)
 
 DH_GENCTRL_COMMON = -Tdebian/pip.substvars -Tdebian/substvars
-DH_GENCTRL_PGO = $(if $(filter no,$(pgo_reuse)),-DX-Pgo-Level=$(DEB_PGO_LEVEL))
 override_dh_gencontrol:
 	dh_gencontrol -- $(DH_GENCTRL_COMMON)
 ifeq ($(with_pgo),yes)
 	dh_gencontrol -a -- -DX-Pgo-Source-Id=$(pgo_src_id) $(DH_GENCTRL_PGO) $(DH_GENCTRL_COMMON)
   ifeq ($(pgo_reuse),no)
-	dh_gencontrol --package=container-python-$(PYTHON_VERSION)-pgo -- -v$(DEB_TSVER) -UX-Pgo-Source-Id $(DH_GENCTRL_PGO) $(DH_GENCTRL_COMMON)
+	dh_gencontrol --package=$(DEB_PGO_PACKAGE) -- -v$(DEB_TSVER) -UX-Pgo-Source-Id $(DH_GENCTRL_PGO) $(DH_GENCTRL_COMMON)
   endif
 endif
 

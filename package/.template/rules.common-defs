@@ -1,0 +1,6 @@
+#!/usr/bin/make -f
+
+empty :=
+space :=$(empty) $(empty)
+comma :=,
+xsedx :=$(shell printf '\027')

@@ -5,7 +5,37 @@ with_pgo := $(if $(findstring $(DEB_HOST_ARCH),$(arch_pgo)),yes)
 with_pgo := $(if $(filter nopgo,$(DEB_BUILD_OPTIONS)),no,$(with_pgo))
 with_pgo := $(if $(filter noopt,$(DEB_BUILD_OPTIONS)),no,$(with_pgo))
 
-pgo_reuse := $(if $(filter pgo_reuse,$(DEB_BUILD_PROFILES)),$(with_pgo),no)
-ifeq ($(pgo_reuse),yes)
-  pgo_src_id := $(patsubst pgo_src_id=%,%,$(filter pgo_src_id=%,$(DEB_BUILD_OPTIONS)))
+ifeq ($(with_pgo),yes)
+  DEB_PGO_LEVEL := $(patsubst pgo_level=%,%,$(filter pgo_level=%,$(DEB_BUILD_OPTIONS)))
+  DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),max)
+
+  ifneq ($(DEB_PGO_PACKAGE),)
+    pgo_reuse := $(if $(filter pgo_reuse,$(DEB_BUILD_PROFILES)),$(with_pgo),no)
+  endif
+  ifeq ($(pgo_reuse),yes)
+    pgo_src_id := $(patsubst pgo_src_id=%,%,$(filter pgo_src_id=%,$(DEB_BUILD_OPTIONS)))
+
+    ifeq ($(pgo_src_id),)
+      # try reuse latest available package
+      pgo_src_id := $(strip $(shell apt-cache -a show $(DEB_PGO_PACKAGE) | mawk '$$1 == "Version:" {print $$2} {next}' | sort -rV | head -n 1 || :))
+    endif
+
+    ifeq ($(pgo_src_id),)
+      # set source id for current build
+      pgo_src_id := $(DEB_TSVER)
+    else
+      pgo_reuse_build_dep :=$(shell printf '%s' '$(DEB_PGO_PACKAGE) (= $(pgo_src_id)) <pgo_reuse>,')
+      pgo_reuse_level := $(strip $(shell apt-cache -a show $(DEB_PGO_PACKAGE)=$(pgo_src_id) | mawk '$$1 == "X-Pgo-Level:" {print $$2} {next}' || :))
+      DEB_PGO_LEVEL := $(if $(pgo_reuse_level),$(pgo_reuse_level),$(DEB_PGO_LEVEL))
+    endif
+  endif
+
+  export DEB_PGO_LEVEL
+
+  DH_GENCTRL_PGO = -DX-Pgo-Level=$(DEB_PGO_LEVEL)
+endif
+
+ifeq ($(pgo_src_id),)
+  pgo_reuse := no
+  pgo_reuse_build_dep :=$(empty)
 endif

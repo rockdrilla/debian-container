@@ -9,6 +9,8 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
+include debian/rules.common-defs
+
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
 
 # Ubuntu mangles png files by default, which can break some files.
@@ -19,11 +21,6 @@ export SOURCE_DATE_EPOCH
 include debian/rules.pkg-info
 
 NODEJS_VERSION ?= $(DEB_VERSION_UPSTREAM)
-
-empty :=
-space :=$(empty) $(empty)
-comma :=,
-xsedx :=$(shell printf '\027')
 
 NODEJS_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(NODEJS_VERSION)))
 
