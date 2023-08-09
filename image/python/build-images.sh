@@ -26,14 +26,14 @@ build_single() {
 	export PYTHON_VERSION="$1"
 	export PYTHON_BASE_VERSION=$(printf '%s' "${PYTHON_VERSION}" | cut -d. -f1-2)
 
-	export BUILD_IMAGE_ENV="PYTHON_VERSION PYTHON_BASE_VERSION"
-
 	stem="python-${PYTHON_BASE_VERSION}"
 
-	packages="$(build_artifacts_path "${stem}/pkg")"
-	export BUILD_IMAGE_CONTEXTS="
-		packages=${packages}
-	"
+	if [ -z "${CI}" ] ; then
+		packages="$(build_artifacts_path "${stem}/pkg")"
+		export BUILD_IMAGE_CONTEXTS="
+			packages=${packages}
+		"
+	fi
 
 	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 	full_image="${IMAGE_PATH}/python:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
@@ -43,13 +43,13 @@ build_single() {
 
 	set -e
 
-	BUILD_IMAGE_TARGET="minimal${APT_REPO_PREFIX:+-apt}" \
+	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
+	BUILD_IMAGE_ENV="PYTHON_VERSION PYTHON_BASE_VERSION" \
 	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ${extra_tags}
 
 	# "python" derives env from "python-min"
-	unset BUILD_IMAGE_ENV
 
-	BUILD_IMAGE_TARGET="regular${APT_REPO_PREFIX:+-apt}" \
+	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
 	scripts/build-image.sh image/python/ "${full_image}" ${extra_tags}
 
 	set +e

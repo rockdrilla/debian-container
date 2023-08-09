@@ -38,6 +38,7 @@ export _SRC_DIR=/deb.src
 export _PKG_DIR=/deb.pkg
 
 export BUILD_IMAGE_CONTEXT=.
+export BUILD_IMAGE_PUSH=0
 
 build_single() {
 	[ -n "$1" ] || return 0
@@ -59,8 +60,7 @@ build_single() {
 
 	set -e
 
-	BUILD_IMAGE_TARGET=build \
-	BUILD_IMAGE_PUSH=0 \
+	BUILD_IMAGE_TARGET=build-pkg \
 	scripts/build-image.sh image/python/ "${build_image}"
 
 	podman image rm -f "${build_image}"

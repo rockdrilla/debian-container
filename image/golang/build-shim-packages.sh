@@ -16,6 +16,8 @@ export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	CI
 	GOLANG_VERSION
 	GOLANG_BASE_VERSION
+	DEB_BUILD_OPTIONS
+	DEB_BUILD_PROFILES
 	DEB_SRC_BUILD_DIR
 	_SRC_DIR
 	_PKG_DIR
@@ -26,6 +28,7 @@ export _SRC_DIR=/deb.src
 export _PKG_DIR=/deb.pkg
 
 export BUILD_IMAGE_CONTEXT=.
+export BUILD_IMAGE_PUSH=0
 
 build_single() {
 	[ -n "$1" ] || return 0
@@ -51,7 +54,6 @@ build_single() {
 	set -e
 
 	BUILD_IMAGE_TARGET=build-shim \
-	BUILD_IMAGE_PUSH=0 \
 	scripts/build-image.sh image/golang/ "${build_image}"
 
 	podman image rm -f "${build_image}"

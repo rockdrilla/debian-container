@@ -27,14 +27,14 @@ build_single() {
 	export NODEJS_VERSION="$1"
 	export NODEJS_MAJOR_VERSION=$(printf '%s' "${NODEJS_VERSION}" | cut -d. -f1)
 
-	export BUILD_IMAGE_ENV="NODEJS_VERSION NODEJS_MAJOR_VERSION"
-
 	stem="nodejs-${NODEJS_MAJOR_VERSION}"
 
-	packages="$(build_artifacts_path "${stem}/pkg")"
-	export BUILD_IMAGE_CONTEXTS="
-		packages=${packages}
-	"
+	if [ -z "${CI}" ] ; then
+		packages="$(build_artifacts_path "${stem}/pkg")"
+		export BUILD_IMAGE_CONTEXTS="
+			packages=${packages}
+		"
+	fi
 
 	export NODEJS_MIN_IMAGE="nodejs-min:${NODEJS_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 	full_image="${IMAGE_PATH}/nodejs:${NODEJS_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
@@ -44,13 +44,13 @@ build_single() {
 
 	set -e
 
-	BUILD_IMAGE_TARGET="minimal${APT_REPO_PREFIX:+-apt}" \
+	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
+	BUILD_IMAGE_ENV="NODEJS_VERSION NODEJS_MAJOR_VERSION" \
 	scripts/build-image.sh image/nodejs/ "${IMAGE_PATH}/${NODEJS_MIN_IMAGE}" ${extra_tags}
 
 	# "nodejs" derives env from "nodejs-min"
-	unset BUILD_IMAGE_ENV
 
-	BUILD_IMAGE_TARGET="regular${APT_REPO_PREFIX:+-apt}" \
+	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
 	scripts/build-image.sh image/nodejs/ "${full_image}" ${extra_tags}
 
 	set +e

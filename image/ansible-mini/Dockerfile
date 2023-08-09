@@ -37,13 +37,10 @@ RUN CONTAINER_PYTHON_GLOBALBIN=1 \
     set -xv ; \
     ansible --version
 
-ENV PAGER=cat \
-    ANSIBLE_HOME=/ansible \
-    ANSIBLE_UID=30000
+ENV PAGER=cat
 
-RUN echo "ansible:x:${ANSIBLE_UID}:" >> /etc/group ; \
-    echo "ansible:!:::::::" >> /etc/shadow ; \
-    echo "ansible:x:${ANSIBLE_UID}:${ANSIBLE_UID}:ansible:${ANSIBLE_HOME}:/bin/false" >> /etc/passwd ; \
+RUN ANSIBLE_HOME='/ansible' ; ANSIBLE_UID='30000' ; \
+    add-simple-user ansible ${ANSIBLE_UID} "${ANSIBLE_HOME}" ; \
     install -d -o ansible -g ansible -m 0750 "${ANSIBLE_HOME}" ; \
     # compat symlinks
     ln -s "${ANSIBLE_HOME}" /home/ansible ; \
