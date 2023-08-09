@@ -25,7 +25,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
 	export DISTRO SUITE
 
-	scripts/build-image.sh image/standard/ \
-	  "${IMAGE_PATH}/${DISTRO}:${SUITE}${IMAGE_TAG_SUFFIX}" \
+	scripts/build-image.sh image/minbase-debug/ \
+	  "${IMAGE_PATH}/${DISTRO}-debug:${SUITE}${IMAGE_TAG_SUFFIX}" \
 	  ${tags}
 done

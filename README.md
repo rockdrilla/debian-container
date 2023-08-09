@@ -15,14 +15,14 @@ Images on Docker.io:
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-min/tags)
 
-### standard
+### minimal with "debug"
 
-Standard base image - `image/standard/` ([dockerfile](image/standard/Dockerfile))
+"Debug" base image - `image/minbase-debug/` ([dockerfile](image/minbase-debug/Dockerfile))
 
 Images on Docker.io:
-[Debian](https://hub.docker.com/r/rockdrilla/debian/tags)
+[Debian](https://hub.docker.com/r/rockdrilla/debian-debug/tags)
 |
-[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu/tags)
+[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-debug/tags)
 
 ### buildd
 
