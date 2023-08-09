@@ -6,8 +6,6 @@ MAKEFLAGS   +=--no-print-directory
 BIN = is-elf ufind xvp nproc.container uptime.container
 SHLIB = libincontainer.so
 
-CFLAGS += -g -flto=1 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none
-
 CPPFLAGS += -Wextra
 
 NO_WARN = attributes unused-function unused-parameter unused-result

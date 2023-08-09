@@ -1,3 +1,4 @@
+bin/add-simple-user
 bin/apt-add-repo
 bin/apt-add-src-repo
 bin/apt-autoremove
@@ -22,6 +23,7 @@ bin/list-broken-symlinks
 bin/list-rootful-files
 bin/list-stalled-configs
 bin/overlay-dir-list
+bin/python-remove-cache
 bin/python-site-cleanup
 bin/quiet
 bin/run-as

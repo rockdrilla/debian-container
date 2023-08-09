@@ -17,7 +17,7 @@ include debian/rules.gcc-flags
 include debian/rules.gcc-lto
 
 ifeq ($(with_lto),yes)
-  LTO_FLAGS := -flto=2 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none
+  LTO_FLAGS := -g -flto=1 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none
   CFLAGS   := $(CFLAGS) $(LTO_FLAGS)
   CXXFLAGS := $(CXXFLAGS) $(LTO_FLAGS)
   LDFLAGS  := $(CXXFLAGS) $(LTO_FLAGS)

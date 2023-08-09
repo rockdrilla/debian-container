@@ -1,0 +1,21 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -f
+
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} <directory> [<directory> ..]
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+for i ; do
+	[ -d "$i" ] || continue
+	i="${i%%/}/"
+	find "$i" -xdev -name __pycache__ -type d -exec rm -rf '{}' '+'
+	find "$i" -xdev -name '*.py[co]' -ls -delete
+done

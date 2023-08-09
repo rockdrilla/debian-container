@@ -12,17 +12,25 @@ exec </dev/null
 # list of potentially unwanted binaries
 inline_cfg() {
 	for i in \
-	  'e2scrub*' 'fsck.*' 'mkfs.*' \
-	  \
-	  addpart agetty badblocks blkdiscard blkid blkzone blockdev chcpu chmem \
-	  ctrlaltdel debugfs delpart dmesg dumpe2fs e2freefrag e2fsck e2image \
-	  e2label e2mmpstatus e2scrub e2undo e4crypt e4defrag fdformat fincore \
-	  findfs fsck fsfreeze fstrim getty hwclock isosize last lastb \
-	  ldattach lsblk lslogins mcookie mesg mke2fs mkfs mklost+found mkswap \
-	  mount partx pivot_root raw readprofile resize2fs resizepart \
-	  rtcwake su sulogin swaplabel swapoff swapon switch_root tune2fs utmpdump \
-	  wall wdctl wipefs zramctl \
-	  \
+	  addpart agetty \
+	  badblocks blkdiscard blkid blkzone blockdev bsd-write \
+	  chcpu chmem ctrlaltdel \
+	  debugfs delpart dmesg dumpe2fs \
+	  'e2scrub*' e2freefrag e2fsck e2image e2label e2mmpstatus e2scrub \
+	    e2undo e4crypt e4defrag \
+	  'fsck.*' fdformat fincore findfs fsck fsfreeze fstrim \
+	  getty \
+	  hwclock \
+	  isosize \
+	  last lastb ldattach lsblk lslogins \
+	  'mkfs.*' mcookie mesg mke2fs mkfs mklost+found mkswap mount \
+	  partx pivot_root \
+	  raw readprofile resize2fs resizepart rtcwake \
+	  su sulogin swaplabel swapoff swapon switch_root \
+	  tune2fs \
+	  umount utmpdump \
+	  wall wdctl wipefs write write.ul \
+	  zramctl \
 	; do
 		printf 'match=%s\n' "$i"
 	done

@@ -618,6 +618,25 @@ long cpulist_from_path(const char * directory, const char * filepath)
 	return result;
 }
 
+static
+size_t get_system_cpuset_len(void)
+{
+	int i;
+	size_t u, t;
+
+	i = read_int_file(10, "/sys/devices/system/cpu/kernel_max");
+	if ((i >= 0) && (i < (INT_MAX / 2))) {
+		u = i + 1;
+		// u = ceildiv(i + 1, sizeof(size_t)) * sizeof(size_t);
+		t = u % sizeof(size_t);
+		if (t) u += sizeof(size_t) - t;
+	}
+	else
+		u = nproc_sched_getaffinity_ex(0, 0, NULL, NULL);
+
+	return u;
+}
+
 #include "../misc/ext-c-end.h"
 
 #endif /* HEADER_INCLUDED_INCONTAINER_NPROC */

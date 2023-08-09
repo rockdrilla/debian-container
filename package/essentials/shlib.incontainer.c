@@ -56,7 +56,7 @@ void init_shlib(void)
 	if (ncpu < 1) ncpu = 1;
 	set_env_container_cpus(ncpu);
 
-	cpuset_len = nproc_sched_getaffinity_ex(0, 0, NULL, NULL);
+	cpuset_len = get_system_cpuset_len();
 
 	srand(time(NULL));
 
