@@ -17,6 +17,7 @@ debian/setup-modules.diff
 debian/sysconfigdata-name.diff
 debian/test-no-random-order.diff
 
+bootstrap-python.patch
 inplace-build.patch
 lto-pgo-flags.patch
 pgo-extra-pass.patch

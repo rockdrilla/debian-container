@@ -1,7 +1,5 @@
 # git-branch.patch
 
-autoconf.patch
-
 # these patches are borrowed from Debian
 # I'd like to say many thanks to the maintainers for their work :)
 debian/build-math-object.diff
@@ -20,6 +18,8 @@ debian/setup-modules.diff
 debian/sysconfigdata-name.diff
 debian/test-no-random-order.diff
 
+autoconf.patch
+bootstrap-python.patch
 inplace-build.patch
 lto-pgo-flags.patch
 pgo-extra-pass.patch

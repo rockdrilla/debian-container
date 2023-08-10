@@ -99,6 +99,8 @@ CONFIGURE_FLAGS_FINAL = \
 	--enable-shared \
 	$(if $(filter yes,$(with_lto)),--with-lto) \
 	$(if $(filter yes,$(with_pgo)),--enable-optimizations) \
+	--with-build-python=$(CURDIR)/python-stage1.sh \
+	--with-ensurepip=no \
 
 
 config_site = \
@@ -114,18 +116,12 @@ PIP_CONF = $(word 1,$(wildcard debian/pip.conf.build) debian/pip.conf)
 export PIP_CONFIG_FILE = $(CURDIR)/$(PIP_CONF)
 
 # $1 = PYTHONHOME
-# $2 = library subdirectory (may be empty)
-x_python_LD_LIBRARY_PATH = $(1)$(if $(2),/$(2))$(if $(LD_LIBRARY_PATH),:$(LD_LIBRARY_PATH))
-
-# $1 = PYTHONHOME
-# $2 = library subdirectory (may be empty)
-# $3 = path to binary
-# $4 - wrapper cmd
+# $2 = path to binary
+# $3 - wrapper cmd
 x_python = env \
-	LD_LIBRARY_PATH=$(call x_python_LD_LIBRARY_PATH,$(strip $(1)),$(strip $(2))) \
 	PYTHONHOME=$(strip $(1)) \
-	PATH=$(dir $(strip $(1))/$(strip $(3))):$(PATH) \
-	$(strip $(4)) $(strip $(1))/$(strip $(3))
+	PATH=$(dir $(strip $(1))/$(strip $(2))):$(PATH) \
+	$(strip $(3)) $(strip $(1))/$(strip $(2))
 
 # TEST_OPTS and TEST_EXCLUDES are defined here
 include debian/rules.tests
@@ -164,8 +160,6 @@ execute_before_dh_auto_configure:
 
 override_dh_auto_configure:
 
-bstrap_python = $(call x_python, $(INSTALL_BSTRAP)/$(PYTHON_PREFIX) , lib , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
-
 define deb_python_preconf
 
 	sed -En '/^#($(builtin_ext__re))\s/p' Modules/Setup \
@@ -199,17 +193,9 @@ define deb_python_configure
 		-e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
 	$(strip $(1))/Makefile
 
-	: # only applies to 2nd stage build
-	f=$(strip $(1))/runpython.sh ; \
-	: > $$f ; \
-	echo '#!/bin/sh' >> $$f ; \
-	echo 'export PYTHONPATH=$(INSTALL_BSTRAP)/$(PYTHON_MODULES)/site-packages' >> $$f ; \
-	echo 'exec $(bstrap_python) "$$@"' >> $$f ; \
-	chmod 0755 $$f
-
 endef
 
-test_python = $(call x_python, $(1) , , python , env -u PYTHONHOME )
+test_python = $(strip $(call x_python, $(1) , python , env -u PYTHONHOME ))
 
 define deb_python_build
 
@@ -226,6 +212,14 @@ define deb_python_build
 	done ; \
 	[ "$${build_ret}" = 0 ] || exit $${build_ret}
 
+	: # fix RPATH
+	bin=$(strip $(1))/python ; \
+	if objdump -p $${bin} | grep -F NEEDED | grep -Fq libpython ; then \
+		patchelf --set-rpath $(strip $(1)) $${bin} ; \
+	else \
+		patchelf --remove-rpath $${bin} ; \
+	fi
+
 	: # basic checks
 	$(call test_python, $(1) ) -c 'from _multiprocessing import SemLock'
 	$(call test_python, $(1) ) -c 'import _decimal'
@@ -238,26 +232,25 @@ define deb_python_build
 
 endef
 
+define remove_pycache
+
+	: # $(strip $(1)): remove Python cache
+	find $(strip $(1))/ -name __pycache__ -type d -exec rm -rf {} +
+	find $(strip $(1))/ -name '*.py[co]' -ls -delete
+
+endef
+
 define deb_python_test
 
 	$(call remove_pycache, $(1) )
 
 	: # run standard test suite
 	env -C $(strip $(1)) \
-	  LD_LIBRARY_PATH=$(call x_python_LD_LIBRARY_PATH,$(strip $(1)),) \
 	  CONTAINER_PYTHON_COMPAT=1 \
 	  NPROC=$(NPROC_MAKE) \
 	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)' $(if $(strip $(2)),|| $(strip $(2)))
 
 	$(call remove_pycache, $(1) )
-
-endef
-
-define remove_pycache
-
-	: # $(strip $(1)): remove Python cache
-	find $(strip $(1))/ -name __pycache__ -type d -exec rm -rf {} +
-	find $(strip $(1))/ -name '*.py[co]' -ls -delete
 
 endef
 
@@ -359,7 +352,7 @@ endef
 
 sysconfig_file = debian/tmp/$(PYTHON_MODULES)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py
 
-limb_python = $(call x_python, $(CURDIR)/debian/tmp/$(PYTHON_PREFIX) , lib , bin/python$(PYTHON_BASE_VERSION) , fakeroot )
+limb_python = $(strip $(call x_python, $(CURDIR)/debian/tmp/$(PYTHON_PREFIX) , bin/python$(PYTHON_BASE_VERSION) , fakeroot ))
 
 define deb_python_install
 
@@ -368,36 +361,13 @@ define deb_python_install
 	DEB_PYTHON_BUILD_DIR=$(strip $(1)) \
 	dh_auto_install --sourcedir=$(strip $(1)) --builddir=$(strip $(1))
 
+	$(call remove_pycache, debian/tmp )
+
 	rm -rf $(strip $(1))
 
 	: # revert build-time quirks
 	env -C debian/tmp/$(PYTHON_MODULES) \
 	patch -p2 -R < $(CURDIR)/debian/patches/quirks/distutils-build.patch
-
-	$(call remove_pycache, debian/tmp )
-
-	: # remove manpages
-	rm -rf debian/tmp/$(PYTHON_PREFIX)/share/man/
-
-	: # preserve only small part of builtin testsuite
-	d=debian/tmp/$(PYTHON_MODULES)/test ; \
-	rm -f debian/test.tar ; \
-	find $$d/ -regextype egrep \
-	  -regex '.+/test/(libregrtest|support|(__.+|ann_module.*|regrtest|test_support)\.py)$$' \
-	  -exec tar -cvf debian/test.tar {} + ; \
-	rm -rf $$d
-
-	: # remove builtin testsuite
-	d=debian/tmp/$(PYTHON_PREFIX) ; \
-	find $$d/ -path '*/lib/*/test'  -type d -exec rm -rf {} + ; \
-	find $$d/ -path '*/lib/*/tests' -type d -exec rm -rf {} +
-
-	: # restore builtin testsuite
-	tar -xf debian/test.tar ; rm -f debian/test.tar
-
-	: # copy pip.conf
-	mkdir -p debian/tmp/$(PYTHON_PREFIX)/share
-	cp $(PIP_CONF) debian/tmp/$(PYTHON_PREFIX)/share/pip.conf
 
 	: # remove non-fully versioned symlinks
 	find debian/tmp/ -path '*/bin/*' -type l -exec rm -vf {} +
@@ -422,6 +392,29 @@ define deb_python_install
 	ln -s idle idle$(PYTHON_BASE_VERSION) ; \
 	ln -s idle idle$(PYTHON_MAJOR_VERSION)
 
+	: # remove manpages
+	rm -rf debian/tmp/$(PYTHON_PREFIX)/share/man/
+
+	: # preserve only small part of builtin testsuite
+	d=debian/tmp/$(PYTHON_MODULES)/test ; \
+	rm -f debian/test.tar ; \
+	find $$d/ -regextype egrep \
+	  -regex '.+/test/(libregrtest|support|(__.+|ann_module.*|regrtest|test_support)\.py)$$' \
+	  -exec tar -cvf debian/test.tar {} + ; \
+	rm -rf $$d
+
+	: # remove builtin testsuite
+	d=debian/tmp/$(PYTHON_PREFIX) ; \
+	find $$d/ -path '*/lib/*/test'  -type d -exec rm -rf {} + ; \
+	find $$d/ -path '*/lib/*/tests' -type d -exec rm -rf {} +
+
+	: # restore builtin testsuite
+	tar -xf debian/test.tar ; rm -f debian/test.tar
+
+	: # copy pip.conf
+	mkdir -p debian/tmp/$(PYTHON_PREFIX)/share
+	cp debian/pip.conf debian/tmp/$(PYTHON_PREFIX)/share/pip.conf
+
 	rm -rf debian/dist debian/dist.orig
 
 	$(call buildrepro_aio, debian/tmp/$(PYTHON_PREFIX)/bin/python-config )
@@ -444,7 +437,20 @@ define deb_python_install
 	sed -i -E \
 	  -e 's/  +/ /g' \
 	$(sysconfig_file)
+
 	$(call buildrepro_compare, $(sysconfig_file) )
+
+	$(call remove_pycache, debian/tmp )
+
+endef
+
+define deb_python_postinstall_1st_stage
+
+	: # enlighten installation for 1st stage
+	find debian/tmp/ -name '*.a' -delete
+	find debian/tmp/ -name '*.o' -delete
+	find debian/tmp/ -name '*.so' -exec strip --strip-debug {} +
+	strip --strip-debug debian/tmp/$(PYTHON_PREFIX)/bin/python$(PYTHON_BASE_VERSION)
 
 	: # list installed packages
 	$(limb_python) -m pip list --format json \
@@ -474,8 +480,6 @@ define deb_python_install
 	  -e 's/^_SETUPTOOLS_VERSION\s*=\s*.+/_SETUPTOOLS_VERSION = "'"$${ver_setuptools}"'"/' \
 	debian/tmp/$(PYTHON_MODULES)/ensurepip/__init__.py
 
-	$(call remove_pycache, debian/tmp )
-
 	: # file name mangling
 	cd debian/tmp/$(PYTHON_PREFIX)/bin ; \
 	mv pip$(PYTHON_BASE_VERSION) safe.pip ; \
@@ -499,19 +503,6 @@ define deb_python_install
 
 	$(call fix_hashbangs_r, debian/tmp )
 
-endef
-
-override_dh_auto_build:
-	$(call deb_python_configure, $(CURDIR)/debian/build , )
-	$(call deb_python_build, $(CURDIR)/debian/build , )
-
-	: # revert build-time quirks
-	env -C $(CURDIR)/debian/build \
-	patch -p1 -R < $(CURDIR)/debian/patches/quirks/ensurepip.patch
-
-	rm -rf $(INSTALL_BSTRAP)
-	$(call deb_python_install, $(CURDIR)/debian/build )
-
 	: # adjust ensurepip: download fresh wheels
 	wheel_dir=debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled ; \
 	find $${wheel_dir}/ -name '*.whl' -ls -delete ; \
@@ -523,22 +514,60 @@ override_dh_auto_build:
 	done ; \
 	find $${wheel_dir}/ -name '*.whl' -ls
 
-	$(call remove_pycache, $(CURDIR) )
-
-	: # preserve shared install
-	mv debian/tmp $(INSTALL_BSTRAP)
-
-	: # minor hack for shared python
-	top=$(INSTALL_BSTRAP)/$(PYTHON_MODULES) ; \
-	src=$${top}/dist-packages ; \
-	dst=$${top}/site-packages ; \
-	rm -rf $${dst} ; \
-	mv $${src} $${dst}
+	$(call remove_pycache, debian/tmp )
 
 	: # propagate modified "ensurepip" to sources
 	rm -rf Lib/ensurepip ; \
-	tar -C $(INSTALL_BSTRAP)/$(PYTHON_MODULES) -cf - ensurepip \
+	tar -C debian/tmp/$(PYTHON_MODULES) -cf - ensurepip \
 	| tar -C Lib -xf -
+
+	: # only applies to 2nd stage
+	f=$(CURDIR)/python-stage1.sh ; \
+	: > $$f ; \
+	echo '#!/bin/sh' >> $$f ; \
+	echo 'set -f' >> $$f ; \
+	echo 'site="$(INSTALL_BSTRAP)"' >> $$f ; \
+	echo 'modules="$${site}/$(PYTHON_MODULES)"' >> $$f ; \
+	echo 'export PYTHONHOME="$${site}/$(PYTHON_PREFIX)"' >> $$f ; \
+	echo 'export PYTHONPATH="$${PYTHONPATH:+$$PYTHONPATH:}$${modules}/site-packages:$${modules}/dist-packages"' >> $$f ; \
+	echo 'export PATH="$${PYTHONHOME}/bin:$${PATH}"' >> $$f ; \
+	echo 'exec fakeroot "$${PYTHONHOME}/bin/python" "$$@"' >> $$f ; \
+	chmod 0755 $$f
+
+endef
+
+define deb_python_postinstall_2nd_stage
+
+	: # fix RPATH
+	bin=debian/tmp/$(PYTHON_PREFIX)/bin/python ; \
+	if objdump -p $${bin} | grep -F NEEDED | grep -Fq libpython ; then \
+		patchelf --set-rpath /$(PYTHON_PREFIX)/lib $${bin} ; \
+	else \
+		patchelf --remove-rpath $${bin} ; \
+	fi
+
+	: # reuse packages
+	tar -C $(INSTALL_BSTRAP)/$(PYTHON_MODULES) -cf - dist-packages \
+	| tar -C debian/tmp/$(PYTHON_MODULES) -xf -
+
+	: # reuse scripts
+	env -C $(INSTALL_BSTRAP)/$(PYTHON_PREFIX)/bin \
+	cp -t $(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/bin \
+	pip wheel
+
+	$(call fix_hashbangs_r, debian/tmp )
+
+endef
+
+override_dh_auto_build:
+	$(call deb_python_configure, $(CURDIR)/debian/build , )
+	$(call deb_python_build, $(CURDIR)/debian/build , )
+	$(call deb_python_install, $(CURDIR)/debian/build )
+	$(call deb_python_postinstall_1st_stage)
+
+	: # preserve bootstrap install
+	rm -rf $(INSTALL_BSTRAP)
+	mv debian/tmp $(INSTALL_BSTRAP)
 
 	$(call deb_python_configure, $(CURDIR)/debian/build , $(CONFIGURE_FLAGS_FINAL) )
 	$(call deb_python_build, $(CURDIR)/debian/build )
@@ -548,6 +577,7 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	$(call deb_python_install, $(CURDIR)/debian/build )
+	$(call deb_python_postinstall_2nd_stage)
 
 	$(call remove_pycache, $(CURDIR) )
 
@@ -602,11 +632,14 @@ execute_after_dh_fixperms:
 	find debian/ -path '*/bin/*' -type f -exec chmod 0755 {} +
 	find debian/ -path '*/thin-ci.sh' -type f -exec chmod 0755 {} +
 
+# don't run dwz - still buggy
 override_dh_dwz:
-	dh_dwz $(addprefix --exclude=,.exe .gcda)
 
 override_dh_strip:
 	dh_strip $(addprefix --exclude=,.exe .gcda)
+
+override_dh_shlibdeps:
+	dh_shlibdeps -Xlib-dynload -l$(CURDIR)/debian/container-python-$(PYTHON_BASE_VERSION)/$(PYTHON_PREFIX)/lib
 
 DH_GENCTRL_COMMON = -Tdebian/pip.substvars -Tdebian/substvars
 override_dh_gencontrol:

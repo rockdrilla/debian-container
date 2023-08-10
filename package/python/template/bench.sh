@@ -32,6 +32,15 @@ end_if_level() {
 
 unset CONTAINER_PYTHON_COMPAT
 
+python_bin=$(readlink -f "$1")
+
+# minor build hack
+if objdump -p "${python_bin}" | grep -F NEEDED | grep -Fq libpython ; then
+	patchelf --set-rpath "$(dirname "${python_bin}")" "${python_bin}"
+else
+	patchelf --remove-rpath "${python_bin}"
+fi
+
 ## default testsuite
 
 flush_pgo
@@ -61,8 +70,7 @@ done
 do_python_tests "$@" --pgo-extended --use=${TEST_RESOURCES} --exclude ${TEST_EXCLUDE}
 end_if_level 1
 
-python_bin=$(readlink -f "$1")
-python_wrap=$(readlink -f ./runpython.sh)
+python_wrap=$(readlink -f "${DEB_SRC_TOPDIR}/python-stage1.sh")
 
 do_pip_install() {
 	"${python_wrap}" -m pip install "$@" || end_script 1

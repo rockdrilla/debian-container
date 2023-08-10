@@ -1,6 +1,7 @@
 @{PYTHON_PREFIX}/bin/python-config
 @{PYTHON_PREFIX}/include
-@{PYTHON_PREFIX}/lib/libpython@{PYTHON_BASE_VERSION}.a
+@{PYTHON_PREFIX}/lib/libpython@{PYTHON_BASE_VERSION}.so
+@{PYTHON_PREFIX}/lib/libpython@{PYTHON_MAJOR_VERSION}.so
 @{PYTHON_PREFIX}/lib/pkgconfig
 
 @{PYTHON_MODULES}/config-*/

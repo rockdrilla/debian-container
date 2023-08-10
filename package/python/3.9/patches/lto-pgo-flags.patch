@@ -1,6 +1,6 @@
 --- a/configure.ac
 +++ b/configure.ac
-@@ -1433,7 +1433,7 @@ if test "$Py_LTO" = 'true' ; then
+@@ -1441,7 +1441,7 @@ if test "$Py_LTO" = 'true' ; then
            LTOCFLAGS="-flto"
            ;;
          *)
@@ -9,7 +9,7 @@
            ;;
        esac
        ;;
-@@ -1511,8 +1511,8 @@ case $CC in
+@@ -1519,8 +1519,8 @@ case $CC in
          fi
          ;;
        *)
