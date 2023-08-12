@@ -1,0 +1,27 @@
+define deb_build_reproducible_info
+
+	t=$(mktemp) ; \
+	set +e ; \
+	find $(foreach p, $(shell dh_listpackages), debian/$(p)/ ) -type f \
+	  -exec grep -aFl -e $(CURDIR) {} + \
+	| sort -V > "$$t" ; \
+	if [ -s "$$t" ] ; then \
+	    echo ; \
+	    echo '# detected build path leakage in files:' ; \
+	    echo ; \
+	    cat "$$t" ; \
+	    echo ; \
+	fi >&2 ; \
+	find $(foreach p, $(shell dh_listpackages), debian/$(p)/ ) -type f \
+	  -exec grep -aEl -e '(LD_LIBRARY|LD_PRELOAD|fakeroot|eatmydata|f(debug|file|macro|profile)-prefix-map|flto|ffat-lto|fuse-linker-plugin|fprofile|param=ssp-buffer-size=4|specs=|Wl,-z,now)' {} + \
+	| sort -V > "$$t" ; \
+	if [ -s "$$t" ] ; then \
+	    echo ; \
+	    echo '# detected (possible) build env leakage in files:' ; \
+	    echo ; \
+	    cat "$$t" ; \
+	    echo ; \
+	fi >&2 ; \
+	rm -f "$$t"
+
+endef

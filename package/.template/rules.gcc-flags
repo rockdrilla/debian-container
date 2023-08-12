@@ -8,6 +8,7 @@ dpkg_buildflags = env \
   DEB_BUILD_MAINT_OPTIONS='$(DEB_BUILD_MAINT_OPTIONS) optimize=-lto' \
   dpkg-buildflags
 
+ASFLAGS  = $(shell $(dpkg_buildflags) --get ASFLAGS)
 CFLAGS   = $(shell $(dpkg_buildflags) --get CFLAGS)
 CXXFLAGS = $(shell $(dpkg_buildflags) --get CXXFLAGS)
 CPPFLAGS = $(shell $(dpkg_buildflags) --get CPPFLAGS)
@@ -20,4 +21,23 @@ ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
   LDFLAGS  := -O1 $(filter-out -O%,$(LDFLAGS))
 endif
 
-export CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
+# adjust CFLAGS to pass --debug-prefix-map for `as'
+# ref: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=93371
+CFLAGS_maps := $(filter -ffile-prefix-map=% -fdebug-prefix-map=%,$(CFLAGS))
+ifneq (,$(CFLAGS_maps))
+  CFLAGS_maps := $(subst -ffile-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CFLAGS_maps))
+  CFLAGS_maps := $(subst -fdebug-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CFLAGS_maps))
+  CFLAGS := $(CFLAGS) $(sort $(CFLAGS_maps))
+endif
+
+# adjust CXXFLAGS too
+CXXFLAGS_maps := $(filter -ffile-prefix-map=% -fdebug-prefix-map=%,$(CXXFLAGS))
+ifneq (,$(CXXFLAGS_maps))
+  CXXFLAGS_maps := $(subst -ffile-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CXXFLAGS_maps))
+  CXXFLAGS_maps := $(subst -fdebug-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CXXFLAGS_maps))
+  CXXFLAGS := $(CXXFLAGS) $(sort $(CXXFLAGS_maps))
+endif
+
+$(call flush_vars, unset CFLAGS_maps CXXFLAGS_maps )
+
+export ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS

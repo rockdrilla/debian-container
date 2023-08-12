@@ -4,3 +4,8 @@ empty :=
 space :=$(empty) $(empty)
 comma :=,
 xsedx :=$(shell printf '\027')
+
+define flush_vars=
+$(foreach _____v,$(strip $(1)),$(eval unexport $(_____v)))
+$(foreach _____v,$(strip $(1)),$(eval override undefine $(_____v)))
+endef
