@@ -20,7 +20,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN dpkg-divert --divert /usr/bin/py3compile.real --rename /usr/bin/py3compile ; \
     ln -s /bin/true /usr/bin/py3compile ; \
     #
-    apt-install curl devscripts gnupg lintian mount uidmap wget ; \
+    apt-install ca-certificates curl devscripts gawk git gnupg jq liblz4-tool lintian mount openssh-client openssh-client-ssh1 rsync uidmap unzip wget zip zstd ; \
     #
     python-remove-cache / ; \
     cleanup
