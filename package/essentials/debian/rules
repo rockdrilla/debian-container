@@ -11,6 +11,7 @@ include /usr/share/dpkg/default.mk
 
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all
 
+include debian/rules.common-defs
 include debian/rules.pkg-info
 include debian/rules.gcc-latest-ver
 include debian/rules.gcc-flags
@@ -45,9 +46,9 @@ override_dh_auto_build-indep:
 	mkdir -p $(data_dir) ; \
 	cp -t $(data_dir) $(bundle) $(java_bundle) ; \
 	while [ -d $(preseed) ] ; do \
-	  find $(preseed) -mindepth 1 -printf . -quit | grep -Fq . || break ; \
-	  mkdir -p $(data_dir)/preseed ; \
-	  tar -C $(preseed) -cf - . | tar -C $(data_dir)/preseed -xf - ; \
+	    find $(preseed) -mindepth 1 -printf . -quit | grep -Fq . || break ; \
+	    mkdir -p $(data_dir)/preseed ; \
+	    tar -C $(preseed) -cf - . | tar -C $(data_dir)/preseed -xf - ; \
 	break ; done ; \
 	rm -rf $(data_dir)/preseed/pkg
 

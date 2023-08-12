@@ -94,7 +94,7 @@ int get_container_cpus(void)
 
 	x = get_container_cpus_env_own();
 
-	/* trust environment with no particular reason :) */
+	/* positive value means "enforced value" */
 	if (x > 0) return x;
 
 	/* negative value means "soft limit" */
@@ -175,16 +175,27 @@ static
 int get_container_cpus_env_own(void)
 {
 	int x;
+	char * s_env;
+	char * s_value;
 
-	x = read_int_str(10, getenv(env_nproc));
+	s_env = getenv(env_nproc);
+	if (!s_env) return 0;
 
-	if ((x < -cpu_max) || (x > cpu_max))
+	s_value = s_env;
+	if (strncmp(s_env, "force:", sizeof("force:") - 1) == 0) {
+		s_value = s_env + sizeof("force:") - 1;
+	}
+
+	x = read_int_str(10, s_value);
+	if ((x < 1) || (x > cpu_max))
 		return 0;
 
-	if (x < 0)
-		return -clamp_cpucount(-x);
+	/* enforced value */
+	if (s_value != s_env)
+		return clamp_cpucount(x);
 
-	return clamp_cpucount(x);
+	/* soft limit */
+	return -clamp_cpucount(x);
 }
 
 static

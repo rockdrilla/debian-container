@@ -31,6 +31,33 @@ if [ -z "${__CIEP_SOURCE}" ] ; then
 
 set -f
 
+# normalize LD_PRELOAD:
+# - normalize separators
+# - strip libincontainer.so (if any)
+reparse_ld_preload() {
+	tr -s ' :' '\0' \
+	| grep -zEv '^(.+/|)libincontainer\.so$' \
+	| paste -zsd':' \
+	| tr -d '\0'
+}
+
+enforce_libincontainer_so() {
+	_ld_preload="${LD_PRELOAD}"
+	unset LD_PRELOAD
+	set +e
+	LD_PRELOAD=$(printf '%s' "${_ld_preload}" | reparse_ld_preload)
+	export LD_PRELOAD="libincontainer.so${LD_PRELOAD:+:$LD_PRELOAD}"
+	unset _ld_preload
+}
+
+# enforce libincontainer.so to be in LD_PRELOAD
+case "${LD_PRELOAD}" in
+libincontainer.so ) ;;
+*)
+	enforce_libincontainer_so
+;;
+esac
+
 if [ "$1" = env ] ; then
 	export CIEP_ENV=1
 fi
@@ -150,10 +177,18 @@ EOF
 
 unset __CIEP_SOURCE CIEP_VERBOSE
 
+# enforce libincontainer.so to be in LD_PRELOAD
+case "${LD_PRELOAD}" in
+libincontainer.so ) ;;
+*)
+	enforce_libincontainer_so
+;;
+esac
+
 exec \
-	${CIEP_PRIO:+run-prio "${CIEP_PRIO}"} \
-	${CIEP_RUNAS:+run-as "${CIEP_RUNAS}"} \
-	${LD_PRELOAD:+env LD_PRELOAD="${LD_PRELOAD}"} \
+	${CIEP_PRIO:+ run-prio "${CIEP_PRIO}" } \
+	${CIEP_RUNAS:+ run-as "${CIEP_RUNAS}" } \
+	${LD_PRELOAD:+ env LD_PRELOAD="${LD_PRELOAD}" } \
 	${CIEP_INIT} \
 	"$@"
 
