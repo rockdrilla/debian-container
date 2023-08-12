@@ -318,6 +318,7 @@ define buildrepro_fix
 	  $(call remove_prefixed,LD_LIBRARY_PATH=) \
 	  $(call remove_prefixed,-f(debug|file|macro|profile)-prefix-map=) \
 	  $(call remove_prefixed,-fprofile-dir=) \
+	  $(call remove_prefixed,-Wa$(comma)--debug-prefix-map$(comma)) \
 	  $(call replace_prefixed,-fstack-protector,-fstack-protector-strong) \
 	  $(call replace_string,-fstack-protector-strong-strong,-fstack-protector-strong) \
 	  $(call remove_prefixed,--param=ssp-buffer-size=) \

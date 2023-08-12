@@ -29,6 +29,7 @@ install-no-pycache.patch
 disable-network-tests.patch
 container-python-compat-switch.patch
 hybrid-layout.patch
+python-config.patch
 
 quirks/distutils-build.patch
 quirks/ensurepip.patch
