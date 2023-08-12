@@ -137,12 +137,13 @@ ENV PATH="${GOPATH}/bin:${PATH}" \
     GOCACHE="${GOTMPROOT}/build-cache" \
     GOMODCACHE="${GOTMPROOT}/mod-cache"
 
-RUN mkdir -p "${GOPATH}" "${GOPATH}/bin" "${GOPATH}/src" "${GOTMPROOT}" ; \
+RUN mkdir -p "${GOPATH}" "${GOPATH}/bin" "${GOPATH}/src" \
+      "${GOTMPROOT}" "${GOTMPDIR}" "${GOCACHE}" "${GOMODCACHE}" ; \
     chmod -R 01777 "${GOPATH}" "${GOTMPROOT}"
 
 WORKDIR "${GOPATH}"
 
-VOLUME [ "${GOTMPROOT}" ]
+VOLUME [ "${GOTMPDIR}", "${GOCACHE}", "${GOMODCACHE}" ]
 
 CMD [ "go" ]
 
