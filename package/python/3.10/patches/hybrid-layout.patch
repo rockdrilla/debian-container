@@ -1,89 +1,37 @@
 --- a/Lib/distutils/command/install.py
 +++ b/Lib/distutils/command/install.py
-@@ -35,6 +35,19 @@ SCHEME_KEYS = ('purelib', 'platlib', 'he
+@@ -35,10 +35,14 @@ SCHEME_KEYS = ('purelib', 'platlib', 'he
  # of this information should switch to using sysconfig directly.
  INSTALL_SCHEMES = {"unix_prefix": {}, "unix_home": {}, "nt": {}}
  
-+# add the install schemes here until they are added to sysconfig
-+INSTALL_SCHEMES['unix_local'] = {
-+    'stdlib': '{installed_base}/{platlibdir}/python{py_version_short}',
-+    'platstdlib': '{platbase}/{platlibdir}/python{py_version_short}',
-+    'purelib': '{base}/lib/python{py_version_short}/site-packages',
-+    'platlib': '{platbase}/{platlibdir}/python{py_version_short}/site-packages',
-+    'include': '{installed_base}/include/python{py_version_short}{abiflags}',
-+    'headers': '{base}/include/python{py_version_short}{abiflags}',
-+    'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
-+    'scripts': '/usr/local/bin',
-+    'data': '{base}',
-+}
++INSTALL_SCHEMES["unix_system"] = {}
++INSTALL_SCHEMES["unix_dist"] = {}
 +
  # Copy from sysconfig._INSTALL_SCHEMES
  for key in SCHEME_KEYS:
      for distutils_scheme_name, sys_scheme_name in (
-@@ -450,7 +463,10 @@ class install(Command):
+             ("unix_prefix", "posix_prefix"), ("unix_home", "posix_home"),
++            ("unix_system", "posix_system"), ("unix_dist", "posix_dist"),
+             ("nt", "nt")):
+         sys_key = key
+         sys_scheme = sysconfig._INSTALL_SCHEMES[sys_scheme_name]
+@@ -450,7 +454,15 @@ class install(Command):
  
              self.install_base = self.prefix
              self.install_platbase = self.exec_prefix
 -            self.select_scheme("unix_prefix")
-+            if os.getenv('CONTAINER_PYTHON_GLOBALBIN', '0') != '0':
-+                self.select_scheme("unix_local")
++            if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
++                # virtual environment
++                self.select_scheme('unix_prefix')
++            elif os.getenv('K2_PYTHON_DISTINSTALL', '') == '1':
++                self.select_scheme('unix_dist')
++            elif os.getenv('K2_PYTHON_HIDEBIN', '') == '1':
++                self.select_scheme('unix_prefix')
 +            else:
-+                self.select_scheme("unix_prefix")
++                self.select_scheme('unix_system')
  
      def finalize_other(self):
          """Finalizes options for non-posix platforms"""
---- a/Lib/sysconfig.py
-+++ b/Lib/sysconfig.py
-@@ -36,6 +36,16 @@ _INSTALL_SCHEMES = {
-         'scripts': '{base}/bin',
-         'data': '{base}',
-         },
-+    'posix_local': {
-+        'stdlib': '{installed_base}/lib/python{py_version_short}',
-+        'platstdlib': '{platbase}/lib/python{py_version_short}',
-+        'purelib': '{base}/lib/python{py_version_short}/site-packages',
-+        'platlib': '{platbase}/lib/python{py_version_short}/site-packages',
-+        'include': '{installed_base}/include/python{py_version_short}{abiflags}',
-+        'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
-+        'scripts': '/usr/local/bin',
-+        'data': '{base}',
-+        },
-     'posix_home': {
-         'stdlib': '{installed_base}/lib/python',
-         'platstdlib': '{base}/lib/python',
-@@ -183,7 +193,7 @@ def is_python_build(check_home=False):
- _PYTHON_BUILD = is_python_build(True)
- 
- if _PYTHON_BUILD:
--    for scheme in ('posix_prefix', 'posix_home'):
-+    for scheme in ('posix_prefix', 'posix_home', 'posix_local'):
-         # On POSIX-y platforms, Python will:
-         # - Build from .h files in 'headers' (which is only added to the
-         #   scheme when building CPython)
-@@ -237,8 +247,13 @@ def _get_preferred_schemes():
-             'home': 'posix_home',
-             'user': 'osx_framework_user',
-         }
-+    if os.getenv('CONTAINER_PYTHON_GLOBALBIN', '0') != '0':
-+        prefix_scheme = 'posix_local'
-+    else:
-+        prefix_scheme = 'posix_prefix'
-+
-     return {
--        'prefix': 'posix_prefix',
-+        'prefix': prefix_scheme,
-         'home': 'posix_home',
-         'user': 'posix_user',
-     }
-@@ -538,7 +553,7 @@ def get_config_h_filename():
-         else:
-             inc_dir = _sys_home or _PROJECT_BASE
-     else:
--        inc_dir = get_path('platinclude')
-+        inc_dir = get_path('platinclude', 'posix_prefix')
-     return os.path.join(inc_dir, 'pyconfig.h')
- 
- 
 --- a/Lib/pydoc.py
 +++ b/Lib/pydoc.py
 @@ -505,6 +505,7 @@ class Doc:
@@ -105,20 +53,85 @@
 -                                    "python%d.%d" % sys.version_info[:2],
 -                                    "site-packages")
 -                sitepackages.append(path)
-+            is_virtual_environment = (sys.base_prefix != sys.prefix) or hasattr(sys, "real_prefix")
-+            if is_virtual_environment:
-+                sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/site-packages' % sys.version_info[:2]))
++            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/site-packages' % sys.version_info[:2]))
++            if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
++                # virtual environment
++                return sitepackages
++            # paths owned by container-python-{pyver}
++            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/dist-packages' % sys.version_info[:2]))
 +            # compatibility with world
 +            sitepackages.append(os.path.join('/usr/local/lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            sitepackages.append(os.path.join('/usr/local/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
-+            # paths owned by container-python-{pyver}
-+            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/dist-packages' % sys.version_info[:2]))
 +            # compatibility with Debian and derivatives
++            sitepackages.append(os.path.join('/usr/local/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
 +            sitepackages.append(os.path.join('/usr/lib/python3/dist-packages'))
 +            sitepackages.append(os.path.join('/usr/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
          else:
              sitepackages.append(prefix)
+ 
+--- a/Lib/sysconfig.py
++++ b/Lib/sysconfig.py
+@@ -36,6 +36,26 @@ _INSTALL_SCHEMES = {
+         'scripts': '{base}/bin',
+         'data': '{base}',
+         },
++    'posix_system': {
++        'stdlib': '{installed_base}/{platlibdir}/python{py_version_short}',
++        'platstdlib': '{platbase}/{platlibdir}/python{py_version_short}',
++        'purelib': '{base}/lib/python{py_version_short}/site-packages',
++        'platlib': '{platbase}/{platlibdir}/python{py_version_short}/site-packages',
++        'include': '{installed_base}/include/python{py_version_short}{abiflags}',
++        'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
++        'scripts': '/usr/local/bin',
++        'data': '{base}',
++        },
++    'posix_dist': {
++        'stdlib': '{installed_base}/{platlibdir}/python{py_version_short}',
++        'platstdlib': '{platbase}/{platlibdir}/python{py_version_short}',
++        'purelib': '{base}/lib/python{py_version_short}/dist-packages',
++        'platlib': '{platbase}/{platlibdir}/python{py_version_short}/dist-packages',
++        'include': '{installed_base}/include/python{py_version_short}{abiflags}',
++        'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
++        'scripts': '{base}/bin',
++        'data': '{base}',
++        },
+     'posix_home': {
+         'stdlib': '{installed_base}/lib/python',
+         'platstdlib': '{base}/lib/python',
+@@ -183,7 +203,7 @@ def is_python_build(check_home=False):
+ _PYTHON_BUILD = is_python_build(True)
+ 
+ if _PYTHON_BUILD:
+-    for scheme in ('posix_prefix', 'posix_home'):
++    for scheme in ('posix_prefix', 'posix_home', 'posix_system', 'posix_dist'):
+         # On POSIX-y platforms, Python will:
+         # - Build from .h files in 'headers' (which is only added to the
+         #   scheme when building CPython)
+@@ -237,8 +257,16 @@ def _get_preferred_schemes():
+             'home': 'posix_home',
+             'user': 'osx_framework_user',
+         }
++    if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
++        prefix_scheme = 'posix_prefix'
++    elif os.getenv('K2_PYTHON_DISTINSTALL', '') == '1':
++        prefix_scheme = 'posix_dist'
++    elif os.getenv('K2_PYTHON_HIDEBIN', '') == '1':
++        prefix_scheme = 'posix_prefix'
++    else:
++        prefix_scheme = 'posix_system'
+     return {
+-        'prefix': 'posix_prefix',
++        'prefix': prefix_scheme,
+         'home': 'posix_home',
+         'user': 'posix_user',
+     }
+@@ -538,7 +566,7 @@ def get_config_h_filename():
+         else:
+             inc_dir = _sys_home or _PROJECT_BASE
+     else:
+-        inc_dir = get_path('platinclude')
++        inc_dir = get_path('platinclude', 'posix_system')
+     return os.path.join(inc_dir, 'pyconfig.h')
+ 
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
@@ -139,13 +152,13 @@
 -                                  'site-packages')
 -            self.assertEqual(dirs[-1], wanted)
 +            self.assertEqual(len(dirs), 6)
-+            # compatibility with world
-+            self.assertEqual(dirs[0], os.path.join('/usr/local/lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            self.assertEqual(dirs[1], os.path.join('/usr/local/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
 +            # paths owned by container-python-{pyver}
-+            self.assertEqual(dirs[2], os.path.join('xoxo/lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            self.assertEqual(dirs[3], os.path.join('xoxo/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
++            self.assertEqual(dirs[0], os.path.join('xoxo/lib/python%d.%d/site-packages' % sys.version_info[:2]))
++            self.assertEqual(dirs[1], os.path.join('xoxo/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
++            # compatibility with world
++            self.assertEqual(dirs[2], os.path.join('/usr/local/lib/python%d.%d/site-packages' % sys.version_info[:2]))
 +            # compatibility with Debian and derivatives
++            self.assertEqual(dirs[3], os.path.join('/usr/local/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
 +            self.assertEqual(dirs[4], os.path.join('/usr/lib/python3/dist-packages'))
 +            self.assertEqual(dirs[5], os.path.join('/usr/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
          else:
@@ -158,7 +171,7 @@
  
      def test_get_scheme_names(self):
 -        wanted = ['nt', 'posix_home', 'posix_prefix']
-+        wanted = ['nt', 'posix_home', 'posix_local', 'posix_prefix']
++        wanted = ['nt', 'posix_dist', 'posix_home', 'posix_prefix', 'posix_system']
          if HAS_USER_BASE:
              wanted.extend(['nt_user', 'osx_framework_user', 'posix_user'])
          self.assertEqual(get_scheme_names(), tuple(sorted(wanted)))

@@ -47,8 +47,6 @@ case "$1" in
 	old_PATH="${PATH}"
 	export PATH="/opt/python-${pyverspec}/bin:${PATH}"
 
-	[ "$(id -u)" = 0 ] || unset CONTAINER_PYTHON_GLOBALBIN
-
 	set +e
 	"$@"
 	r=$?

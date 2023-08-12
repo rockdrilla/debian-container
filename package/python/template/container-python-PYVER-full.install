@@ -1,6 +1,3 @@
-@{PYTHON_PREFIX}/bin/pip
-@{PYTHON_PREFIX}/bin/wheel
-@{PYTHON_PREFIX}/share/pip.conf
+@{PYTHON_PREFIX}/share
 
-@{PYTHON_MODULES}/dist-packages
 @{PYTHON_MODULES}/ensurepip

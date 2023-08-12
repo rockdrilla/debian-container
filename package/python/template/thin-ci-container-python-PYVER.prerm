@@ -16,14 +16,12 @@ if [ "$1" != "upgrade" ]; then
 
 	# container-python-{PYTHON_BASE_VERSION}-full
 
-	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
-		update-alternatives --remove \
-		  pip${suffix} \
-		  ${wrapper}
-
-		update-alternatives --remove \
-		  wheel${suffix} \
-		  ${wrapper}
+	for n in pip virtualenv wheel ; do
+		for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+			update-alternatives --remove \
+			  $n${suffix} \
+			  ${wrapper}
+		done
 	done
 
 	# container-python-{PYTHON_BASE_VERSION}-dev

@@ -8,24 +8,66 @@ configure)
 	bin=/usr/bin
 	python_bin=/@{PYTHON_PREFIX}/bin
 
-	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
-		update-alternatives --install \
-		  ${bin}/pip${suffix} \
-		  pip${suffix} \
-		  ${python_bin}/pip \
-		${prio} \
+	# preserve original state of directories
+	tmpinfo=$(mktemp -d)
+	find /@{PYTHON_PREFIX}/bin/ -mindepth 1 | sort -V > "${tmpinfo}/bin.0"
+	find /@{PYTHON_MODULES}/dist-packages/ -mindepth 1 | sort -V > "${tmpinfo}/dist.0"
 
-		update-alternatives --install \
-		  ${bin}/wheel${suffix} \
-		  wheel${suffix} \
-		  ${python_bin}/wheel \
-		${prio} \
+	# install packages into /@{PYTHON_MODULES}/dist-packages/
+	K2_PYTHON_DISTINSTALL=1 \
+	"${python_bin}/python" /@{PYTHON_PREFIX}/share/ensurepip-simple.py /@{PYTHON_PREFIX}/share/wheels
 
+	# remove versioned scripts
+	env -C ${python_bin} rm -f pip@{PYTHON_MAJOR_VERSION} pip@{PYTHON_BASE_VERSION}
+
+	# adjust bundled certificates
+	: "${SSL_CERT_FILE:=/etc/ssl/certs/ca-certificates.crt}"
+	if [ -s "${SSL_CERT_FILE}" ] ; then
+		find /@{PYTHON_MODULES}/dist-packages/ -name cacert.pem -type f \
+		| while read -r f ; do
+			rm -f "$f"
+			ln -s "${SSL_CERT_FILE}" "$f"
+		done
+	fi
+
+	# adjust bundled wheels
+	find /@{PYTHON_MODULES}/ -name '*.whl' -type f \
+	| while read -r f ; do
+		rm -f "$f"
+		ln -s "/@{PYTHON_PREFIX}/share/wheels/$(basename "$f")" "$f"
+	done
+
+	for n in pip virtualenv wheel ; do
+		for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
+			update-alternatives --install \
+			  ${bin}/$n${suffix} \
+			  $n${suffix} \
+			  ${python_bin}/$n \
+			  ${prio}
+		done
 	done
 
 	for i in pip.conf ; do
 		[ -e "/etc/$i" ] || cp -v "/@{PYTHON_PREFIX}/share/$i" /etc/
 	done
+
+	find /@{PYTHON_PREFIX}/bin/ -mindepth 1 | sort -V > "${tmpinfo}/bin.1"
+	find /@{PYTHON_MODULES}/dist-packages/ -mindepth 1 | sort -V > "${tmpinfo}/dist.1"
+
+	self_list="${DPKG_ADMINDIR:=/var/lib/dpkg}/info/#PACKAGE#.list"
+
+	# calculate list diffs
+	set +e
+	grep -Fxv -f "${tmpinfo}/bin.0"  "${tmpinfo}/bin.1"  > "${tmpinfo}/bin.diff"
+	grep -Fxv -f "${tmpinfo}/dist.0" "${tmpinfo}/dist.1" > "${tmpinfo}/dist.diff"
+	cat "${tmpinfo}/bin.diff" "${tmpinfo}/dist.diff" | sort -uV > "${tmpinfo}/diff.0"
+	grep -Fxv -f "${self_list}" "${tmpinfo}/diff.0" > "${tmpinfo}/diff.1"
+	set -e
+
+	# adjust dpkg info: let dpkg maintain these files
+	cat "${tmpinfo}/diff.1" >> "${self_list}"
+
+	rm -rf "${tmpinfo}"
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

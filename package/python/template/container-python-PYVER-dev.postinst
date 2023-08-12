@@ -38,6 +38,7 @@ configure)
 	  python-config-@{PYTHON_BASE_VERSION} \
 	  ${python_bin}/python-config \
 	${prio} \
+
 ;;
 abort-upgrade|abort-remove|abort-deconfigure)
 ;;

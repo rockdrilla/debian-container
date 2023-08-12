@@ -100,7 +100,6 @@ case "$(id -u)" in
 	pathspec=$("${python}" -c 'import site;print(":".join(site.getsitepackages()))')
 ;;
 *)
-	unset CONTAINER_PYTHON_GLOBALBIN
 	pathspec=$("${python}" -c 'import site;print(site.getusersitepackages())')
 ;;
 esac

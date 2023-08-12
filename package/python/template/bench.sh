@@ -30,7 +30,7 @@ end_if_level() {
 	end_script 0
 }
 
-unset CONTAINER_PYTHON_COMPAT
+unset K2_PYTHON_COMPAT
 
 python_bin=$(readlink -f "$1")
 
@@ -48,7 +48,7 @@ flush_pgo
 do_python_tests() {
 	# run in subshell
 	flush_pycache
-	( export CONTAINER_PYTHON_COMPAT=1 ; set -xv ; "$@" ; ) || end_script 1
+	( export K2_PYTHON_COMPAT=1 ; set -xv ; "$@" ; ) || end_script 1
 	flush_pycache
 }
 
@@ -73,6 +73,7 @@ end_if_level 1
 python_wrap=$(readlink -f "${DEB_SRC_TOPDIR}/python-stage1.sh")
 
 do_pip_install() {
+	K2_PYTHON_HIDEBIN=1 \
 	"${python_wrap}" -m pip install "$@" || end_script 1
 }
 

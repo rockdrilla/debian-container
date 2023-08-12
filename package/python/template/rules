@@ -12,6 +12,7 @@ include /usr/share/dpkg/default.mk
 include debian/rules.common-defs
 
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
+export DEB_BUILD_PATH := $(CURDIR)/debian/build
 
 # Ubuntu mangles png files by default, which can break some files.
 export NO_PNG_PKG_MANGLE := 1
@@ -138,6 +139,7 @@ endif
 execute_after_dh_clean:
 ifeq ($(with_pgo)$(pgo_reuse),yesno)
 	[ -s debian/control ] || exit 0 ; \
+	[ -s debian/control.pgo ] || exit 0 ; \
 	grep -Fxq 'Package: $(DEB_PGO_PACKAGE)' debian/control || \
 	{ echo ; cat debian/control.pgo ; } >> debian/control
 endif
@@ -186,11 +188,11 @@ define deb_python_configure
 	  -u LD_PRELOAD \
 	  OPT=' ' \
 	  MKDIR_P='/bin/mkdir -p' \
-	  $(config_site) \
+	  $(strip $(config_site)) \
 	./configure $(strip $(CONFIGURE_FLAGS) $(2))
 
 	sed -i -E \
-		-e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
+	  -e 's$(xsedx)^RUNSHARED[[:space:]]*=[[:space:]]*(.*)$$$(xsedx)RUNSHARED = LD_PRELOAD= \1$(xsedx)' \
 	$(strip $(1))/Makefile
 
 endef
@@ -199,25 +201,27 @@ test_python = $(strip $(call x_python, $(1) , python , env -u PYTHONHOME ))
 
 define deb_python_build
 
+	: # unset *FLAGS to avoid duplication
+	unset ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
 	build_ret=0 ; \
 	export DEB_PYTHON_BUILD_DIR=$(strip $(1)) ; \
 	for i in $$( seq 1 3 ) ; do \
-	  set +e ; \
-	  env -C $(strip $(1)) \
-	  make -j $(NPROC_MAKE) ; \
-	  build_ret=$$? ; \
-	  set -e ; \
-	  [ "$${build_ret}" = 0 ] || continue ; \
-	  break ; \
+	    set +e ; \
+	    env -C $(strip $(1)) \
+	    make -j $(NPROC_MAKE) ; \
+	    build_ret=$$? ; \
+	    set -e ; \
+	    [ "$${build_ret}" = 0 ] || continue ; \
+	    break ; \
 	done ; \
 	[ "$${build_ret}" = 0 ] || exit $${build_ret}
 
 	: # fix RPATH
 	bin=$(strip $(1))/python ; \
 	if objdump -p $${bin} | grep -F NEEDED | grep -Fq libpython ; then \
-		patchelf --set-rpath $(strip $(1)) $${bin} ; \
+	    patchelf --set-rpath $(strip $(1)) $${bin} ; \
 	else \
-		patchelf --remove-rpath $${bin} ; \
+	    patchelf --remove-rpath $${bin} ; \
 	fi
 
 	: # basic checks
@@ -244,9 +248,11 @@ define deb_python_test
 
 	$(call remove_pycache, $(1) )
 
-	: # run standard test suite
+	: # unset *FLAGS to avoid duplication
+	unset ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
 	env -C $(strip $(1)) \
-	  CONTAINER_PYTHON_COMPAT=1 \
+	  K2_PYTHON_COMPAT=1 \
+	  DEB_PYTHON_BUILD_DIR=$(strip $(1)) \
 	  NPROC=$(NPROC_MAKE) \
 	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)' $(if $(strip $(2)),|| $(strip $(2)))
 
@@ -301,29 +307,29 @@ endef
 define buildrepro_fix
 
 	sed -i \
-		-e 's|$(CC)|$(DEB_HOST_GNU_TYPE)-gcc|g' \
-		-e 's|$(CC)|$(DEB_HOST_GNU_TYPE)-gcc|g' \
-		-e 's|$(CXX)|$(DEB_HOST_GNU_TYPE)-g++|g' \
-		-e 's|$(AR)|$(DEB_HOST_GNU_TYPE)-gcc-ar|g' \
-		-e 's|$(RANLIB)|$(DEB_HOST_GNU_TYPE)-gcc-ranlib|g' \
+	  -e 's|$(CC)|$(DEB_HOST_GNU_TYPE)-gcc|g' \
+	  -e 's|$(CC)|$(DEB_HOST_GNU_TYPE)-gcc|g' \
+	  -e 's|$(CXX)|$(DEB_HOST_GNU_TYPE)-g++|g' \
+	  -e 's|$(AR)|$(DEB_HOST_GNU_TYPE)-gcc-ar|g' \
+	  -e 's|$(RANLIB)|$(DEB_HOST_GNU_TYPE)-gcc-ranlib|g' \
 	$(strip $(1))
 
 	sed -i -E \
-		$(call remove_prefixed,LD_LIBRARY_PATH=) \
-		$(call remove_prefixed,-f(debug|file|macro|profile)-prefix-map=) \
-		$(call remove_prefixed,-fprofile-dir=) \
-		$(call replace_prefixed,-fstack-protector,-fstack-protector-strong) \
-		$(call replace_string,-fstack-protector-strong-strong,-fstack-protector-strong) \
-		$(call remove_prefixed,--param=ssp-buffer-size=) \
-		$(call remove_prefixed,-specs=) \
-		$(call remove_string,-Wl$(comma)-z$(comma)now) \
-		$(call remove_string,-L\.) \
-		$(call replace_string,-Wl$(comma)-z$(comma)relro +-Wl$(comma)-z$(comma)relro,-Wl$(comma)-z$(comma)relro) \
-		-e 's/^RUNSHARED\s*=.*$$/RUNSHARED=/g' \
+	  $(call remove_prefixed,LD_LIBRARY_PATH=) \
+	  $(call remove_prefixed,-f(debug|file|macro|profile)-prefix-map=) \
+	  $(call remove_prefixed,-fprofile-dir=) \
+	  $(call replace_prefixed,-fstack-protector,-fstack-protector-strong) \
+	  $(call replace_string,-fstack-protector-strong-strong,-fstack-protector-strong) \
+	  $(call remove_prefixed,--param=ssp-buffer-size=) \
+	  $(call remove_prefixed,-specs=) \
+	  $(call remove_string,-Wl$(comma)-z$(comma)now) \
+	  $(call remove_string,-L\.) \
+	  $(call replace_string,-Wl$(comma)-z$(comma)relro +-Wl$(comma)-z$(comma)relro,-Wl$(comma)-z$(comma)relro) \
+	  -e 's/^RUNSHARED\s*=.*$$/RUNSHARED=/g' \
 	$(strip $(1))
 
  	sed -i \
- 		-e 's|$(CURDIR)|$(fake_srcdir)|g' \
+ 	  -e 's|$(CURDIR)|$(fake_srcdir)|g' \
  	$(strip $(1))
 
 endef
@@ -352,12 +358,12 @@ endef
 
 sysconfig_file = debian/tmp/$(PYTHON_MODULES)/_sysconfigdata__$(DEB_HOST_MULTIARCH).py
 
-limb_python = $(strip $(call x_python, $(CURDIR)/debian/tmp/$(PYTHON_PREFIX) , bin/python$(PYTHON_BASE_VERSION) , fakeroot ))
-
 define deb_python_install
 
 	rm -rf debian/tmp
 
+	: # unset *FLAGS to avoid duplication
+	unset ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
 	DEB_PYTHON_BUILD_DIR=$(strip $(1)) \
 	dh_auto_install --sourcedir=$(strip $(1)) --builddir=$(strip $(1))
 
@@ -411,15 +417,23 @@ define deb_python_install
 	: # restore builtin testsuite
 	tar -xf debian/test.tar ; rm -f debian/test.tar
 
-	: # copy pip.conf
-	mkdir -p debian/tmp/$(PYTHON_PREFIX)/share
-	cp debian/pip.conf debian/tmp/$(PYTHON_PREFIX)/share/pip.conf
-
 	rm -rf debian/dist debian/dist.orig
 
 	$(call buildrepro_aio, debian/tmp/$(PYTHON_PREFIX)/bin/python-config )
 	$(call buildrepro_aio, debian/tmp/$(PYTHON_MODULES)/config-$(PYTHON_BASE_VERSION)-$(DEB_HOST_MULTIARCH)/config.c )
 	$(call buildrepro_aio, debian/tmp/$(PYTHON_MODULES)/config-$(PYTHON_BASE_VERSION)-$(DEB_HOST_MULTIARCH)/Makefile )
+
+endef
+
+limb_python = $(strip $(call x_python, $(CURDIR)/debian/tmp/$(PYTHON_PREFIX) , bin/python$(PYTHON_BASE_VERSION) , fakeroot ))
+
+define deb_python_postinstall_1st_stage
+
+	: # enlighten installation for 1st stage
+	find debian/tmp/ -name '*.a' -delete
+	find debian/tmp/ -name '*.o' -delete
+	find debian/tmp/ -name '*.so' -exec strip --strip-debug {} +
+	strip --strip-debug debian/tmp/$(PYTHON_PREFIX)/bin/python$(PYTHON_BASE_VERSION)
 
 	$(call buildrepro_backup, $(sysconfig_file) )
 
@@ -442,35 +456,34 @@ define deb_python_install
 
 	$(call remove_pycache, debian/tmp )
 
-endef
-
-define deb_python_postinstall_1st_stage
-
-	: # enlighten installation for 1st stage
-	find debian/tmp/ -name '*.a' -delete
-	find debian/tmp/ -name '*.o' -delete
-	find debian/tmp/ -name '*.so' -exec strip --strip-debug {} +
-	strip --strip-debug debian/tmp/$(PYTHON_PREFIX)/bin/python$(PYTHON_BASE_VERSION)
-
 	: # list installed packages
-	$(limb_python) -m pip list --format json \
-	> debian/pip.list.json
+	$(limb_python) -m pip list --format json > debian/pip.list.json
 
 	: # upgrade installed packages
-	$(limb_python) -m pip install --upgrade \
-	  $$(jq -r '.[].name' < debian/pip.list.json)
+	K2_PYTHON_DISTINSTALL=1 \
+	$(limb_python) -m pip install --upgrade $$(jq -r '.[].name' < debian/pip.list.json | sort -uV)
 
-	: # install wheel
-	$(limb_python) -m pip install wheel
+	: # install wheel and virtualenv
+	K2_PYTHON_DISTINSTALL=1 \
+	$(limb_python) -m pip install wheel virtualenv
+
+	$(call fix_hashbangs_r, debian/tmp )
 
 	: # list installed packages (refreshing version info)
-	$(limb_python) -m pip list --format json \
-	> debian/pip.list.json
+	$(limb_python) -m pip list --format json > debian/pip.list.json
+
+	: # produce list of installed packages
+	jq -r '.[] | "python3-" + .name + " (=" + .version + ")"' < debian/pip.list.json \
+	| tr '[:upper:]' '[:lower:]' | sort -V \
+	| paste -sd',' \
+	| sed -E 's/^/pip:provides=/;s/,$$//' \
+	> debian/pip.substvars
 
 	: # produce list of individual installed packages
-	jq -r '.[] | "pipver:" + .name + "=" + .version' \
-	< debian/pip.list.json \
-	> debian/pip.substvars
+	echo >> debian/pip.substvars
+	jq -r '.[] | "pipver:" + .name + "=" + .version' < debian/pip.list.json \
+	| tr '[:upper:]' '[:lower:]' | sort -V \
+	>> debian/pip.substvars
 
 	: # adjust ensurepip: package versions
 	ver_pip=$$(jq -r '.[] | select(.name=="pip") | .version' < debian/pip.list.json) ; \
@@ -482,44 +495,104 @@ define deb_python_postinstall_1st_stage
 
 	: # file name mangling
 	cd debian/tmp/$(PYTHON_PREFIX)/bin ; \
-	mv pip$(PYTHON_BASE_VERSION) safe.pip ; \
-	find ./ -name 'pip*' -ls -delete ; \
-	mv safe.pip pip ; \
-	ln -s pip pip$(PYTHON_BASE_VERSION) ; \
-	ln -s pip pip$(PYTHON_MAJOR_VERSION) ; \
-	mv wheel safe.wheel ; \
-	find ./ -name 'wheel*' -ls -delete ; \
-	mv safe.wheel wheel ; \
-	ln -s wheel wheel$(PYTHON_BASE_VERSION) ; \
-	ln -s wheel wheel$(PYTHON_MAJOR_VERSION)
+	for n in pip virtualenv wheel ; do \
+	    find ./ -name "$$n*" -type f -exec mv -n {} safe.$$n ';' ; \
+	    find ./ -name "$$n*" -delete ; \
+	    mv -n safe.$$n $$n ; \
+	    ln -s $$n $$n'$(PYTHON_BASE_VERSION)' ; \
+	    ln -s $$n $$n'$(PYTHON_MAJOR_VERSION)' ; \
+	done
 
-	: # adjustments after ensurepip/pip
-	d=debian/tmp/$(PYTHON_MODULES) ; \
-	src=$$d/site-packages ; \
-	dst=$$d/dist-packages ; \
-	mv $${src} $${dst} ; \
-	mkdir -p $${src} ; \
-	mv $${dst}/README.txt $${src}/
-
-	$(call fix_hashbangs_r, debian/tmp )
-
-	: # adjust ensurepip: download fresh wheels
-	wheel_dir=debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled ; \
-	find $${wheel_dir}/ -name '*.whl' -ls -delete ; \
+	: # download fresh wheels
+	wheel_dir=debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
+	mkdir -p $${wheel_dir} ; \
 	jq -r '.[] | .name + " " + .version' < debian/pip.list.json \
-	| while read -r name version ; do \
-	  [ -n "$${name}" ] || continue ; \
-	  [ -n "$${version}" ] || continue ; \
-	  env -C $${wheel_dir} $(limb_python) -m pip download "$${name}==$${version}" ; \
+	| sort -V | while read -r name version ; do \
+	    [ -n "$${name}" ] || continue ; \
+	    [ -n "$${version}" ] || continue ; \
+	    env -C $${wheel_dir} $(limb_python) -m pip download "$${name}==$${version}" ; \
 	done ; \
-	find $${wheel_dir}/ -name '*.whl' -ls
+	find $${wheel_dir}/ -name '*.whl' -exec ls -l {} +
 
-	$(call remove_pycache, debian/tmp )
+	: # adjust ensurepip: borrow wheels
+	s=debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
+	d=debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled ; \
+	find $$d/ -name '*.whl' -exec ls -l {} + ; \
+	find $$d/ -name '*.whl' -delete ; \
+	for n in pip setuptools ; do \
+	    find $$s/ -name "$$n"'-*.whl' -exec cp -t $$d {} + ; \
+	done ; \
+	echo ; \
+	find $$d/ -name '*.whl' -exec ls -l {} +
 
 	: # propagate modified "ensurepip" to sources
 	rm -rf Lib/ensurepip ; \
 	tar -C debian/tmp/$(PYTHON_MODULES) -cf - ensurepip \
 	| tar -C Lib -xf -
+
+	: # revert build-time quirks
+	patch -p1 -R < $(CURDIR)/debian/patches/quirks/ensurepip.patch
+
+	: # unpack wheels
+	wheel_dir=$(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
+	tmpdir=debian/tmp.wheels ; \
+	mkdir -p $${tmpdir} ; \
+	find $${wheel_dir}/ -name '*.whl' -printf '%P\n' \
+	| sort -V | while read -r wheel_name ; do \
+	    [ -n "$${wheel_name}" ] || continue ; \
+		$(limb_python) -m wheel unpack -d $${tmpdir} "$${wheel_dir}/$${wheel_name}" ; \
+	done
+
+	: # mangle wheels
+
+	: # remove non-native platform files (if any)
+	tmpdir=debian/tmp.wheels ; \
+	find $${tmpdir}/ -iname '*.exe' -exec ls -l {} + ; \
+	find $${tmpdir}/ -iname '*.exe' -delete
+
+	: # replace bundled cacert.pem (if any)
+	[ -s '$(SSL_CERT_FILE)' ] || exit 0 ; \
+	tmpdir=debian/tmp.wheels ; \
+	find $${tmpdir}/ -path '*/cacert.pem' -exec ls -l {} + ; \
+	find $${tmpdir}/ -path '*/cacert.pem' -exec cp -f '$(SSL_CERT_FILE)' {} ';' ; \
+	echo ; \
+	find $${tmpdir}/ -path '*/cacert.pem' -exec ls -l {} +
+
+	: # virtualenv: adjust bundled wheels versions and provide empty stub files
+	wheel_dir=$(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
+	tmpdir=debian/tmp.wheels ; \
+	for n in pip setuptools wheel ; do \
+	    v=$$(jq -r ".[] | select(.name==\"$$n\") | .version" < debian/pip.list.json) ; \
+	    fn_new=$$(find $${wheel_dir}/ -name "$$n-$$v-*.whl" -exec basename {} ';') ; \
+	    find $${tmpdir}/virtualenv-*/ -name "$$n-*.whl" -type f \
+	    | while read -r fn_orig ; do \
+	        [ -n "$${fn_orig}" ] || continue ; \
+	        rm -fv "$${fn_orig}" ; \
+	        fn_orig_dir=$$(dirname "$${fn_orig}") ; \
+	        fn_orig=$$(basename "$${fn_orig}") ; \
+	        touch "$${fn_orig_dir}/$${fn_new}" ; \
+	        if [ "$${fn_orig}" = "$${fn_new}" ] ; then continue ; fi ; \
+	        echo "$$n: $${fn_orig} -> $${fn_new}" >&2 ; \
+	        find $${tmpdir}/virtualenv-*/ -type f -exec grep -FRl -e "$${fn_orig}" {} + \
+	        | xargs -t -r -d '\n' sed -i "s/$${fn_orig}/$${fn_new}/g" ; \
+	    done ; \
+	done
+
+	: # repack wheels
+	wheel_dir=$(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
+	tmpdir=debian/tmp.wheels ; \
+	find $${tmpdir}/ -mindepth 1 -maxdepth 1 -type d -printf '%P\n' \
+	| sort -V | while read -r wheel_name ; do \
+	    [ -n "$${wheel_name}" ] || continue ; \
+	    wheel_data=$${tmpdir}/$$(basename $${wheel_name}) ; \
+	    $(limb_python) -m wheel pack -d $${tmpdir} $${wheel_data} ; \
+	    rm -rf $${wheel_data} ; \
+	done ; \
+	find $${wheel_dir}/ -name '*.whl' -exec ls -l {} + ; \
+	find $${wheel_dir}/ -name '*.whl' -delete ; \
+	find $${tmpdir}/ -name '*.whl' -exec cp -t $${wheel_dir} {} + ; \
+	echo ; \
+	find $${wheel_dir}/ -name '*.whl' -exec ls -l {} +
 
 	: # only applies to 2nd stage
 	f=$(CURDIR)/python-stage1.sh ; \
@@ -536,47 +609,79 @@ define deb_python_postinstall_1st_stage
 
 endef
 
+bstrap_python = $(strip $(call x_python, $(INSTALL_BSTRAP)/$(PYTHON_PREFIX) , bin/python , fakeroot ))
+
 define deb_python_postinstall_2nd_stage
+
+	$(call buildrepro_backup, $(sysconfig_file) )
+
+	: # adjust sysconfigdata
+	cat \
+	  debian/regen-sysconfigdata.py.pre \
+	  $(sysconfig_file) \
+	  debian/regen-sysconfigdata.py.post \
+	> debian/tmp/regen-sysconfigdata.py
+	$(bstrap_python) debian/tmp/regen-sysconfigdata.py \
+	  $(sysconfig_file)
+	rm -f debian/tmp/regen-sysconfigdata.py
+
+	$(call buildrepro_fix, $(sysconfig_file) )
+	sed -i -E \
+	  -e 's/  +/ /g' \
+	$(sysconfig_file)
+
+	$(call buildrepro_compare, $(sysconfig_file) )
+
+	$(call remove_pycache, debian/tmp )
+
+	: # borrow some modules
+	s=$(INSTALL_BSTRAP)/$(PYTHON_MODULES)/dist-packages ; \
+	d=debian/tmp/$(PYTHON_MODULES)/dist-packages ; \
+	mkdir -p "$$d" ; touch "$$d/.keep" ; \
+	for n in pkg_resources ; do \
+	    [ -d "$$s/$$n" ] || continue ; \
+	    tar -C $$s -cf - $$n | tar -C $$d -xf - ; \
+	done
+
+	: # copy wheels from stage 1
+	s=$(INSTALL_BSTRAP)/$(PYTHON_PREFIX)/share/wheels ; \
+	d=debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
+	mkdir -p $$d ; \
+	find $$s/ -name '*.whl' -exec cp -t $$d {} +
+
+	: # truncate ensurepip wheels
+	find debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled/ -name '*.whl' -type f -exec truncate -s 0 {} +
 
 	: # fix RPATH
 	bin=debian/tmp/$(PYTHON_PREFIX)/bin/python ; \
 	if objdump -p $${bin} | grep -F NEEDED | grep -Fq libpython ; then \
-		patchelf --set-rpath /$(PYTHON_PREFIX)/lib $${bin} ; \
+	    patchelf --set-rpath /$(PYTHON_PREFIX)/lib $${bin} ; \
 	else \
-		patchelf --remove-rpath $${bin} ; \
+	    patchelf --remove-rpath $${bin} ; \
 	fi
-
-	: # reuse packages
-	tar -C $(INSTALL_BSTRAP)/$(PYTHON_MODULES) -cf - dist-packages \
-	| tar -C debian/tmp/$(PYTHON_MODULES) -xf -
-
-	: # reuse scripts
-	env -C $(INSTALL_BSTRAP)/$(PYTHON_PREFIX)/bin \
-	cp -t $(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/bin \
-	pip wheel
 
 	$(call fix_hashbangs_r, debian/tmp )
 
 endef
 
 override_dh_auto_build:
-	$(call deb_python_configure, $(CURDIR)/debian/build , )
-	$(call deb_python_build, $(CURDIR)/debian/build , )
-	$(call deb_python_install, $(CURDIR)/debian/build )
+	$(call deb_python_configure, $(DEB_BUILD_PATH) , )
+	$(call deb_python_build, $(DEB_BUILD_PATH) , )
+	$(call deb_python_install, $(DEB_BUILD_PATH) )
 	$(call deb_python_postinstall_1st_stage)
 
 	: # preserve bootstrap install
 	rm -rf $(INSTALL_BSTRAP)
 	mv debian/tmp $(INSTALL_BSTRAP)
 
-	$(call deb_python_configure, $(CURDIR)/debian/build , $(CONFIGURE_FLAGS_FINAL) )
-	$(call deb_python_build, $(CURDIR)/debian/build )
-	$(call deb_python_test, $(CURDIR)/debian/build , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
+	$(call deb_python_configure, $(DEB_BUILD_PATH) , $(CONFIGURE_FLAGS_FINAL) )
+	$(call deb_python_build, $(DEB_BUILD_PATH) )
+	$(call deb_python_test, $(DEB_BUILD_PATH) , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
 
 override_dh_auto_test:
 
 override_dh_auto_install:
-	$(call deb_python_install, $(CURDIR)/debian/build )
+	$(call deb_python_install, $(DEB_BUILD_PATH) )
 	$(call deb_python_postinstall_2nd_stage)
 
 	$(call remove_pycache, $(CURDIR) )
@@ -592,29 +697,15 @@ include debian/rules.install-extras
 override_dh_install:
 	dh_install -p thin-ci-container-python-$(PYTHON_BASE_VERSION)
 
+	mkdir -p debian/tmp/$(PYTHON_PREFIX)/share
+	cp -t debian/tmp/$(PYTHON_PREFIX)/share \
+	  debian/ensurepip-simple.py \
+	  debian/pip.conf
+
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-misc )
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-dev )
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-full )
 	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION) )
-
-	: # move dist-packages/pkg_resources to base package
-	s=debian/container-python-$(PYTHON_BASE_VERSION)-full ; \
-	d=debian/container-python-$(PYTHON_BASE_VERSION) ; \
-	s=$$s/$(PYTHON_MODULES)/dist-packages ; \
-	d=$$d/$(PYTHON_MODULES)/dist-packages ; \
-	mkdir -p $$d ; \
-	tar -C $$s -cf - pkg_resources | tar -C $$d -xf - ; \
-	rm -rf $$s/pkg_resources
-
-	: # move non-native platform files (if any)
-	s=debian/container-python-$(PYTHON_BASE_VERSION)-full ; \
-	d=debian/container-python-$(PYTHON_BASE_VERSION)-misc ; \
-	if find $$s/ -iname '*.exe' -printf . -quit | grep -Fq . ; then \
-	    find $$s/ -iname '*.exe' -printf '%P\0' \
-	    | tar -C $$s --null -T - -cf - \
-	    | tar -C $$d -xf - ; \
-	    find $$s/ -iname '*.exe' -delete ; \
-	fi
 
 ifeq ($(with_pgo)$(pgo_reuse),yesno)
 	d=debian/$(DEB_PGO_PACKAGE)/$(DEB_PGO_FROM_PKG) ; \
@@ -639,7 +730,8 @@ override_dh_strip:
 	dh_strip $(addprefix --exclude=,.exe .gcda)
 
 override_dh_shlibdeps:
-	dh_shlibdeps -Xlib-dynload -l$(CURDIR)/debian/container-python-$(PYTHON_BASE_VERSION)/$(PYTHON_PREFIX)/lib
+	env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+	dh_shlibdeps -l$(CURDIR)/debian/container-python-$(PYTHON_BASE_VERSION)/$(PYTHON_PREFIX)/lib
 
 DH_GENCTRL_COMMON = -Tdebian/pip.substvars -Tdebian/substvars
 override_dh_gencontrol:
@@ -651,30 +743,9 @@ ifeq ($(with_pgo),yes)
   endif
 endif
 
-# sync with Debian (periodically)
+include debian/rules.build-reproducible-info
 execute_before_dh_builddeb:
-	set +e ; \
-	find $(foreach p, $(shell dh_listpackages), debian/$(p)/ ) -type f \
-	  -exec grep -aFl -e $(CURDIR) {} + \
-	| sort -V > debian/build.reproducible ; \
-	if [ -s debian/build.reproducible ] ; then \
-		echo ; \
-		echo '# detected build path leakage in files:' ; \
-		echo ; \
-		cat debian/build.reproducible ; \
-		echo ; \
-	fi >&2 ; \
-	find $(foreach p, $(shell dh_listpackages), debian/$(p)/ ) -type f \
-	  -exec grep -aEl -e '(LD_LIBRARY|LD_PRELOAD|fakeroot|eatmydata|f(debug|file|macro|profile)-prefix-map|flto|ffat-lto|fuse-linker-plugin|fprofile|param=ssp-buffer-size=4|specs=|Wl,-z,now)' {} + \
-	| sort -V > debian/build.reproducible ; \
-	if [ -s debian/build.reproducible ] ; then \
-		echo ; \
-		echo '# detected (possible) build env leakage in files:' ; \
-		echo ; \
-		cat debian/build.reproducible ; \
-		echo ; \
-	fi >&2 ; \
-	rm -f debian/build.reproducible
+	$(call deb_build_reproducible_info)
 
 # -- package templating - here goes dragons! --
 

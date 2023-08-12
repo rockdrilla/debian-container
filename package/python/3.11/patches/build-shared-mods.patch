@@ -17,7 +17,7 @@
 -		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py $$quiet build"; \
  	$(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' \
 -		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py $$quiet build
-+		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py --verbose build_ext --parallel 1
++		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py --verbose build
  
  
  # Build static library

@@ -24,8 +24,7 @@ RUN apt-install \
 
 COPY /ansible-filter.xglob.txt /etc/container/cleanup/python-site-packages
 
-RUN CONTAINER_PYTHON_GLOBALBIN=1 \
-    apt-wrap-python \
+RUN apt-wrap-python \
       pip install \
         "ansible~=${ANSIBLE_VERSION}.0" \
         ansible-lint \
