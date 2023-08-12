@@ -70,9 +70,11 @@ case "$1" in
 	fi
 
 	if [ -n "${pathspec}" ] ; then
+		new_LD_LIBRARY_PATH="\$ORIGIN${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
 		printf '%s' "${pathspec}" | tr ':' '\0' \
 		| grep -zEv '^$' | sort -zuV \
-		| xargs -0 -r sodeps >> "$t" || r=$?
+		| xargs -0 -r env "LD_LIBRARY_PATH=${new_LD_LIBRARY_PATH}" sodeps >> "$t" || r=$?
 	fi
 
 	# (not so) early exit
