@@ -18,6 +18,8 @@ export PATH="${rootdir}/scripts:${PATH}"
 
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	PYTHON_MIN_IMAGE
+	PYTHON_IMAGE
+	PYTHON_DEV_IMAGE
 "
 
 build_single() {
@@ -36,12 +38,20 @@ build_single() {
 	fi
 
 	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
-	full_image="${IMAGE_PATH}/python:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	export PYTHON_IMAGE="python:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	export PYTHON_DEV_IMAGE="python-dev:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 
 	extra_tags=":${PYTHON_BASE_VERSION}-${SUITE}"
 	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
 
 	set -e
+
+	if [ -z "${CI}" ] ; then
+		PYTHON_PKG_IMAGE="python-pkg:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+
+		BUILD_IMAGE_TARGET="pkg" \
+		scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_PKG_IMAGE}"
+	fi
 
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
 	BUILD_IMAGE_ENV="PYTHON_VERSION PYTHON_BASE_VERSION" \
@@ -50,7 +60,12 @@ build_single() {
 	# "python" derives env from "python-min"
 
 	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
-	scripts/build-image.sh image/python/ "${full_image}" ${extra_tags}
+	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_IMAGE}" ${extra_tags}
+
+	# "python-dev" derives env from "python"
+
+	BUILD_IMAGE_TARGET="dev${CI:+-ci}" \
+	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_DEV_IMAGE}" ${extra_tags}
 
 	set +e
 

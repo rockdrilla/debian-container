@@ -8,6 +8,7 @@ ARG BUILD_HELPER_IMAGE=${DISTRO}-buildd-helper:${SUITE}
 ARG BUILD_IMAGE=${DISTRO}-buildd:${SUITE}
 ARG BASE_IMAGE=${DISTRO}-min:${SUITE}
 ARG PYTHON_MIN_IMAGE=python-min:${PYTHON_VERSION}-${SUITE}
+ARG PYTHON_IMAGE=python:${PYTHON_VERSION}-${SUITE}
 
 # ---
 
@@ -121,12 +122,18 @@ RUN [ -e /tmp/dsc ] || exit 0 ; \
 
 # ---
 
+FROM scratch as pkg
+
+COPY --from=packages [ "*.deb", "/deb/" ]
+
+# ---
+
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as python-layout
 SHELL [ "/bin/sh", "-ec" ]
 
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-CMD [ "python3" ]
+CMD [ "python" ]
 
 # ---
 
@@ -142,7 +149,7 @@ RUN apt-install /tmp/*.deb ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
-    python3 --version
+    python --version
 
 # ---
 
@@ -150,9 +157,7 @@ FROM ${IMAGE_PATH}/${PYTHON_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
-  "container-python-${PYTHON_BASE_VERSION}-dev_${PYTHON_VERSION}-*.deb", \
   "container-python-${PYTHON_BASE_VERSION}-full_${PYTHON_VERSION}-*.deb", \
-  "container-shim-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
   "container-shim-python-${PYTHON_BASE_VERSION}-full_*.deb", \
   "/tmp/" ]
 
@@ -160,8 +165,22 @@ RUN apt-install /tmp/*.deb ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
-    python3 --version ; \
-    pip3 --version
+    pip --version ; \
+    virtualenv --version ; \
+    wheel version
+
+# ---
+
+FROM ${IMAGE_PATH}/${PYTHON_IMAGE} as dev
+SHELL [ "/bin/sh", "-ec" ]
+
+COPY --from=packages [ \
+  "container-python-${PYTHON_BASE_VERSION}-dev_${PYTHON_VERSION}-*.deb", \
+  "container-shim-python-${PYTHON_BASE_VERSION}-dev_*.deb", \
+  "/tmp/" ]
+
+RUN apt-install /tmp/*.deb ; \
+    cleanup
 
 # ---
 
@@ -172,18 +191,25 @@ RUN apt-install container-python-${PYTHON_BASE_VERSION} ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
-    python3 --version
-
-CMD [ "python3" ]
+    python --version
 
 # ---
 
 FROM ${IMAGE_PATH}/${PYTHON_MIN_IMAGE} as regular-ci
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-python-${PYTHON_BASE_VERSION}-dev ; \
+RUN apt-install container-python-${PYTHON_BASE_VERSION}-full ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
-    python3 --version ; \
-    pip3 --version
+    pip --version ; \
+    virtualenv --version ; \
+    wheel version
+
+# ---
+
+FROM ${IMAGE_PATH}/${PYTHON_IMAGE} as dev-ci
+SHELL [ "/bin/sh", "-ec" ]
+
+RUN apt-install container-python-${PYTHON_BASE_VERSION}-dev ; \
+    cleanup

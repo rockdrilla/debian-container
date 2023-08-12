@@ -54,6 +54,10 @@ Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/python-min/tags)
 |
 [standard](https://hub.docker.com/r/rockdrilla/python/tags)
+|
+[development](https://hub.docker.com/r/rockdrilla/python-dev/tags)
+|
+[raw .deb](https://hub.docker.com/r/rockdrilla/python-pkg/tags)
 
 ### golang - minimal/standard
 
