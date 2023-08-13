@@ -1,3 +1,11 @@
+--- a/pip-numpy/benchmarks/benchmarks/bench_creation.py
++++ b/pip-numpy/benchmarks/benchmarks/bench_creation.py
+@@ -1,4 +1,4 @@
+-from .common import Benchmark, TYPES1
++from .common import Benchmark, TYPES1, get_squares_
+ 
+ import numpy as np
+ 
 --- a/pip-numpy/benchmarks/benchmarks/bench_linalg.py
 +++ b/pip-numpy/benchmarks/benchmarks/bench_linalg.py
 @@ -102,7 +102,7 @@ class LinalgSmallArrays(Benchmark):
@@ -9,3 +17,34 @@
  
      def time_norm_small_array(self):
          np.linalg.norm(self.array_5)
+--- a/pip-numpy/benchmarks/benchmarks/bench_ufunc.py
++++ b/pip-numpy/benchmarks/benchmarks/bench_ufunc.py
+@@ -138,7 +138,7 @@ def time_ndarray_meth(self, methname, npdtypes):
+ class Methods0D(Benchmark):
+     """Zero dimension array methods
+     """
+-    params = [['__bool__', '__complex__', '__invert__',
++    params = [['__bool__', '__complex__',
+                '__float__', '__int__'], TYPES1]
+     param_names = ['methods', 'npdtypes']
+     timeout = 10
+@@ -146,8 +146,7 @@ class Methods0D(Benchmark):
+     def setup(self, methname, npdtypes):
+         self.xarg = np.array(3, dtype=npdtypes)
+         if (npdtypes.startswith('complex') and
+-           methname in ['__float__', '__int__']) or \
+-           (npdtypes.startswith('int') and methname == '__invert__'):
++           methname in ['__float__', '__int__']):
+             # Skip
+             raise NotImplementedError
+ 
+@@ -174,6 +173,9 @@ def setup(self, methname, npdtypes):
+         ) or (
+             not npdtypes.startswith("int")
+             and methname in ["__and__", "__or__", "__xor__"]
++        ) or (
++            npdtypes == "clongdouble"
++            and methname in ["__floordiv__", "__mod__"]
+         ):
+             raise NotImplementedError  # skip
+         values = get_squares_().get(npdtypes)

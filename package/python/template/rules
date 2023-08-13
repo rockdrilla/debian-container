@@ -11,7 +11,7 @@ include /usr/share/dpkg/default.mk
 
 include debian/rules.common-defs
 
-export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-pie,-stackprotectorstrong
 export DEB_BUILD_PATH := $(CURDIR)/debian/build
 
 # Ubuntu mangles png files by default, which can break some files.
@@ -55,11 +55,13 @@ include debian/rules.gcc-latest-ver
 include debian/rules.gcc-flags
 include debian/rules.gcc-lto
 
+DEB_PGO_LEVEL_DEFAULT = 4
 DEB_PGO_PACKAGE = container-python-$(PYTHON_VERSION)-pgo
 include debian/rules.gcc-pgo
 
 export DEB_SRC_TOPDIR = $(CURDIR)
 INSTALL_BSTRAP = $(CURDIR)/debian/tmp.bstrap
+INSTALL_BINARY = $(CURDIR)/debian/tmp.binary
 export HOME = $(CURDIR)/debian/tmp.home
 
 export DEB_PGO_REUSE = $(pgo_reuse)
@@ -89,25 +91,34 @@ CONFIGURE_FLAGS = \
 	--disable-maintainer-mode \
 	--disable-dependency-tracking \
 	--enable-ipv6 \
-	--with-computed-gotos \
 	--with-system-ffi \
 	--enable-loadable-sqlite-extensions \
 	--with-dbmliborder=bdb:gdbm \
 	--with-ssl-default-suites=openssl \
 
 
-CONFIGURE_FLAGS_FINAL = \
-	--enable-shared \
+CONFIGURE_FLAGS_STAGE2 = \
+	--with-computed-gotos \
 	$(if $(filter yes,$(with_lto)),--with-lto) \
 	$(if $(filter yes,$(with_pgo)),--enable-optimizations) \
 	--with-build-python=$(CURDIR)/python-stage1.sh \
 	--with-ensurepip=no \
 
 
+CONFIGURE_FLAGS_BINARY = \
+	$(CONFIGURE_FLAGS_STAGE2) \
+
+
+CONFIGURE_FLAGS_SHARED = \
+	$(CONFIGURE_FLAGS_STAGE2) \
+	--enable-shared \
+
+
 config_site = \
 	ac_cv_file__dev_ptmx=yes \
 	ac_cv_file__dev_ptc=yes \
 	ac_cv_posix_semaphores_enabled=yes \
+	MKDIR_P='/bin/mkdir -p' \
 
 
 export SSL_CERT_FILE = /etc/ssl/certs/ca-certificates.crt
@@ -145,6 +156,7 @@ ifeq ($(with_pgo)$(pgo_reuse),yesno)
 endif
 
 override_dh_autoreconf:
+	rm -rf pip-django-asv/results pip-numpy/numpy pip-numpy/doc pip-pandas/pandas pip-pandas/doc
 	dh_autoreconf autoreconf -- -fiv -Werror
 
 execute_before_dh_auto_configure:
@@ -184,10 +196,8 @@ define deb_python_configure
 	$(call deb_python_preconf, $(1) )
 
 	env -C $(strip $(1)) \
-	  -u LD_LIBRARY_PATH \
-	  -u LD_PRELOAD \
+	  -u LD_LIBRARY_PATH -u LD_PRELOAD \
 	  OPT=' ' \
-	  MKDIR_P='/bin/mkdir -p' \
 	  $(strip $(config_site)) \
 	./configure $(strip $(CONFIGURE_FLAGS) $(2))
 
@@ -208,6 +218,7 @@ define deb_python_build
 	for i in $$( seq 1 3 ) ; do \
 	    set +e ; \
 	    env -C $(strip $(1)) \
+	      $(strip $(2)) \
 	    make -j $(NPROC_MAKE) ; \
 	    build_ret=$$? ; \
 	    set -e ; \
@@ -614,6 +625,15 @@ bstrap_python = $(strip $(call x_python, $(INSTALL_BSTRAP)/$(PYTHON_PREFIX) , bi
 
 define deb_python_postinstall_2nd_stage
 
+	$(call remove_pycache, debian/tmp )
+
+	: remove unused data
+	rm -rf debian/tmp/$(PYTHON_PREFIX)/lib
+
+endef
+
+define deb_python_postinstall_3rd_stage
+
 	$(call buildrepro_backup, $(sysconfig_file) )
 
 	: # adjust sysconfigdata
@@ -635,6 +655,9 @@ define deb_python_postinstall_2nd_stage
 
 	$(call remove_pycache, debian/tmp )
 
+	: # borrow python binary
+	cp -ft debian/tmp/$(PYTHON_PREFIX)/bin $(INSTALL_BINARY)/$(PYTHON_PREFIX)/bin/python
+
 	: # borrow some modules
 	s=$(INSTALL_BSTRAP)/$(PYTHON_MODULES)/dist-packages ; \
 	d=debian/tmp/$(PYTHON_MODULES)/dist-packages ; \
@@ -654,12 +677,12 @@ define deb_python_postinstall_2nd_stage
 	find debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled/ -name '*.whl' -type f -exec truncate -s 0 {} +
 
 	: # fix RPATH
-	bin=debian/tmp/$(PYTHON_PREFIX)/bin/python ; \
-	if objdump -p $${bin} | grep -F NEEDED | grep -Fq libpython ; then \
-	    patchelf --set-rpath /$(PYTHON_PREFIX)/lib $${bin} ; \
-	else \
-	    patchelf --remove-rpath $${bin} ; \
-	fi
+	d=debian/tmp/$(PYTHON_PREFIX) ; \
+	for f in lib/libpython.so lib/libpython$(PYTHON_MAJOR_VERSION).so ; do \
+	    [ -s "$$d/$$f" ] || continue ; \
+	    objdump -p "$$d/$$f" | grep -F NEEDED | grep -Fq libpython || continue ; \
+	    patchelf --set-rpath /$(PYTHON_PREFIX)/lib "$$d/$$f" ; \
+	done
 
 	$(call fix_hashbangs_r, debian/tmp )
 
@@ -675,15 +698,28 @@ override_dh_auto_build:
 	rm -rf $(INSTALL_BSTRAP)
 	mv debian/tmp $(INSTALL_BSTRAP)
 
-	$(call deb_python_configure, $(DEB_BUILD_PATH) , $(CONFIGURE_FLAGS_FINAL) )
-	$(call deb_python_build, $(DEB_BUILD_PATH) )
+	$(call deb_python_configure, $(DEB_BUILD_PATH) , $(CONFIGURE_FLAGS_BINARY) )
+	$(call deb_python_build, $(DEB_BUILD_PATH) , )
+	$(call deb_python_install, $(DEB_BUILD_PATH) )
+	$(call deb_python_postinstall_2nd_stage)
+
+	: # preserve binary install
+	rm -rf $(INSTALL_BINARY)
+	mv debian/tmp $(INSTALL_BINARY)
+
+	$(call deb_python_configure, $(DEB_BUILD_PATH) , $(CONFIGURE_FLAGS_SHARED) )
+ifeq ($(with_pgo)$(pgo_reuse),yesno)
+	$(call deb_python_build, $(DEB_BUILD_PATH) , DEB_PGO_REUSE=yes DEB_PGO_FROM_PKG=$(DEB_PGO_FROM_BUILD) )
+else
+	$(call deb_python_build, $(DEB_BUILD_PATH) , )
+endif
 	$(call deb_python_test, $(DEB_BUILD_PATH) , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
 
 override_dh_auto_test:
 
 override_dh_auto_install:
 	$(call deb_python_install, $(DEB_BUILD_PATH) )
-	$(call deb_python_postinstall_2nd_stage)
+	$(call deb_python_postinstall_3rd_stage)
 
 	$(call remove_pycache, $(CURDIR) )
 

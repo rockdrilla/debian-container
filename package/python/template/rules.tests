@@ -38,5 +38,5 @@ TEST_EXCLUDES += test_smtpnet test_urllibnet test_urllib2net
 TEST_EXCLUDES += test_zipfile64
 
 export TEST_EXCLUDE   :=$(sort $(TEST_EXCLUDES))
-export TEST_RESOURCES :=all,-audio,-gui
+export TEST_RESOURCES :=all,tzdata,-audio,-gui
 TEST_OPTS = $(if $(filter verbose_check,$(DEB_BUILD_OPTIONS)),-v) -w -u$(TEST_RESOURCES) --timeout=1200 -x $(TEST_EXCLUDE)

@@ -36,6 +36,14 @@ downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
+opts=component=pip-django-asv,\
+repack,pgpmode=none,\
+filenamemangle=s/\.zip$/.tar.gz/,\
+downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
+  https://github.com/django/django-asv/tree/@{DJANGO_ASV_GIT_REF}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
+ignore
+
 # for use with proxy
 
 # opts=\
@@ -71,5 +79,13 @@ ignore
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_dask_benchmarks\/archive\/$1.tar.gz/ \
 #   http://127.0.0.1:8081/repository/proxy_raw_github_dask_benchmarks/tree/@{DASK_BENCH_GIT_REF}/ \
+#   .+/(.+)@ARCHIVE_EXT@ \
+# ignore
+
+# opts=component=pip-django-asv,\
+# repack,pgpmode=none,\
+# filenamemangle=s/\.zip$/.tar.gz/,\
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_django_asv\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_django_asv/tree/@{DJANGO_ASV_GIT_REF}/ \
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
