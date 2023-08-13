@@ -1,6 +1,6 @@
 define deb_build_reproducible_info
 
-	t=$(mktemp) ; \
+	t=$$(mktemp) ; \
 	set +e ; \
 	find $(foreach p, $(shell dh_listpackages), debian/$(p)/ ) -type f \
 	  -exec grep -aFl -e $(CURDIR) {} + \
