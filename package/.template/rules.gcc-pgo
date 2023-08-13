@@ -7,7 +7,7 @@ with_pgo := $(if $(filter noopt,$(DEB_BUILD_OPTIONS)),no,$(with_pgo))
 
 ifeq ($(with_pgo),yes)
   DEB_PGO_LEVEL := $(patsubst pgo_level=%,%,$(filter pgo_level=%,$(DEB_BUILD_OPTIONS)))
-  DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),max)
+  DEB_PGO_LEVEL := $(if $(DEB_PGO_LEVEL),$(DEB_PGO_LEVEL),$(if $(DEB_PGO_LEVEL_DEFAULT),$(DEB_PGO_LEVEL_DEFAULT),max))
 
   ifneq ($(DEB_PGO_PACKAGE),)
     pgo_reuse := $(if $(filter pgo_reuse,$(DEB_BUILD_PROFILES)),$(with_pgo),no)
