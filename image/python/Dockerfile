@@ -187,7 +187,7 @@ RUN apt-install /tmp/*.deb ; \
 FROM python-layout as minimal-ci
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-python-${PYTHON_BASE_VERSION} ; \
+RUN apt-install container-shim-python-${PYTHON_BASE_VERSION} ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
@@ -198,7 +198,7 @@ RUN apt-install container-python-${PYTHON_BASE_VERSION} ; \
 FROM ${IMAGE_PATH}/${PYTHON_MIN_IMAGE} as regular-ci
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-python-${PYTHON_BASE_VERSION}-full ; \
+RUN apt-install container-shim-python-${PYTHON_BASE_VERSION}-full ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
@@ -211,5 +211,5 @@ RUN apt-install container-python-${PYTHON_BASE_VERSION}-full ; \
 FROM ${IMAGE_PATH}/${PYTHON_IMAGE} as dev-ci
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-python-${PYTHON_BASE_VERSION}-dev ; \
+RUN apt-install container-shim-python-${PYTHON_BASE_VERSION}-dev ; \
     cleanup
