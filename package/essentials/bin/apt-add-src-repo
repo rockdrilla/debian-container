@@ -26,10 +26,10 @@ distro=$(sed -En '/^ID=(.+)$/s//\1/p' /etc/os-release)
 suite=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
 
 name="$1"
-uri=$(printf '%s' "$2" | sed -i -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
-distro=$(printf '%s' "$3" | sed -i -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
+uri=$(printf '%s' "$2" | sed -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
+distro=$(printf '%s' "$3" | sed -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
 shift 3
 
-comps=$(printf '%s' "$*" | sed -i -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
+comps=$(printf '%s' "$*" | sed -e "s/@{distro}/${distro}/g" -e "s/@{suite}/${suite}/g")
 
 printf 'deb-src %s %s %s\n' "${uri}" "${distro}" "${comps}" >> "/etc/apt/sources.list.d/${name}.list"
