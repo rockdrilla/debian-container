@@ -134,11 +134,13 @@ int sched_cpucount(size_t setsize, const cpu_set_t * cpuset)
 	return new_sched_cpucount(setsize, cpuset);
 }
 
+#if 0
 SHLIB_EXPORT
 cpu_set_t * __sched_cpualloc(size_t count)
 {
 	return malloc((cpuset_len) ? cpuset_len : CPU_ALLOC_SIZE(count));
 }
+#endif
 
 SHLIB_EXPORT
 int __sched_cpucount(size_t setsize, const cpu_set_t * cpuset)
