@@ -43,6 +43,7 @@ build_single() {
 	stem="nodejs-${NODEJS_MAJOR_VERSION}"
 
 	export BUILD_IMAGE_VOLUMES="
+		$(ci_apt_volumes)
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 

@@ -2,6 +2,8 @@
 .vscode/
 
 # ignore build-time artifacts and cache
+.ci/apt.list.*
+.ci/apt.sources.*
 artifacts/
 
 # ignore preseed

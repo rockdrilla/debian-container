@@ -37,6 +37,10 @@ build_single() {
 		"
 	fi
 
+	export BUILD_IMAGE_VOLUMES="
+		$(ci_apt_volumes)
+	"
+
 	export PYTHON_MIN_IMAGE="python-min:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 	export PYTHON_IMAGE="python:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 	export PYTHON_DEV_IMAGE="python-dev:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"

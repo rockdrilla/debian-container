@@ -20,7 +20,7 @@ stub_build() {
 }
 
 _build_artifacts_path() {
-	printf '%s' "${rootdir:?}/artifacts/${DISTRO:?}-${SUITE:?}-${1:?}"
+	printf '%s' "${rootdir}/artifacts/${DISTRO}-${SUITE}-${1:?}"
 }
 
 build_artifacts_path() {
@@ -30,11 +30,22 @@ build_artifacts_path() {
 
 # NB: "/build" isn't actually a final artefact directory
 build_artifacts_volumes() {
+	: "${rootdir:?}" "${DISTRO:?}" "${SUITE:?}"
 	printf ' %s ' \
 		"$(build_artifacts_path "$1/build"):$2" \
 		"$(build_artifacts_path "$1/src"):$3" \
 		"$(build_artifacts_path "$1/pkg"):$4" \
 
+}
+
+ci_apt_volumes() {
+	: "${rootdir:?}" "${DISTRO:?}" "${SUITE:?}"
+	if [ -s "${rootdir}/.ci/apt.list.${SUITE}" ] ; then
+		echo "${rootdir}/.ci/apt.list.${SUITE}:/etc/apt/sources.list:ro"
+	fi
+	if [ -s "${rootdir}/.ci/apt.sources.${SUITE}" ] ; then
+		echo "${rootdir}/.ci/apt.sources.${SUITE}:/etc/apt/sources.list.d/${DISTRO}:ro"
+	fi
 }
 
 default_D_S_T='

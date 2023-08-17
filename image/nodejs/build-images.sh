@@ -36,6 +36,10 @@ build_single() {
 		"
 	fi
 
+	export BUILD_IMAGE_VOLUMES="
+		$(ci_apt_volumes)
+	"
+
 	export NODEJS_MIN_IMAGE="nodejs-min:${NODEJS_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 	full_image="${IMAGE_PATH}/nodejs:${NODEJS_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 

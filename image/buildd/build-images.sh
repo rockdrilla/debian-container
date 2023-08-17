@@ -25,6 +25,10 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
 	export DISTRO SUITE
 
+	export BUILD_IMAGE_VOLUMES="
+		$(ci_apt_volumes)
+	"
+
 	export BUILDD_IMAGE="${DISTRO}-buildd:${SUITE}${IMAGE_TAG_SUFFIX}"
 	helper_image="${IMAGE_PATH}/${DISTRO}-buildd-helper:${SUITE}${IMAGE_TAG_SUFFIX}"
 

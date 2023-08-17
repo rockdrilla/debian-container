@@ -25,6 +25,10 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
 	export DISTRO SUITE
 
+	export BUILD_IMAGE_VOLUMES="
+		$(ci_apt_volumes)
+	"
+
 	scripts/build-image.sh image/minbase-debug/ \
 	  "${IMAGE_PATH}/${DISTRO}-debug:${SUITE}${IMAGE_TAG_SUFFIX}" \
 	  ${tags}

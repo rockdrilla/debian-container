@@ -53,6 +53,7 @@ build_single() {
 	stem="python-${PYTHON_BASE_VERSION}"
 
 	export BUILD_IMAGE_VOLUMES="
+		$(ci_apt_volumes)
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 

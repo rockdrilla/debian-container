@@ -35,6 +35,10 @@ build_single() {
 		"
 	fi
 
+	export BUILD_IMAGE_VOLUMES="
+		$(ci_apt_volumes)
+	"
+
 	export GOLANG_MIN_IMAGE="golang-min:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 	full_image="${IMAGE_PATH}/golang:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 
