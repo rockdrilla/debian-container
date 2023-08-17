@@ -22,7 +22,7 @@ RUN apt-install \
     ; \
     cleanup
 
-COPY /ansible-filter.xglob.txt /etc/container/cleanup/python-site-packages
+COPY /ansible-filter.xglob.txt /etc/k2/cleanup/python-site-packages
 
 RUN apt-wrap-python \
       pip install \

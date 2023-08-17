@@ -1,0 +1,15 @@
+#!/bin/sh
+
+mark='/lib/k2/bootstrap.done'
+if [ -e "${mark}" ] ; then exit 0 ; fi
+touch "${mark}"
+
+set -e
+. /lib/k2/bootstrap/preseed.sh
+
+set -e
+. /lib/k2/bootstrap/settings.sh
+
+set -e
+
+#DEBHELPER#

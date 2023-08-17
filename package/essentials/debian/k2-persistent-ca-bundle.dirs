@@ -1,0 +1,3 @@
+etc/ca-certificates/update.d
+sbin
+var/lib/k2/persistence

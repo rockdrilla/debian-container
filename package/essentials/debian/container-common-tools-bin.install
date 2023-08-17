@@ -1,7 +1,0 @@
-bin/is-elf
-bin/nproc.container
-bin/nprocfix
-bin/ufind
-bin/uptime.container
-bin/xvp
-lib/*.so /lib/

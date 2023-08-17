@@ -1,0 +1,10 @@
+interest-noawait k2-verify-persistent-ca-bundle-java
+
+interest-await   /etc/ssl
+interest-await   /usr/share/ca-certificates
+interest-await   update-ca-certificates
+interest-await   update-ca-certificates-fresh
+
+interest-await   /usr/share/ca-certificates-java
+interest-await   update-ca-certificates-java
+interest-await   update-ca-certificates-java-fresh

@@ -4,4 +4,4 @@ LC_ALL=C.UTF-8
 TERM=linux
 TMPDIR=/tmp
 TZ=Etc/UTC
-LD_PRELOAD=libincontainer.so
+LD_PRELOAD=k2env.so

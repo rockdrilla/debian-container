@@ -1,8 +1,0 @@
-#!/bin/sh
-# SPDX-License-Identifier: Apache-2.0
-# (c) 2022-2023, Konstantin Demin
-
-if [ -z "${NPROC}" ] ; then
-    NPROC=$(nproc.container || nproc)
-    export NPROC
-fi

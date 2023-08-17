@@ -1,3 +1,9 @@
+k2-essentials (20230817) stable; urgency=medium
+
+  * Major renaming plus refactoring.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Thu, 17 Aug 2023 15:11:00 +0300
+
 container-essentials (20230812) stable; urgency=medium
 
   * Bump version.

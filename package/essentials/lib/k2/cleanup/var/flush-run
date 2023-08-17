@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag var/run
+
+set -f
+
+[ -z "${DEBUG}" ] || set -xv
+
+xglob /run - "${CLEANUP_CONF_DIR:?}/run" -- rm -rfv <<-'EOF'
+	match=**
+	skip=lock/
+	skip=shm
+	skip=.containerenv
+EOF
+
+set -e
+cd /run
+
+[ -e shm ] || ln -s /dev/shm ./
+
+[ -d lock ] || install -d -o root -g root -m 01777 lock
+
+exit 0

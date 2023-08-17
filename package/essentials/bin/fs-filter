@@ -47,7 +47,7 @@ n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
 		case "${want_value}" in
-		path)
+		path )
 			o_path="$i"
 			verify_path "${o_path}"
 		;;
@@ -86,11 +86,11 @@ for i ; do
 		fi
 		f_verbose=1
 	;;
-	-*)
+	-* )
 		msgf 'unknown option: %q' "$i"
 		usage 1
 	;;
-	*) break ;;
+	* ) break ;;
 	esac
 
 	n_opt=$((n_opt+1))

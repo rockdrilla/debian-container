@@ -6,7 +6,7 @@ ARG NODEJS_VERSION
 
 ARG BUILD_HELPER_IMAGE=${DISTRO}-buildd-helper:${SUITE}
 ARG BUILD_IMAGE=${DISTRO}-buildd:${SUITE}
-ARG BASE_IMAGE=${DISTRO}-min:${SUITE}
+ARG BASE_IMAGE=${DISTRO}:${SUITE}
 ARG NODEJS_MIN_IMAGE=nodejs-min:${NODEJS_VERSION}-${SUITE}
 
 # ---
@@ -30,9 +30,9 @@ COPY /package/.template/                       /tmp/debian/
 COPY /package/nodejs/template/                 /tmp/debian/
 COPY /package/nodejs/${NODEJS_MAJOR_VERSION}/  /tmp/debian/
 
-# "/ciep.env" ensures that container limits and env are taken in account
+# "ep.env" ensures that container limits and env are taken in account
 RUN apt-update ; \
-    /ciep.env deb-src-export ${_SRC_DIR} /tmp/debian ; \
+    ep.env deb-src-export ${_SRC_DIR} /tmp/debian ; \
     cleanup ; \
     # linkage with "build-pkg" layer
     touch /tmp/dsc
@@ -70,12 +70,12 @@ RUN [ -z "${CI}" ] || exit 0; \
       exit 0 ; \
     fi
 
-# "/ciep.env" ensures that container limits and env are taken in account
+# "ep.env" ensures that container limits and env are taken in account
 RUN [ -e /tmp/dsc ] || exit 0 ; \
     apt-update ; \
     build_start=$(date -R) ; \
     set +e ; \
-    /ciep.env deb-src-build ${_SRC_DIR}/container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.dsc ${_PKG_DIR} ; \
+    ep.env deb-src-build ${_SRC_DIR}/container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \

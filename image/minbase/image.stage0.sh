@@ -22,10 +22,6 @@ image=$(to_lower "${image}")
 	exit 1
 }
 
-sha256() { sha256sum -b "$1" | sed -En '/^([[:xdigit:]]+).*$/{s//\L\1/;p;}' ; }
-
-tar_sha256=$(sha256 "${tarball}")
-
 c=$(buildah from scratch || true)
 if [ -z "$c" ] ; then
 	rm -f "${tarball}"
@@ -40,13 +36,23 @@ eval "$(printf 'imgconf() { buildah config "$@" %s ; }' "$c")"
 imgconf --workingdir /
 imgconf --cmd bash
 
+while read -r v ; do
+	[ -n "$v" ] || continue
+	imgconf --volume "$v"
+done <<-EOF
+$(grep -Ev '^\s*(#|$)' < "${dir0}/setup/volumes.list")
+EOF
+
 while read -r i ; do
 	[ -n "$i" ] || continue
+	case "$i" in
+	LD_PRELOAD=* ) continue ;;
+	esac
 	imgconf --env "$i"
 done <<-EOF
 $(grep -Ev '^\s*(#|$)' < "${dir0}/setup/env.sh")
 EOF
 
-buildah commit --rm --squash --timestamp "${ts}" "$c" "${image}"
+buildah commit --rm --squash "$c" "${image}"
 
 echo "${image} has been built successfully" >&2

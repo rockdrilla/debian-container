@@ -31,7 +31,7 @@ done ; unset c
 
 act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 case "${act}" in
-1|start)
+1 | start )
 	[ -n "${GNUPGHOME}" ] || usage 1
 	cd "${GNUPGHOME}"
 	cat > gpg.conf <<-EOF
@@ -52,12 +52,14 @@ case "${act}" in
 	gpg --list-keys >/dev/null
 	dirmngr </dev/null >/dev/null 2>&1
 ;;
-0|stop)
+0 | stop )
 	[ -n "${GNUPGHOME}" ] || exit 0
 	cd /
 	gpgconf --quiet --kill all
 	rm -rf "${GNUPGHOME}"
 ;;
-*) usage 1 ;;
+* )
+	usage 1
+;;
 esac
 exit 0

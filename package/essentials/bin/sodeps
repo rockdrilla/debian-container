@@ -13,7 +13,7 @@ fi
 w=$(mktemp -d) ; : "${w:?}"
 
 if [ -z "${NPROC}" ] ; then
-	NPROC=$(nproc.container || nproc)
+	NPROC=$(nproc || echo 1)
 	NPROC=$(( NPROC + (NPROC + 1)/2 ))
 fi
 
@@ -45,11 +45,11 @@ if [ -s "$w/nonfit" ] ; then
 fi
 
 case "${SODEPS_MISSING}" in
-ignore)
+ignore )
 	# don't use in production :D
 ;;
-# warn|error)
-*)
+# warn | error )
+* )
 	while : ; do
 		[ -s "$w/notfound" ] || break
 

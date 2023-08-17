@@ -42,65 +42,27 @@ fi
 uid=$(ps -n -o euid= -p $$)
 gid=$(ps -n -o egid= -p $$)
 
+sources_tmp=$(mktemp) ; : "${sources_tmp:?}"
+uri=
 case "${distro}" in
-debian) comps='main contrib non-free' ;;
-ubuntu) comps='main restricted universe multiverse' ;;
+debian)
+	for u in "${MMDEBSTRAP_BUILD_MIRROR_DEBIAN}" "${MMDEBSTRAP_MIRROR_DEBIAN}" ; do
+		[ -n "$u" ] || continue
+		uri="$u"
+		break
+	done
+;;
+ubuntu)
+	for u in "${MMDEBSTRAP_BUILD_MIRROR_UBUNTU}" "${MMDEBSTRAP_MIRROR_UBUNTU}" ; do
+		[ -n "$u" ] || continue
+		uri="$u"
+		break
+	done
+;;
 esac
+[ -n "${uri}" ] || uri='default'
 
-sources_tmp=
-while : ; do
-	case "${distro}" in
-	debian)
-		[ -n "${MMDEBSTRAP_MIRROR_DEBIAN}" ] || break
-
-		case "${suite}" in
-		unstable|sid) ;;
-		*)
-			# if MMDEBSTRAP_MIRROR_DEBIAN is set then MMDEBSTRAP_SECMIRROR_DEBIAN must be set too
-			: "${MMDEBSTRAP_SECMIRROR_DEBIAN:?}"
-		;;
-		esac
-	;;
-	ubuntu)
-		[ -n "${MMDEBSTRAP_MIRROR_UBUNTU}" ] || break
-	;;
-	esac
-
-	sources_tmp=$(mktemp) ; : "${sources_tmp:?}"
-	case "${distro}" in
-	debian)
-		: "${MMDEBSTRAP_KEYRING:=/usr/share/keyrings/debian-archive-keyring.gpg}"
-
-		case "${suite}" in
-		unstable|sid)
-			cat <<-EOF
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite} ${comps}
-			EOF
-		;;
-		*)
-			cat <<-EOF
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite} ${comps}
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite}-updates ${comps}
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_DEBIAN} ${suite}-proposed-updates ${comps}
-			deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_SECMIRROR_DEBIAN} ${suite}-security ${comps}
-			EOF
-		;;
-		esac
-	;;
-	ubuntu)
-		: "${MMDEBSTRAP_KEYRING:=/usr/share/keyrings/ubuntu-archive-keyring.gpg}"
-
-		cat <<-EOF
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite} ${comps}
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite}-updates ${comps}
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite}-proposed ${comps}
-		deb [signed-by="${MMDEBSTRAP_KEYRING}"] ${MMDEBSTRAP_MIRROR_UBUNTU} ${suite}-security ${comps}
-		EOF
-	;;
-	esac > "${sources_tmp}"
-
-	break
-done
+package/essentials/bin/apt-sources -p -d ${distro} -s ${suite} "${uri}" > "${sources_tmp}"
 
 tarball_tmp=$(mktemp -u)'.tar'
 
@@ -108,7 +70,6 @@ set +e
 mmdebstrap \
   --format=tar \
   --variant=apt \
-  --components="${comps}" \
   --include='ca-certificates-java,default-jre-headless' \
   --aptopt="${dir0}/setup/apt.conf" \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
@@ -119,15 +80,11 @@ mmdebstrap \
   --skip=cleanup/tmp \
   --skip=cleanup/run \
   "${suite}" "${tarball_tmp}" \
-  ${sources_tmp:+ - } <<-EOF
-$(test -z "${sources_tmp}" || cat "${sources_tmp}")
-EOF
+  - < "${sources_tmp}"
 set -e
 
-if [ -n "${sources_tmp}" ] ; then
-	rm -f "${sources_tmp}"
-	unset sources_tmp
-fi
+rm -f "${sources_tmp}"
+unset sources_tmp
 
 # test tarball
 if ! tar -tf "${tarball_tmp}" >/dev/null ; then
@@ -147,6 +104,8 @@ ${TARFILTER} \
 	--path-exclude='/dev/*' \
 	--path-exclude='/proc/*' \
 	--path-exclude='/sys/*' \
+	--path-exclude='/tmp/*' \
+	--path-exclude='/run/lock/*' \
 < "${tarball_tmp}" \
 > "${tarball_new}"
 

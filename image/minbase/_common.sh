@@ -16,17 +16,17 @@ suite=$(to_lower "${suite}")
 
 # adjust suite (naive)
 case "${distro}" in
-debian)
+debian )
 	case "${suite}" in
-	11) suite=bullseye ;;
-	12) suite=bookworm ;;
-	13) suite=trixie ;;
+	11 ) suite=bullseye ;;
+	12 ) suite=bookworm ;;
+	13 ) suite=trixie ;;
 	esac
 ;;
-ubuntu)
+ubuntu )
 	case "${suite}" in
-	20.04) suite=focal ;;
-	22.04) suite=jammy ;;
+	20.04 ) suite=focal ;;
+	22.04 ) suite=jammy ;;
 	esac
 ;;
 esac

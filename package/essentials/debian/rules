@@ -24,8 +24,8 @@ ifeq ($(with_lto),yes)
   LDFLAGS  := $(CXXFLAGS) $(LTO_FLAGS)
 endif
 
-# container-bootstrap
-data_dir    = usr/share/container/bootstrap
+# k2-bootstrap
+data_dir    = usr/share/k2/bootstrap
 preseed     = /usr/local/preseed
 bundle      = /etc/ssl/certs/ca-certificates.crt
 java_bundle = /etc/ssl/certs/java/cacerts
@@ -41,7 +41,7 @@ override_dh_auto_build-arch:
 	$(MAKE) all
 
 override_dh_auto_build-indep:
-	: # container-bootstrap
+	: # k2-bootstrap
 
 	mkdir -p $(data_dir) ; \
 	cp -t $(data_dir) $(bundle) $(java_bundle) ; \
@@ -62,7 +62,6 @@ override_dh_auto_test:
 execute_before_dh_install:
 	find $(CURDIR) -name .keep -type f -delete
 
-.PHONY: build
-build:
+override_dh_dwz:
 
 include debian/rules.self-template

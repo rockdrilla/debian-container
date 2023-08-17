@@ -5,8 +5,8 @@
 set -f
 
 tags='dpkg apt tree var'
-libdir=/lib/container/cleanup
-confdir=/etc/container/cleanup
+libdir=/lib/k2/cleanup
+confdir=/etc/k2/cleanup
 
 # bootstrap compat
 if [ -d "/usr/local${libdir}" ] ; then
@@ -23,10 +23,9 @@ export LC_ALL=C.UTF-8
 
 # setup various environment variables representing temporary directory
 export TMPDIR=/tmp
-export TMP=/tmp
-export TEMPDIR=/tmp
-export TEMP=/tmp
+export TMP=${TMPDIR} TEMPDIR=${TMPDIR} TEMP=${TMPDIR}
 
+echo '# space usage before:'
 du -xsh /
 
 cleanup_by_tag() {
@@ -39,13 +38,17 @@ for t in ${*:-${tags}} ; do
 	cleanup_by_tag "$t"
 done
 
+# list broken symlinks (if any)
+[ -z "${VERBOSE}" ] || list-broken-symlinks
+
 # list stalled configs (if any)
 [ -z "${VERBOSE}" ] || list-stalled-configs
 
-# list broken symlinks (if any)
-[ -z "${VERBOSE}" ] || list-broken-symlinks
+# list "martian" packages (if any)
+[ -z "${VERBOSE}" ] || apt-list-martians
 
 # list files with setuid/setgid (if any)
 list-rootful-files
 
+echo '# space usage after:'
 du -xsh /

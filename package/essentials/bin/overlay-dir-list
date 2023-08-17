@@ -48,7 +48,7 @@ n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
 		case "${want_value}" in
-		depth)
+		depth )
 			o_depth="$i"
 			verify_depth "${o_depth}"
 		;;
@@ -80,11 +80,11 @@ for i ; do
 		fi
 		f_zero_eol=1
 	;;
-	-*)
+	-* )
 		msgf 'unknown option: %q' "$i"
 		usage 1
 	;;
-	*) break ;;
+	* ) break ;;
 	esac
 
 	n_opt=$((n_opt+1))
@@ -139,7 +139,7 @@ adjust_with_skiplist() {
 for i ; do
 	# arguments with '|' are silently skipped - try naming paths simplier
 	case "$i" in
-	*\|*) continue ;;
+	*\|* ) continue ;;
 	esac
 
 	# non-existent directories are silently skipped
@@ -230,7 +230,7 @@ while read -r name ; do
 
 		# ${_name} is unused
 		case "${dtype}" in
-		d)
+		d )
 			[ ${sub_depth} != 0 ] || continue
 
 			if grep -Fxq -e "${name}" "$w/dirnames" ; then
@@ -254,7 +254,7 @@ while read -r name ; do
 			xargs -0 -a "$w/dir.args" "$0" ${f_zero_eol:+-z} -d ${sub_depth}
 			rm -f "$w/dir.args"
 		;;
-		*)
+		* )
 			if [ -z "${f_zero_eol}" ] ; then
 				printf '%s\n' "${dir}/${name}"
 			else

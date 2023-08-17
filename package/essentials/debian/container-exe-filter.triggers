@@ -1,6 +1,0 @@
-interest-noawait refresh-container-exe-filter
-
-interest-await   /bin
-interest-await   /sbin
-interest-await   /usr/bin
-interest-await   /usr/sbin

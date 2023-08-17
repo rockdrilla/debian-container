@@ -64,9 +64,6 @@ fix_ownership() {
 [ "$4" = 0 ] || fix_ownership "-uid $4|chown -h 0"
 [ "$5" = 0 ] || fix_ownership "-gid $5|chgrp -h 0"
 
-# strip apt keyrings from sources.list:
-sed -i -E 's/ \[[^]]+]//' /etc/apt/sources.list
-
 # symlink (missing) keyrings (also deduplicate files a bit)
 find /usr/share/keyrings/ -follow ! -name '*removed*' -type f -size +1c \
 | sort -V \
@@ -76,8 +73,8 @@ find /usr/share/keyrings/ -follow ! -name '*removed*' -type f -size +1c \
 done
 
 # rename/move apt&dpkg configuration
-renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
-renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
+renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/k2
+renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/k2
 
 # approach to minimize manually installed packages list
 w=$(mktemp -d) ; : "${w:?}"
@@ -136,12 +133,11 @@ done
 rm -rf "${bootstrap}"
 
 # fixtures
-update-container-persistent-ca-bundle
-update-container-persistent-ca-bundle-java
+k2-update-persistent-ca-bundle
+k2-update-persistent-ca-bundle-java
 
-# remove bootstrap package(s)
-apt-list-installed | grep -E '^container-bootstrap' \
-| xargs -r dpkg -P || :
+# remove bootstrap package
+dpkg -P k2-bootstrap || :
 
 # replace "usrmerge" with "usr-is-merged"
 apt-update
@@ -153,11 +149,7 @@ fi
 # NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
 # ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733
 [ -z "${TZ}" ] || {
-	f='/usr/local/tzdata.tar'
-
-	apt-wrap 'tzdata' sh -ec "tz ${TZ} ; tar -cPf $f /etc/timezone"
-
-	tar -xPf "$f" ; rm -f "$f" ; unset f
+	TZ_LEAN=1 tz "${TZ}"
 }
 
 preseed='/usr/local/preseed'
@@ -201,6 +193,19 @@ EOF
 # reproducibility
 echo "$2-$3" > /etc/hostname
 : > /etc/resolv.conf
+
+# setup apt sources for final stage
+uri=
+case "$2" in
+debian)
+	uri="${MMDEBSTRAP_MIRROR_DEBIAN}"
+;;
+ubuntu)
+	uri="${MMDEBSTRAP_MIRROR_UBUNTU}"
+;;
+esac
+[ -n "${uri}" ] || uri='default'
+apt-sources -a -d "$2" -s "$3" -k no "${uri}"
 
 # run whole image cleanup script
 VERBOSE=1 cleanup

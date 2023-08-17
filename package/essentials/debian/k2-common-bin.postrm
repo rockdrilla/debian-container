@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+remove )
+	for b in nproc uptime ; do
+		f="/usr/bin/$b"
+		[ -h "$f" ] || continue
+		rm -fv "$f"
+		dpkg-divert --package '#PACKAGE#' --rename --remove "$f" || :
+	done ; unset b f
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

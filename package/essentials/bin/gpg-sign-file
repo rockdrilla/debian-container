@@ -35,49 +35,20 @@ if ! [ -f "$1" ] ; then
 	exit 1
 fi
 
-# ensure that we have at least two empty lines at the end
-n=$(stat -c '%s' "$1") || exit
-
-want_lf=2 i=$n
-case "$n" in
-0) want_lf=0 ;;
-1) ;;
-*) i=2 ;;
-esac
-
-read_byte_raw() {
-	od -A n -j "$2" -N 1 -t x1 < "$1" \
-	| tr -d '[:space:]'
-}
-
-while [ $i -gt 0 ] ; do
-	n=$((n - 1))
-	c=$(read_byte_raw "$1" $n) || exit
-	i=$((i - 1))
-
-	[ "$c" = '0a' ] || break
-	want_lf=$((want_lf - 1))
-done
-
-case "${want_lf}" in
-1) padding='\n' ;;
-2) padding='\n\n' ;;
-esac
-
-d=$(mktemp)
-
-gpg --utf8-strings --textmode --armor --clearsign \
-	--output - - > "$d" <<EOF
-$(cat "$1")$(printf "${padding}")
-EOF
+w=$(mktemp -d) ; : "${w:?}"
+(
+	set -e
+	cp -L "$1" "$w/s"
+	ensure-eol-empty-line "$w/s"
+	gpg \
+	  --utf8-strings --textmode --armor --clearsign \
+	  --output "$w/d" - < "$w/s"
+	rm -f "$w/s"
+	cat < "$w/d" > "$1"
+	rm -f "$w/d"
+)
 res=$?
 
-# replace original file with signed one
-if [ "${res}" = 0 ] ; then
-	rm "$1" || exit
-	cat < "$d" > "$1"
-fi
-
-rm -f -- "$d"
+rm -rf -- "$w"
 
 exit ${res}

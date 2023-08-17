@@ -1,6 +1,0 @@
-interest-noawait verify-container-persistent-ca-bundle
-
-interest-await   /etc/ssl
-interest-await   /usr/share/ca-certificates
-interest-await   update-ca-certificates
-interest-await   update-ca-certificates-fresh

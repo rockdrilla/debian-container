@@ -1,0 +1,23 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+##tag dpkg/filter
+# post-install file system filtering instead of slowing down installations
+
+set -f
+
+[ -z "${DEBUG}" ] || set -xv
+
+conf_dir=/etc/k2/dpkg-filter
+# bootstrap compat
+if [ -d "/usr/local${conf_dir}" ] ; then conf_dir="/usr/local${conf_dir}" ; fi
+
+[ -d "${conf_dir}" ] || exit 0
+
+# NB: executable files in this directory are considered to be "skipped"
+env -C "${conf_dir}" \
+find ./ -follow -type f ! -executable \
+  -exec fs-filter ${VERBOSE:+-v} '{}' '+'
+
+exit 0

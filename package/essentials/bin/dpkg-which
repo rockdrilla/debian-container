@@ -24,10 +24,16 @@ _quirk_merged_usr() {
 
 	n= ; alt=
 	case "$1" in
-	/usr/local/*) return ;;
+	/usr/local/* )
+		return
+	;;
 
-	/usr/*) alt="${1#/usr}" ;;
-	/*)     alt="/usr$1" ;;
+	/usr/* )
+		alt="${1#/usr}"
+	;;
+	/* )
+		alt="/usr$1"
+	;;
 	esac
 
 	n=$(_find0 "$1" "${alt}" | xargs -0 sh -c 'echo $#' --)
@@ -45,16 +51,18 @@ _dpkg_divert() {
 	n=$(grep -Fxhn -e "$1" "${dpkg_diversions}" | cut -d: -f1)
 	[ -n "$n" ] || return 0
 	case "$((n%3))" in
-	1|2) ;;
-	*) return ;;
+	1 | 2 ) ;;
+	* )
+		return
+	;;
 	esac
 	k=$(( n - (n%3) ))
 	divert_pkg=$(sed -n "$((k+3))p" "${dpkg_diversions}")
 	case "$((n%3))" in
-	1)
+	1 )
 		[ "${divert_pkg}" = ':' ] || echo "${divert_pkg}"
 	;;
-	2)
+	2 )
 		divert_from=$(sed -n "$((k+1))p" "${dpkg_diversions}")
 		_dpkg_search "${divert_from}" | grep -Fxv -e "${divert_pkg}"
 		return 0

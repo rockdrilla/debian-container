@@ -83,7 +83,7 @@ Package: thin-ci-container-nodejs-@{NODEJS_MAJOR_VERSION}
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
+         k2-common-scripts,
 Description: Node.js v@{NODEJS_MAJOR_VERSION} - thin CI installer
  This package contains wrapper script to install container-nodejs-@{NODEJS_MAJOR_VERSION}
  or container-nodejs-@{NODEJS_MAJOR_VERSION}-full on first call.

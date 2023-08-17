@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+# setup various environment variables representing temporary directory
+: "${TMPDIR:=/tmp}"
+: "${TMP:=$TMPDIR}"
+: "${TEMPDIR:=$TMPDIR}"
+: "${TEMP:=$TMPDIR}"
+
+export TMPDIR TMP TEMPDIR TEMP

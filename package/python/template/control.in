@@ -113,7 +113,7 @@ Package: thin-ci-container-python-@{PYTHON_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
+         k2-common-scripts,
 Description: Python v@{PYTHON_BASE_VERSION} - thin CI installer
  This package contains wrapper script to install container-python-@{PYTHON_BASE_VERSION},
  container-python-@{PYTHON_BASE_VERSION}-dev or container-python-@{PYTHON_BASE_VERSION}-full

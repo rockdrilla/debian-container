@@ -4,7 +4,7 @@
 
 [ -z "${DEBUG}" ] || set -xv
 
-sysroot_skiplist='^/(dev|proc|run|sys)$'
+sysroot_skiplist='^/(dev|proc|sys)$'
 
 t=$(mktemp) ; : "${t:?}"
 

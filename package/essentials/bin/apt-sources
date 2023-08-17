@@ -1,0 +1,336 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+_debian_uri='http://deb.debian.org/debian'
+_ubuntu_uri='http://archive.ubuntu.com/ubuntu'
+
+_debian_keyring='/usr/share/keyrings/debian-archive-keyring.gpg'
+_ubuntu_keyring='/usr/share/keyrings/ubuntu-archive-keyring.gpg'
+
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${0##*/} [options] <repo uri> [<component> ..]
+	# options:
+	#  -a, --apply
+	#    apply to corresponding file in /etc/apt/
+	#    default: output to stdout only
+	#  -p, --proposed-updates
+	#    use proposed updates for <suite>
+	#    default: no
+	#  -d <distro>, --distro <distro>, --distro=<distro>
+	#    distro override
+	#  -s <suite>, --suite <suite>, --suite=<suite>
+	#    suite override
+	#  -k <keyring>, --keyring <keyring>, --keyring=<keyring>
+	#    keyring override
+	#    format: "<path>" | "trusted" | "trusted=yes" | "no" | "none"
+	#    for values "no" | "none":
+	#      no keyring-specific option is produced - neither "signed-by" nor "trusted"
+	#    default: default distro archive keyring:
+	#      Debian: ${_debian_keyring}
+	#      Ubuntu: ${_ubuntu_keyring}
+	#  -f <format>, --format <format>, --format=<format>
+	#    format override
+	#    format: "list" | "sources"
+	#    default: "list"
+	#
+	#  if <repo uri> is "default" (exact string) then default repository is used:
+	#  Debian: ${_debian_uri}
+	#  Ubuntu: ${_ubuntu_uri}
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
+
+verify_format() {
+	case "$1" in
+	list | sources ) return 0 ;;
+	esac
+	msgf 'error: unknown apt sources format: %q' "$1"
+	usage 1
+}
+
+o_apply=
+o_proposed=
+o_distro=
+o_suite=
+o_keyring=
+o_format=
+
+# process options
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		case "${want_value}" in
+		distro )  o_distro="$i" ;;
+		suite )   o_suite="$i" ;;
+		keyring ) o_keyring="$i" ;;
+		format )
+			o_format="$i"
+			verify_format "${o_format}"
+		;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	-a | --apply )
+		if [ -n "${o_apply}" ] ; then
+			msg 'error: distro already set'
+			usage 1
+		fi
+		o_apply=1
+	;;
+	-p | --proposed-updates )
+		if [ -n "${o_proposed}" ] ; then
+			msg 'error: distro already set'
+			usage 1
+		fi
+		o_proposed=1
+	;;
+	-d | --distro | --distro=* )
+		if [ -n "${o_distro}" ] ; then
+			msg 'error: distro already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_distro="${i#*=}"
+		;;
+		* ) want_value=distro ;;
+		esac
+	;;
+	-s | --suite | --suite=* )
+		if [ -n "${o_suite}" ] ; then
+			msg 'error: suite already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_suite="${i#*=}"
+		;;
+		* ) want_value=suite ;;
+		esac
+	;;
+	-k | --keyring | --keyring=* )
+		if [ -n "${o_keyring}" ] ; then
+			msg 'error: keyring already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_keyring="${i#*=}"
+		;;
+		* ) want_value=keyring ;;
+		esac
+	;;
+	-f | --format | --format=* )
+		if [ -n "${o_format}" ] ; then
+			msg 'error: format already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_format="${i#*=}"
+			verify_format "${o_format}"
+		;;
+		* ) want_value=format ;;
+		esac
+	;;
+	-*)
+		msgf 'error: unknown option: %q' "$i"
+		usage 1
+	;;
+	*) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+[ $# -ge 1 ] || usage 1
+
+[ -n "${o_format}" ] || o_format=list
+
+to_lower_inp() { tr '[:upper:]' '[:lower:]' ; }
+to_lower() { printf '%s' "$1" | to_lower_inp ; }
+
+_distro=$(sed -En '/^ID=(.+)$/s//\1/p' /etc/os-release)
+_suite=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
+
+[ -n "${o_distro}" ] || o_distro=${_distro}
+[ -n "${o_suite}" ] || o_suite=${_suite}
+
+distro="$(to_lower "${o_distro}")"
+suite="$(to_lower "${o_suite}")"
+
+printf '%s' "${suite}" | grep -Eq '^[[:alnum:]]+$' || {
+	msgf 'error: suite looks suspicious: %q' "${suite}"
+	exit 1
+}
+
+_keyring=
+case "${distro}" in
+debian ) _keyring=${_debian_keyring} ;;
+ubuntu ) _keyring=${_ubuntu_keyring} ;;
+esac
+
+[ -n "${o_keyring}" ] || o_keyring=${_keyring}
+
+o_keyring=$(printf '%s' "${o_keyring}" | sed -e "s/@{distro}/${distro}/g;s/@{suite}/${suite}/g")
+case "${o_keyring}" in
+no | none ) o_keyring= ;;
+esac
+
+_uri='main'
+case "${distro}" in
+debian ) _uri=${_debian_uri} ;;
+ubuntu ) _uri=${_ubuntu_uri} ;;
+esac
+
+uri=$(printf '%s' "$1" | sed -e "s/@{distro}/${distro}/g;s/@{suite}/${suite}/g")
+shift
+if [ "${uri}" = 'default' ] ; then
+	uri=${_uri}
+fi
+uri=$(printf '%s' "${uri}" | sed -E -e 's/\/+$//')
+
+_comps='main'
+case "${distro}" in
+debian ) _comps='main contrib non-free' ;;
+ubuntu ) _comps='main restricted universe multiverse' ;;
+esac
+
+if [ $# -ge 1 ] ; then
+	comps=$(printf '%s' "$*" | sed -E 's/[[:space:]]+/ /g;s/^ //;s/ $//' | sed -e "s/@{distro}/${distro}/g;s/@{suite}/${suite}/g")
+fi
+
+[ -n "${comps}" ] || comps=${_comps}
+
+root_sources=/etc/apt/sources.list
+case "${o_format}" in
+sources ) root_sources="/etc/apt/sources.list.d/${distro}.sources" ;;
+esac
+
+if [ -n "${o_apply}" ] ; then
+	( echo >> "${root_sources}" ; ) || {
+		msg "error: unable to write to ${root_sources}"
+		exit 1
+	}
+fi
+
+apt_sources_format_list() {
+	sign_opt=
+	if [ -n "${o_keyring}" ] ; then
+		case "${o_keyring}" in
+		trusted | trusted=yes ) sign_opt='[trusted=yes]' ;;
+		* ) sign_opt=$(printf '[signed-by="%s"]' "${o_keyring}") ;;
+		esac
+	fi
+
+	suites="${suite}"
+	case "${distro}" in
+	debian )
+		suites="${suite} ${suite}-updates ${o_proposed:+ ${suite}-proposed-updates }"
+		case "${suite}" in
+		unstable | sid ) suites="${suite}" ;;
+		esac
+	;;
+	ubuntu )
+		suites="${suite} ${suite}-updates ${o_proposed:+ ${suite}-proposed } ${suite}-security"
+	;;
+	esac
+
+	for i in ${suites} ; do
+		echo deb ${sign_opt} "${uri}" $i "${comps}"
+	done
+
+	# Debian needs separate record for security updates
+	case "${distro}" in
+	debian )
+		case "${suite}" in
+		unstable | sid ) ;;
+		*)
+			echo deb ${sign_opt} "${uri}-security" ${suite}-security "${comps}"
+		;;
+		esac
+	;;
+	esac
+}
+
+apt_sources_format_sources() {
+	sign_opt=
+	if [ -n "${o_keyring}" ] ; then
+		case "${o_keyring}" in
+		trusted | trusted=yes ) sign_opt='Trusted: yes' ;;
+		* ) sign_opt="Signed-By: ${o_keyring}" ;;
+		esac
+	fi
+
+	suites="${suite}"
+	case "${distro}" in
+	debian )
+		suites="${suite} ${suite}-updates ${o_proposed:+ ${suite}-proposed-updates }"
+		case "${suite}" in
+		unstable | sid ) suites="${suite}" ;;
+		esac
+	;;
+	ubuntu )
+		suites="${suite} ${suite}-updates ${o_proposed:+ ${suite}-proposed } ${suite}-security"
+	;;
+	esac
+	suites=$(printf '%s' "${suites}" | sed -E 's/[[:space:]]+/ /g;s/^ //;s/ $//')
+
+	cat <<-EOF
+	Types: deb
+	URIs: ${uri}
+	Suites: ${suites}
+	Components: ${comps}
+	EOF
+	[ -z "${sign_opt}" ] || echo "${sign_opt}"
+
+	case "${distro}" in
+	debian )
+		case "${suite}" in
+		unstable | sid ) ;;
+		*)
+			cat <<-EOF
+
+			Types: deb
+			URIs: ${uri}-security
+			Suites: ${suite}-security
+			Components: ${comps}
+			EOF
+			[ -z "${sign_opt}" ] || echo "${sign_opt}"
+		;;
+		esac
+	;;
+	esac
+}
+
+sources=
+case "${o_format}" in
+list ) sources=$(apt_sources_format_list) ;;
+sources ) sources=$(apt_sources_format_sources) ;;
+esac
+
+if [ -n "${o_apply}" ] ; then
+	echo "${sources}" > "${root_sources}"
+else
+	echo "${sources}"
+fi

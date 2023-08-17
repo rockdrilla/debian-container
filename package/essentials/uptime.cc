@@ -19,6 +19,10 @@
 #define _FILE_OFFSET_BITS 64
 #endif
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+
 #include <cstdint>
 
 #include "include/misc/ext-c-begin.h"

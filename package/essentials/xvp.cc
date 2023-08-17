@@ -383,7 +383,7 @@ void delete_script(void)
 static
 void run(void)
 {
-	size_t s_buf_arg = 32 * memfun_page_size();
+	size_t s_buf_arg = 32 * memfun_page_size() - sizeof(size_t);
 
 	if (opt.Info_only) {
 		(void) fprintf(stderr, "System page size: %lu\n", memfun_page_size());
@@ -484,6 +484,21 @@ void run(void)
 			n_read = read(fd, buf_read, s_buf_read);
 			if (n_read > 0) n_buf = (size_t) n_read;
 			tbuf = buf_read;
+		}
+
+		while (total) {
+			if (n_buf) break;
+			if ((total + 1) >= s_buf_arg) break;
+
+			arg_idx = argv_curr.append(buf_arg, total);
+			if (uvector::str<>::is_inv(arg_idx)) {
+				err = errno;
+				if (!err) err = ENOMEM;
+				goto _run_out;
+			}
+
+			total = 0;
+			(void) memset(buf_arg, 0, s_buf_arg);
 		}
 
 		while (n_buf > 0) {

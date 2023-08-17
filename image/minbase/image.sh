@@ -22,9 +22,9 @@ image=$(to_lower "${image}")
 	exit 1
 }
 
-sha256() { sha256sum -b "$1" | sed -En '/^([[:xdigit:]]+).*$/{s//\L\1/;p;}' ; }
+# sha256() { sha256sum -b "$1" | sed -En '/^([[:xdigit:]]+).*$/{s//\L\1/;p;}' ; }
 
-tar_sha256=$(sha256 "${tarball}")
+# tar_sha256=$(sha256 "${tarball}")
 
 c=$(buildah from scratch || true)
 if [ -z "$c" ] ; then
@@ -40,11 +40,18 @@ eval "$(printf 'imgconf() { buildah config "$@" %s ; }' "$c")"
 imgconf --hostname "${distro}-${suite}"
 imgconf --label "distro.name=${distro}"
 imgconf --label "distro.suite=${suite}"
-imgconf --label "tarball.ts=${ts}"
-imgconf --label "tarball.hash=${tar_sha256}"
-imgconf --entrypoint '["/ciep.sh"]'
+# imgconf --label "tarball.ts=${ts}"
+# imgconf --label "tarball.hash=${tar_sha256}"
+imgconf --entrypoint '["/ep.sh"]'
 imgconf --workingdir /
 imgconf --cmd bash
+
+while read -r v ; do
+	[ -n "$v" ] || continue
+	imgconf --volume "$v"
+done <<-EOF
+$(grep -Ev '^\s*(#|$)' < "${dir0}/setup/volumes.list")
+EOF
 
 while read -r i ; do
 	[ -n "$i" ] || continue

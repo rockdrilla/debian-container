@@ -81,8 +81,8 @@ fix_ownership() {
 find /usr/local/bin/ -type f -exec chmod 0755 {} +
 
 # rename/move apt&dpkg configuration
-renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/container
-renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/container
+renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/k2
+renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/k2
 
 preseed='/usr/local/preseed'
 if [ -d "${preseed}" ] ; then
@@ -111,9 +111,16 @@ fi
 # finish with preseed
 rm -vrf "${preseed}"
 
+# quirk: update package lists
+# hits on relatively old releases like Ubuntu 20.04 "focal"
+set +e
+apt update
+/usr/lib/dpkg/methods/apt/update "${DPKG_ADMINDIR:-/var/lib/dpkg}" apt apt
+set -e
+
 # perform container configuration
-mkdir -p /etc/container/dpkg-filter/
-/usr/local/lib/container/bootstrap/settings.sh
+mkdir -p /etc/k2/dpkg-filter/
+/usr/local/lib/k2/bootstrap/settings.sh
 
 # generate CA bundles
 update-ca-certificates --fresh
@@ -142,11 +149,7 @@ EOF
 # NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
 # ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733
 [ -z "${TZ}" ] || {
-	f='/usr/local/tzdata.tar'
-
-	apt-wrap 'tzdata' sh -ec "tz ${TZ} ; tar -cPf $f /etc/timezone"
-
-	tar -xPf "$f" ; rm -f "$f" ; unset f
+	TZ_LEAN=1 tz "${TZ}"
 }
 
 # run whole image cleanup script

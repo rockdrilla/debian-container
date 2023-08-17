@@ -4,7 +4,7 @@
 
 set -ef
 
-conf=/etc/container/cleanup/python-site-packages
+conf=/etc/k2/cleanup/python-site-packages
 
 me="${0##*/}"
 usage() {
@@ -43,7 +43,7 @@ n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
 		case "${want_value}" in
-		version)
+		version )
 			o_version="$i"
 			verify_version "${o_version}"
 		;;
@@ -61,18 +61,18 @@ for i ; do
 			usage 1
 		fi
 		case "$i" in
-		*=*)
+		*=* )
 			o_version="${i#*=}"
 			verify_version "${o_version}"
 		;;
 		* ) want_value=version ;;
 		esac
 	;;
-	-*)
+	-* )
 		msgf 'unknown option: %q' "$i"
 		usage 1
 	;;
-	*) break ;;
+	* ) break ;;
 	esac
 
 	n_opt=$((n_opt+1))
@@ -96,10 +96,10 @@ if ! command -v "${python}" >/dev/null ; then
 fi
 
 case "$(id -u)" in
-0)
+0 )
 	pathspec=$("${python}" -c 'import site;print(":".join(site.getsitepackages()))')
 ;;
-*)
+* )
 	pathspec=$("${python}" -c 'import site;print(site.getusersitepackages())')
 ;;
 esac

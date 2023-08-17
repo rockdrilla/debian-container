@@ -7,7 +7,7 @@ set -ef
 have_cmd() { command -v "$1" >/dev/null 2>&1 ; }
 
 case "$1" in
---stage1)
+--stage1 )
 	shift
 
 	dsc="${1:?}"
@@ -16,6 +16,7 @@ case "$1" in
 
 	build_dir=$(mktemp -d ${DEB_SRC_BUILD_DIR:+ -p "${DEB_SRC_BUILD_DIR}" } build.XXXXXXXXXX)
 	: "${build_dir:?}"
+	chmod 0755 "${build_dir}"
 
 	bd_fields='Build-Depends Build-Depends-Arch Build-Depends-Indep'
 	deps=$( { for f in ${bd_fields} ; do deb822-get-field "$f" "${dsc}" ; done ; } | sed -zE 's/\n/, /g;s/,+/,/g;s/^,//;s/,$//' )
@@ -26,13 +27,13 @@ case "$1" in
 
 	export APT_WRAP_INSTALL_METHOD='satisfy'
 	apt-wrap \
-	  "${deps}" \
+	  "build-essential, debhelper, eatmydata, fakeroot, ${deps}" \
 	  "$0" --stage2 "${build_dir}" "${dsc}" "$@"
 	r=$?
 
 	case "${DEB_SRC_BUILD_PURGE:-success}" in
-	success|2|always|1|never|0) ;;
-	*)
+	success | always | never ) ;;
+	* )
 		echo " ${0##*/}: unknown value DEB_SRC_BUILD_PURGE, using 'always', provided: ${DEB_SRC_BUILD_PURGE}" >&2
 		DEB_SRC_BUILD_PURGE=always
 	;;
@@ -42,27 +43,29 @@ case "$1" in
 	find "${build_dir}" -maxdepth 1 -type f -exec mv -vf -t "${dest_dir}" '{}' '+'
 
 	case "${DEB_SRC_BUILD_PURGE:-success}" in
-	success|2)
+	success )
 		[ $r = 0 ] || chown -Rh "${build_dir_userspec}" "${build_dir}"
 	;;
-	never|0)
+	never )
 		chown -Rh "${build_dir_userspec}" "${build_dir}"
 	;;
 	esac
 
 	case "${DEB_SRC_BUILD_PURGE:-success}" in
-	success|2)
+	success )
 		[ $r = 0 ] && rm -rf "${build_dir}"
 	;;
-	always|1)
+	always )
 		rm -rf "${build_dir}"
 	;;
 	esac
 
 	exit $r
 ;;
---stage2)
+--stage2 )
 	shift
+
+	umask 022
 
 	build_dir="${1:?}"
 	dsc=$(readlink -e "${2:?}")
@@ -86,37 +89,40 @@ case "$1" in
 
 	cd "${build_dir}"
 
-	rm -rf "${scr_dir}"
 	dpkg-source -x "${dsc}"
 
-	# cleanup after dpkg-source
+	# cleanup after dpkg-source (not really needed)
 	find ./ -mindepth 1 -maxdepth 1 -name "${pkg_name}_*.orig*" -delete
 
+	# adjust permissions
+	find ./ -mindepth 1 \
+	  '(' -executable -exec chmod 0755 {} + ')' \
+	  ',' \
+	  '(' ! -executable -exec chmod 0644 {} + ')'
+
 	runas=
-	if have_cmd run-as ; then
-		runas=$(deb822-get-field Rules-Requires-Root "${scr_dir}/debian/control")
-		if [ "${runas}" = no ] ; then
-			userspec="${DEB_SRC_BUILD_USERSPEC:-nobody:nogroup}"
-			runas="$(command -v run-as) ${userspec}"
-			chown -Rh "${userspec}" "${build_dir}"
-		else
-			runas=
-		fi
+	runas_root=$(deb822-get-field Rules-Requires-Root "${scr_dir}/debian/control")
+	if [ "${runas_root}" = no ] ; then
+		userspec="${DEB_SRC_BUILD_USERSPEC:-nobody:nogroup}"
+		runas="$(command -v run-as) ${userspec}"
+		chown -Rh "${userspec}" "${build_dir}"
 	fi
 
 	cd "${scr_dir}"
 
-	xsedx=$(env printf '\027')
-	remove_path() {
-		PATH=$(printf '%s' "${PATH}" | sed -E "s${xsedx}(^|:)$1/?(\$|:)${xsedx}\\1${xsedx}g;s/:+/:/g;s/:\$//")
-		export PATH
-	}
-
 	# source packages must not depend on /usr/local
-	remove_path /usr/local/bin
-	remove_path /usr/local/sbin
+	reparse_path() {
+		printf '%s' "${PATH}" \
+		| tr -s ':' '\0' \
+		| grep -zEv '^/usr/local(/|$)' \
+		| paste -zsd':' \
+		| tr -d '\0'
+	}
+	PATH=$(reparse_path)
+	export PATH
 	echo "# PATH=${PATH}" >&2
 
+	exec \
 	${runas} \
 	eatmydata \
 	dpkg-buildpackage \
@@ -126,14 +132,7 @@ case "$1" in
 	  --unsigned-changes \
 	  --no-sign \
 	"${@:---build=all,any}"
-
-	exit
 ;;
 esac
 
-missing_deps=
-for i in build-essential debhelper eatmydata fakeroot ; do
-	apt-list-installed | grep -qE "^$i:" || missing_deps="${missing_deps} $i"
-done
-
-exec ${missing_deps:+ apt-wrap "${missing_deps}" } "$0" --stage1 "$@"
+exec "$0" --stage1 "$@"

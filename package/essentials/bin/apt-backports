@@ -24,65 +24,59 @@ status() {
 	[ -s "${src_file}" ]
 }
 
-VERSION_CODENAME=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
-: "${VERSION_CODENAME:?}"
+suite=$(sed -En '/^VERSION_CODENAME=(.+)$/s//\1/p' /etc/os-release)
 
-xsedx=$(printf '\027')
-chanlist='(main|contrib|non-free|restricted|universe|multiverse)'
-sed_sources="\\${xsedx}^\\s*(deb\\s.+\\S)\\s+(${VERSION_CODENAME})\\s+(${chanlist}(|\\s.*\\S))\\s*\$${xsedx}{s//\\1 \\2-backports \\3/p}"
-
-rolling=
-if [ "$(sed -En "${sed_sources}" < /etc/apt/sources.list | wc -l)" = 0 ] ; then
-	rolling=1
-fi
-
-if [ -n "${rolling}" ] ; then
-	echo "# ${0##*/}: irrelevant for rolling release channels" >&2
+if sed -En '/^PRETTY_NAME=(.+)$/s//\1/p' /etc/os-release | grep -Fwq -e sid -e development ; then
+	echo "# ${0##*/}: irrelevant for rolling release channels (despite of channel '${suite}')" >&2
 	exit 0
 fi
 
+xsedx=$(printf '\027')
+chanlist='(main|contrib|non-free|restricted|universe|multiverse)'
+sed_sources="\\${xsedx}^\\s*(deb\\s.+\\S)\\s+(${suite})\\s+(${chanlist}(|\\s.*\\S))\\s*\$${xsedx}{s//\\1 \\2-backports \\3/p}"
+
 act=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 case "${act}" in
-status)
+enable | enable-pin | enable-all ) ;;
+disable | disable-pin | disable-all ) ;;
+status )
 	status
 	exit
 ;;
-pin-status)
+pin-status )
 	apt-pin backports status
 	exit
 ;;
 # internal
-get-path)
+get-path )
 	echo "${src_file}"
 	exit 0
 ;;
 # internal
-get-pin-path)
+get-pin-path )
 	apt-pin backports get-path
 	exit
 ;;
-enable|enable-pin|enable-all) ;;
-disable|disable-pin|disable-all) ;;
-*)
+* )
 	env printf "# ${0##*/}: unknown action: %q\\n" "$1" >&2
 	exit 1
 ;;
 esac
 
 case "${act}" in
-enable|enable-all)
+enable | enable-all )
 	sed -En "${sed_sources}" < /etc/apt/sources.list > "${src_file}" || exit
 ;;
-disable|disable-all)
+disable | disable-all )
 	rm -v "${src_file}" || :
 ;;
 esac
 
 case "${act}" in
-enable-pin|enable-all)
+enable-pin | enable-all )
 	apt-pin backports 500 '@{suite}-backports' '*'
 ;;
-disable-pin|disable-all)
+disable-pin | disable-all )
 	apt-pin backports rm
 ;;
 esac

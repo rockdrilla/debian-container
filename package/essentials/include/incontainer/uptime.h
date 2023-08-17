@@ -21,9 +21,6 @@
 #include "../misc/tls-var.h"
 #include "../num/minmax.h"
 
-static const char * incntnr_uptime_path_timeref = "/sys/kernel";
-
-static const char * log_pfx_incntnr_uptime = "libincontainer:uptime";
 
 typedef struct {
 	time_t since,
@@ -41,6 +38,9 @@ typedef struct {
 
 static
 long get_system_uptime(time_duration * duration) {
+	static const char * timeref_path = "/sys/kernel";
+	static const char * log_pfx = "uptime";
+
 	static int init = 0;
 	static time_t since;
 
@@ -52,13 +52,13 @@ long get_system_uptime(time_duration * duration) {
 	// (void) timespec_get(&now_ts, TIME_UTC);
 	now = time(NULL);
 	if (now == ((time_t) -1)) {
-		log_stderr_error_ex(log_pfx_incntnr_uptime, errno, NULL);
+		log_stderr_error_ex(log_pfx, errno, NULL);
 		return ret;
 	}
 
 	(void) memset(&now_tm, 0, sizeof(now_tm));
 	if (!localtime_r(&now, &now_tm)) {
-		log_stderr_error_ex(log_pfx_incntnr_uptime, errno, NULL);
+		log_stderr_error_ex(log_pfx, errno, NULL);
 		return ret;
 	}
 
@@ -66,8 +66,8 @@ long get_system_uptime(time_duration * duration) {
 		struct stat st;
 
 		(void) memset(&st, 0, sizeof(st));
-		if (lstat(incntnr_uptime_path_timeref, &st) < 0) {
-			log_stderr_path_error_ex(log_pfx_incntnr_uptime, incntnr_uptime_path_timeref, errno, NULL);
+		if (lstat(timeref_path, &st) < 0) {
+			log_stderr_path_error_ex(log_pfx, timeref_path, errno, NULL);
 			return ret;
 		}
 
@@ -213,12 +213,10 @@ char * sprint_uptime_pretty(void)
 		comma = 1;
 	}
 
-	if ((d.minutes) || (d.total_seconds > 60)) {
-		(void) sprintf(buf + pos, "%s%d %s",
-		               (comma) ? str_comma : str_empty,
-		               d.minutes,
-		               (d.minutes != 1) ? "minutes" : "minute");
-	}
+	(void) sprintf(buf + pos, "%s%d %s",
+	               (comma) ? str_comma : str_empty,
+	               d.minutes,
+	               (d.minutes != 1) ? "minutes" : "minute");
 
 	return buf;
 }

@@ -5,14 +5,14 @@
 set -f
 
 rule_stanza='^(match|skip)=(.+)$'
-sysroot_skiplist='^/(dev|proc|run|sys)$'
+sysroot_skiplist='^/(dev|proc|sys)$'
 
 me="${0##*/}"
 log() { echo "${me}: $*" >&2 ; }
 
 # internal methods
 case "$1" in
---match)
+--match )
 	shift
 
 	# turn glob to regex and then into file list
@@ -28,19 +28,19 @@ case "$1" in
 
 	# append slash to ${topmost} if missing
 	case "${topmost}" in
-	*/) ;;
-	*) topmost="${topmost}/" ;;
+	*/ ) ;;
+	* ) topmost="${topmost}/" ;;
 	esac
 
 	# prepend ${topmost} to ${path_glob} if leading slash is missing
 	case "${path_glob}" in
-	/*) ;;
-	*) path_glob="${topmost}${path_glob}" ;;
+	/* ) ;;
+	* ) path_glob="${topmost}${path_glob}" ;;
 	esac
 
 	type_selector='! -type d'
 	case "${path_glob}" in
-	*/)
+	*/ )
 		type_selector='-type d'
 		# remove trailing /
 		path_glob=$(printf '%s' "${path_glob}" | sed -zE 's,/+$,,')
@@ -56,18 +56,15 @@ case "$1" in
 
 	# optimize search (a bit)
 	wide_search=
-	case "${topmost}" in
-	# keep in sync with ${sysroot_skiplist}
-	/ | /dev/* | /proc/* | /run/* | /sys/* | *..* )
-		wide_search=1
-	;;
-	esac
-	case "${path_glob}" in
-	# keep in sync with ${sysroot_skiplist}
-	/dev/* | /proc/* | /run/* | /sys/* | *..* )
-		wide_search=1
-	;;
-	esac
+	for i in "${topmost}" "${path_glob}" ; do
+		case "$i" in
+		# keep in sync with ${sysroot_skiplist}
+		/ | /dev | /dev/* | /proc | /proc/* | /sys | /sys/* | *..* )
+			wide_search=1
+			break
+		;;
+		esac
+	done
 
 	xdev='-xdev'
 	[ "${XGLOB_XDEV:-1}" = 1 ] || xdev=
@@ -83,7 +80,7 @@ case "$1" in
 
 	exit 0
 ;;
---skip)
+--skip )
 	shift
 
 	# filter glob from NUL-terminated "match" list
@@ -95,14 +92,14 @@ case "$1" in
 
 	# append / to ${topmost} if missing
 	case "${topmost}" in
-	*/) ;;
-	*) topmost="${topmost}/" ;;
+	*/ ) ;;
+	* ) topmost="${topmost}/" ;;
 	esac
 
 	# prepend ${topmost} to ${path_glob} if leading slash is missing
 	case "${path_glob}" in
-	/*) ;;
-	*) path_glob="${topmost}${path_glob}" ;;
+	/* ) ;;
+	* ) path_glob="${topmost}${path_glob}" ;;
 	esac
 
 	# remove trailing /
@@ -163,11 +160,11 @@ for i ; do
 
 	k="$i"
 	case "$i" in
-	-|/dev/stdin|/proc/self/fd/0)
+	- | /dev/stdin | /proc/self/fd/0 )
 		# stdin fixture
 		k='-'
 	;;
-	*)
+	* )
 		realpath=$(readlink -en "$i")
 		if [ "${realpath}" = "${stdin_path}" ] ; then
 			# stdin fixture
@@ -177,12 +174,12 @@ for i ; do
 	esac
 
 	case "$k" in
-	-) ;;
-	/dev/* | /proc/* | /sys/*)
+	- ) ;;
+	/dev/* | /proc/* | /sys/* )
 		log "refusing to read $i"
 		continue
 	;;
-	*)
+	* )
 		# we may skip non-regular files (this is acceptable IMO)
 		[ -f "$i" ] || continue
 		[ -s "$i" ] || continue
@@ -225,7 +222,7 @@ fi
 
 # intrusive parallelism
 if [ -z "${NPROC}" ] ; then
-	NPROC=$(nproc.container || nproc)
+	NPROC=$(nproc || echo 1)
 	NPROC=$(( NPROC + (NPROC + 1)/2 ))
 fi
 

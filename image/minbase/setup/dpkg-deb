@@ -13,8 +13,8 @@ for i ; do
 		break
 	fi
 	case "$i" in
-	--ctrl-tarfile) wrap_kind=control ;;
-	--fsys-tarfile) wrap_kind=data ;;
+	--ctrl-tarfile ) wrap_kind=control ;;
+	--fsys-tarfile ) wrap_kind=data ;;
 	esac
 done
 
@@ -23,13 +23,13 @@ done
 [ -n "${file_arg}" ]  || exec "${DPKG_DEB}" "$@"
 
 case "${wrap_kind}" in
-control)
+control )
 	# unpacking same tarball twice at row is trade-off
 	if "${DPKG_DEB}" --ctrl-tarfile "${file_arg}" >/dev/null 2>&1 ; then
 		exec "${DPKG_DEB}" --ctrl-tarfile "${file_arg}"
 	fi
 ;;
-data)
+data )
 	# assume that both data.tar and control.tar are compressed with same compressor
 	# if dpkg-deb can handle control.tar.* then it will handle data.tar.* too
 	if "${DPKG_DEB}" --ctrl-tarfile "${file_arg}" >/dev/null 2>&1 ; then
@@ -70,17 +70,20 @@ $(ar t "${file_arg}" | grep -E "^${wrap_kind}\.tar")
 EOF
 
 if [ -z "${tar_name}" ] ; then
-	log "unable to find ${wrap_kind}.tar.* in ${file_arg} - bailing out"
+	log "unable to find '${wrap_kind}' tarball in ${file_arg} - bailing out"
 	exit 1
 fi
 
 decomp= ; decomp_pkg=
 case "${tar_name}" in
-*.tar)     decomp='cat'     decomp_pkg='coreutils' ;;
-*.tar.gz)  decomp='gzip -d' decomp_pkg='gzip' ;;
-*.tar.xz)  decomp='xz -d'   decomp_pkg='xz-utils' ;;
-*.tar.zst) decomp='zstd -d' decomp_pkg='zstd' ;;
-*)
+*.tar )
+	log "plain tarballs in .deb are weird thing"
+	decomp='cat'
+;;
+*.tar.gz )  decomp='gzip -d' decomp_pkg='gzip' ;;
+*.tar.xz )  decomp='xz -d'   decomp_pkg='xz-utils' ;;
+*.tar.zst ) decomp='zstd -d' decomp_pkg='zstd' ;;
+* )
 	log "unable to handle '${tar_name}' from ${file_arg} - compression type isn't known to script"
 	exit 1
 ;;

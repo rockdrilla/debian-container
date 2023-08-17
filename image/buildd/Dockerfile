@@ -2,7 +2,7 @@ ARG IMAGE_PATH=docker.io/rockdrilla
 ARG DISTRO=debian
 ARG SUITE=stable
 
-ARG BASE_IMAGE=${DISTRO}-min:${SUITE}
+ARG BASE_IMAGE=${DISTRO}:${SUITE}
 ARG BUILDD_IMAGE=${DISTRO}-buildd:${SUITE}
 
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as buildd

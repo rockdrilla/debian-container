@@ -19,8 +19,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <sys/syscall.h>
+#include <sys/stat.h>
 
 #include "../io/fgets.h"
 #include "../io/fopen.h"
@@ -57,6 +59,7 @@ enum {
 };
 
 static const char * env_nproc = "NPROC";
+static const char * file_nproc = "/run/lock/nproc";
 
 static long   nproc_sched_getaffinity_sys(pid_t tid, size_t cpusetsize, cpu_set_t * cpuset);
 static size_t nproc_sched_getaffinity(pid_t tid, size_t cpusetsize, cpu_set_t * cpuset);
@@ -66,7 +69,7 @@ static uint32_t nproc_sched_cpucount(size_t cpusetsize, const cpu_set_t * cpuset
 static uint32_t nproc_sched_cpucount_ex(size_t cpusetsize, const cpu_set_t * cpuset, cpu_set_info_t * info);
 static uint32_t nproc_sched_cpucount_lean(pid_t tid);
 
-static int get_container_cpus_env_own(void);
+static int get_container_cpus_private(void);
 
 static int get_container_cpus_env(void);
 static int get_container_cpus_sysfs(void);
@@ -92,7 +95,7 @@ int get_container_cpus(void)
 {
 	int x, x_env, x_sysfs, x_cgroups, x_sched;
 
-	x = get_container_cpus_env_own();
+	x = get_container_cpus_private();
 
 	/* positive value means "enforced value" */
 	if (x > 0) return x;
@@ -116,9 +119,20 @@ static
 void set_env_container_cpus(int num)
 {
 	char b[16];
+	int f;
+
 	memset(b, 0, sizeof(b));
 	sprintf(b, "%d", num);
+
 	setenv(env_nproc, b, 1);
+
+	f = open(file_nproc, O_WRONLY | O_CREAT | O_EXCL, 0444);
+	if (f < 0) return;
+
+	b[strlen(b)] = '\n';
+	(void) write(f, b, strlen(b));
+	(void) fsync(f);
+	(void) close(f);
 }
 
 static
@@ -142,6 +156,9 @@ void adjust_container_cpuset(int num)
 
 	if (mode == nproc_adjust_cpuset_none)
 		return;
+
+	if (mode == nproc_adjust_cpuset_random)
+		srand(time(NULL));
 
 	(void) memset(&cpuset_info, 0, sizeof(cpuset_info));
 	length = nproc_sched_getaffinity_ex(0, 0, NULL, &cpuset_info);
@@ -172,30 +189,44 @@ static long cpulist_from_file(FILE * file);
 static long cpulist_from_path(const char * directory, const char * filepath);
 
 static
-int get_container_cpus_env_own(void)
+int get_container_cpus_private(void)
 {
-	int x;
+	int x_file = 0,
+	    x_env = 0,
+		x_env_force = 0;
 	char * s_env;
 	char * s_value;
 
-	s_env = getenv(env_nproc);
-	if (!s_env) return 0;
-
-	s_value = s_env;
-	if (strncmp(s_env, "force:", sizeof("force:") - 1) == 0) {
-		s_value = s_env + sizeof("force:") - 1;
+	x_file = read_int_file(10, file_nproc);
+	if ((x_file < 1) || (x_file > cpu_max)) {
+		x_file = 0;
+		(void) unlink(file_nproc);
 	}
 
-	x = read_int_str(10, s_value);
-	if ((x < 1) || (x > cpu_max))
-		return 0;
+	s_env = getenv(env_nproc);
+	if (s_env) {
+		s_value = s_env;
+		if (strncmp(s_env, "force:", sizeof("force:") - 1) == 0) {
+			s_value = s_env + sizeof("force:") - 1;
+			x_env_force = 1;
+		}
+
+		x_env = read_int_str(10, s_value);
+		if ((x_env < 1) || (x_env > cpu_max)) {
+			x_env = 0;
+		}
+	}
+
+	if (x_file > 0) {
+		return min_positive(x_file, x_env);
+	}
 
 	/* enforced value */
-	if (s_value != s_env)
-		return clamp_cpucount(x);
+	if (x_env_force)
+		return clamp_cpucount(x_env);
 
 	/* soft limit */
-	return -clamp_cpucount(x);
+	return -(clamp_cpucount(x_env));
 }
 
 static

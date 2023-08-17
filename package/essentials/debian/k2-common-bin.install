@@ -1,0 +1,6 @@
+bin/is-elf
+bin/nproc.k2
+bin/ufind
+bin/uptime.k2
+bin/xvp
+lib/*.so /lib/

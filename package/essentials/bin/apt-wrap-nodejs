@@ -33,7 +33,7 @@ msgf() {
 
 # internal methods
 case "$1" in
---do)
+--do )
 	# run command and do some postprocessing
 	shift
 
@@ -71,8 +71,8 @@ case "$1" in
 
 	if [ -n "${pathspec}" ] ; then
 		printf '%s' "${pathspec}" | tr ':' '\0' \
-		| grep -zEv '^$' | sort -zuV \
-		| xargs -0 -r sodeps >> "$t" || r=$?
+		| grep -zFxv -e '' | sort -zuV \
+		| xvp sodeps - >> "$t" || r=$?
 	fi
 
 	# (not so) early exit
@@ -124,18 +124,18 @@ n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
 		case "${want_value}" in
-		deps)
+		deps )
 			o_deps="$i"
 		;;
-		version)
+		version )
 			o_version="$i"
 			verify_version "${o_version}"
 		;;
-		user)
+		user )
 			o_user="$i"
 			verify_user "${o_user}"
 		;;
-		path)
+		path )
 			o_path="$i"
 			verify_path "${o_path}"
 		;;
@@ -153,7 +153,7 @@ for i ; do
 			usage 1
 		fi
 		case "$i" in
-		*=*)
+		*=* )
 			o_deps="${i#*=}"
 		;;
 		* ) want_value=deps ;;
@@ -165,7 +165,7 @@ for i ; do
 			usage 1
 		fi
 		case "$i" in
-		*=*)
+		*=* )
 			o_version="${i#*=}"
 			verify_version "${o_version}"
 		;;
@@ -178,7 +178,7 @@ for i ; do
 			usage 1
 		fi
 		case "$i" in
-		*=*)
+		*=* )
 			o_user="${i#*=}"
 			verify_user "${o_user}"
 		;;
@@ -198,11 +198,11 @@ for i ; do
 		* ) want_value=path ;;
 		esac
 	;;
-	-*)
+	-* )
 		msgf 'unknown option: %q' "$i"
 		usage 1
 	;;
-	*) break ;;
+	* ) break ;;
 	esac
 
 	n_opt=$((n_opt+1))
@@ -229,7 +229,7 @@ if [ -n "${o_version}" ] ; then
 else
 	b=/usr/bin/nodejs
 	if [ -e "$b" ] ; then
-		nodepkg=$(readlink -ne "$b" | xargs -0 -r dpkg-which)
+		nodepkg=$(readlink -ne "$b" | xvp dpkg-which - )
 	fi
 	if [ -z "${nodepkg}" ] ; then
 		nodepkg=$(_apt_search container-nodejs 'container-nodejs-[0-9]+')
@@ -251,7 +251,7 @@ nodepkg="container-nodejs-${o_version}-dev"
 
 deps="${nodepkg} build-essential debhelper fakeroot"
 case "${APT_WRAP_INSTALL_METHOD}" in
-satisfy)
+satisfy )
 	deps=$(printf '%s, ' ${deps})
 ;;
 esac

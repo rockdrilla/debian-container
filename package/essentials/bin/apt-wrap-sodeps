@@ -27,7 +27,7 @@ msgf() {
 
 # internal methods
 case "$1" in
---do)
+--do )
 	# run command and do some postprocessing
 	shift
 
@@ -54,8 +54,8 @@ case "$1" in
 
 	if [ -n "${pathspec}" ] ; then
 		printf '%s' "${pathspec}" | tr ':' '\0' \
-		| grep -zEv '^$' | sort -zuV \
-		| xargs -0 -r sodeps >> "$t" || r=$?
+		| grep -zFxv -e '' | sort -zuV \
+		| xvp sodeps - >> "$t" || r=$?
 	fi
 
 	# (not so) early exit
@@ -94,11 +94,11 @@ n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
 		case "${want_value}" in
-		path)
+		path )
 			o_path="$i"
 			verify_path "${o_path}"
 		;;
-		user)
+		user )
 			o_user="$i"
 			verify_user "${o_user}"
 		;;
@@ -129,18 +129,18 @@ for i ; do
 			usage 1
 		fi
 		case "$i" in
-		*=*)
+		*=* )
 			o_user="${i#*=}"
 			verify_user "${o_user}"
 		;;
 		* ) want_value=user ;;
 		esac
 	;;
-	-*)
+	-* )
 		msgf 'unknown option: %q' "$i"
 		usage 1
 	;;
-	*) break ;;
+	* ) break ;;
 	esac
 
 	n_opt=$((n_opt+1))

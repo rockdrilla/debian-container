@@ -11,9 +11,9 @@ Despite of name, Ubuntu is supported too (mostly).
 Minimal base image - `image/minbase/` ([readme](image/minbase/README.md))
 
 Images on Docker.io:
-[Debian](https://hub.docker.com/r/rockdrilla/debian-min/tags)
+[Debian](https://hub.docker.com/r/rockdrilla/debian/tags)
 |
-[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-min/tags)
+[Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu/tags)
 
 ### minimal with "debug"
 

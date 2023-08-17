@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+purge )
+	rm -vrf /etc/k2/cleanup /etc/k2/dpkg-filter /lib/k2/cleanup
+    exit 0
+;;
+esac
+
+#DEBHELPER#

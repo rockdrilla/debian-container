@@ -1,0 +1,4 @@
+bin/cleanup
+etc/k2/cleanup/
+etc/k2/dpkg-filter/
+lib/k2/cleanup/

@@ -5,7 +5,8 @@
 set -ef
 
 [ -n "$1" ] || {
-	: "${TZ:=$(cat /etc/timezone || echo none)}"
+	: "${TZ:=$(cat /etc/timezone)}"
+	: "${TZ:='<none>'}"
 	echo "# current timezone: ${TZ}" >&2
 	exit 0
 }
@@ -24,7 +25,7 @@ EOF
 
 file="${TZDIR}/$v"
 
-[ -f "${file}" ]
+[ "${TZ_LEAN}" = 1 ] || [ -f "${file}" ]
 
 # NB: releases after Debian 12 "Bookworm" won't need /etc/timezone anymore.
 # ref: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822733

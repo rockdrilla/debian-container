@@ -1,0 +1,6 @@
+interest-noawait k2-refresh-exe-filter
+
+interest-await   /bin
+interest-await   /sbin
+interest-await   /usr/bin
+interest-await   /usr/sbin

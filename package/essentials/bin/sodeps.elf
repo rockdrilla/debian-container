@@ -6,8 +6,8 @@ set -f
 
 set_output() {
 	case "$1" in
-	/*) mktemp -p "$1" ;;
-	*) printf '%s' "$1" ;;
+	/* ) mktemp -p "$1" ;;
+	* ) printf '%s' "$1" ;;
 	esac
 }
 
@@ -44,10 +44,10 @@ for i ; do
 		/^\s*(\S.+) \(\S+\)$/  {s,,\1,p}
 	' > "${tmp2}"
 
-	xargs -r -d '\n' -a "${tmp2}" readlink -ze \
-	| sort -zuV \
-	| xargs -0 -r printf '%s\n' \
-	| sed -E '/^.+$/ {s,^,1|,;}' \
+	tr '\n' '\0' < "${tmp2}" \
+	| xvp readlink -ze - \
+	| grep -zFxv -e '' | sort -zuV \
+	| xvp printf '1|%s\n' - \
 	| sed -E "/^.+\$/ {s${xsedx}\$${xsedx}|$i${xsedx};}"
 done
 

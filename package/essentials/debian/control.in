@@ -1,4 +1,4 @@
-Source: container-essentials
+Source: k2-essentials
 Section: metapackages
 Priority: optional
 Maintainer: Konstantin Demin <rockdrilla@gmail.com>
@@ -10,97 +10,97 @@ Homepage: https://github.com/rockdrilla/debian-container
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/essentials
 
-Package: container-essentials
+Package: k2-essentials
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         container-cleanup,
-         container-common-tools,
-         container-common-tools-bin,
-         container-fs-filter,
-         container-exe-filter,
-         container-image-entrypoint,
-         container-persistent-ca-bundle,
-         container-persistent-ca-bundle-java,
-         container-sodeps,
-Recommends: container-dev-tools,
-Description: container - essentials (meta-package)
+         k2-cleanup,
+         k2-common-scripts,
+         k2-common-bin,
+         k2-fs-filter,
+         k2-exe-filter,
+         k2-entrypoint,
+         k2-persistent-ca-bundle,
+         k2-persistent-ca-bundle-java,
+         k2-sodeps,
+Recommends: k2-common-dev-scripts,
+Description: K2 - essentials (meta-package)
  This package installs all container-related packages.
 
-Package: container-bootstrap
+Package: k2-bootstrap
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
-         container-cleanup,
-Enhances: container-cleanup,
-Description: container - bootstrap settings
+         k2-common-scripts,
+         k2-cleanup,
+Enhances: k2-cleanup,
+Description: K2 - bootstrap settings
  This package performs generic container configuration and only useful
  for bootstrapping.
 
-Package: container-persistent-ca-bundle
+Package: k2-persistent-ca-bundle
 Architecture: all
 Multi-Arch: allowed
 Enhances: ca-certificates,
-Description: container persistence - CA bundle
+Description: K2 - persistence (OpenSSL CA bundle)
  This package maintains persistence of CA certificate bundle, namely:
  .
  - /etc/ssl/certs/ca-certificates.crt
  .
  Normally, this package tracks this file via deb-triggers(5).
- Hovewer, the one may run `update-container-persistent-ca-bundle'
+ Hovewer, the one may run `k2-update-persistent-ca-bundle'
  to ensure that stored CA bundles are in sync, or
- `restore-container-persistent-ca-bundle' to restore previous state
+ `k2-restore-persistent-ca-bundle' to restore previous state
  of CA bundles.
 
-Package: container-persistent-ca-bundle-java
+Package: k2-persistent-ca-bundle-java
 Architecture: all
 Multi-Arch: allowed
 Enhances: ca-certificates-java,
-Description: container persistence - Java CA bundle
+Description: K2 - persistence (Java CA bundle)
  This package maintains persistence of Java CA certificate bundle, namely:
  .
  - /etc/ssl/certs/java/cacerts
  .
  Normally, this package tracks this file via deb-triggers(5).
- Hovewer, the one may run `update-container-persistent-ca-bundle-java'
+ Hovewer, the one may run `k2-update-persistent-ca-bundle-java'
  to ensure that stored CA bundles are in sync, or
- `restore-container-persistent-ca-bundle-java' to restore previous state
+ `k2-restore-persistent-ca-bundle-java' to restore previous state
  of CA bundles.
 
-Package: container-common-tools
+Package: k2-common-scripts
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-Recommends: container-common-tools-bin,
+Recommends: k2-common-bin,
             apt,
 Suggests: curl,
           gnupg,
-Description: container - common tools
+Description: K2 - common tools
  This package contains common scripts and tools for containers.
 
-Package: container-common-tools-bin
+Package: k2-common-bin
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
-Enhances: container-common-tools,
-Description: container - common tools (binaries and shared libraries)
+Enhances: k2-common-scripts,
+Description: K2 - common tools (binaries and shared libraries)
  This package contains extra binaries and shared libraries for containers.
 
-Package: container-cleanup
+Package: k2-cleanup
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
-         container-fs-filter,
-Description: container - cleanup scripts
+         k2-common-scripts,
+         k2-fs-filter,
+Description: K2 - cleanup scripts
  This package contains cleanup facility for containers.
 
-Package: container-dev-tools
+Package: k2-common-dev-scripts
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
+         k2-common-scripts,
 Suggests: build-essential,
           debhelper,
           devscripts,
@@ -109,46 +109,46 @@ Suggests: build-essential,
           gcc,
           git,
           gnupg,
-Description: container - dev tools
+Description: K2 - dev tools
  This package contains development scripts and tools for containers.
 
-Package: container-fs-filter
+Package: k2-fs-filter
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
-Description: container - fs-filter
+         k2-common-scripts,
+Description: K2 - fs-filter
  This package contains generic file system filter script for containers.
  .
  This is more robust solution than "path-include" / "path-exclude"
  stanzas in dpkg configuration.
 
-Package: container-exe-filter
+Package: k2-exe-filter
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
-         container-cleanup,
-Enhances: container-cleanup,
-Description: container - "exe" filter
+         k2-common-scripts,
+         k2-cleanup,
+Enhances: k2-cleanup,
+Description: K2 - "exe" filter
  This package maintains "potentially unwanted list" (or "blocklist")
- of executables in common paths for "container-cleanup" package.
+ of executables in common paths for "k2-cleanup" package.
 
-Package: container-image-entrypoint
+Package: k2-entrypoint
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools,
+         k2-common-scripts,
          dumb-init,
-Recommends: container-common-tools-bin,
-Description: container - image entrypoint
+Recommends: k2-common-bin,
+Description: K2 - image entrypoint
  This package contains extensible image entrypoint script for containers.
 
-Package: container-sodeps
+Package: k2-sodeps
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-common-tools-bin,
-Description: container - ELF dependency investigation
+         k2-common-bin,
+Description: K2 - ELF dependency investigation
  This package contains "sodeps" script which does mostly the same thing as
  "dh_shlibdeps"/"dpkg-shlibdeps".

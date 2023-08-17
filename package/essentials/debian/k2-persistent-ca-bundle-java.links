@@ -1,0 +1,3 @@
+lib/k2/persistence/ca-bundle-java.sh etc/ca-certificates/update.d/k2-hook-persistent-ca-bundle-java
+lib/k2/persistence/ca-bundle-java.sh sbin/k2-restore-persistent-ca-bundle-java
+lib/k2/persistence/ca-bundle-java.sh sbin/k2-update-persistent-ca-bundle-java

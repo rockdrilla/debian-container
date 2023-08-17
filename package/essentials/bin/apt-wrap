@@ -30,7 +30,7 @@ _q=quiet
 
 # internal methods
 case "$1" in
---begin)
+--begin )
 	# begin "session"
 	shift
 
@@ -49,13 +49,13 @@ case "$1" in
 	else
 		export APT_METHOD="${APT_WRAP_INSTALL_METHOD:-install}"
 		case "${APT_METHOD}" in
-		satisfy)
+		satisfy )
 			if ! ${_q} apt-install "${deps}" ; then
 				rm -rf "$w"
 				exit 1
 			fi
 		;;
-		*)
+		* )
 			if ! ${_q} apt-install ${deps} ; then
 				rm -rf "$w"
 				exit 1
@@ -74,7 +74,7 @@ case "$1" in
 	echo "$w"
 	exit 0
 ;;
---end)
+--end )
 	# end "session"
 	shift
 
@@ -132,8 +132,8 @@ case "$1" in
 
 	m="${APT_WRAP_REMOVE_METHOD:-purge}"
 	case "$m" in
-	purge|remove) ;;
-	*)
+	purge | remove ) ;;
+	* )
 		msg 'warning: adjusting APT_WRAP_REMOVE_METHOD to "purge"'
 		m=purge
 	;;
@@ -173,7 +173,7 @@ n_opt=0
 for i ; do
 	if [ -n "${want_value}" ] ; then
 		case "${want_value}" in
-		user)
+		user )
 			o_user="$i"
 			verify_user "${o_user}"
 		;;
@@ -191,18 +191,18 @@ for i ; do
 			usage 1
 		fi
 		case "$i" in
-		*=*)
+		*=* )
 			o_user="${i#*=}"
 			verify_user "${o_user}"
 		;;
 		* ) want_value=user ;;
 		esac
 	;;
-	-*)
+	-* )
 		msgf 'unknown option: %q' "$i"
 		usage 1
 	;;
-	*) break ;;
+	* ) break ;;
 	esac
 
 	n_opt=$((n_opt+1))

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+install | upgrade )
+	for b in nproc uptime ; do
+		f="/usr/bin/$b"
+		dpkg-divert --package '#PACKAGE#' --divert "$f.real" --rename "$f" || :
+		! [ -e "$f" ] || continue
+		ln -sv "/bin/$b.k2" "$f"
+	done ; unset b f
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

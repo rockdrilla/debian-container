@@ -1,0 +1,95 @@
+#!/bin/sh
+
+set -ef
+
+refine_trigger='k2-refresh-exe-filter'
+
+dpkg_info_dir="${DPKG_ADMINDIR:-/var/lib/dpkg}/info"
+
+# close stdin (for good)
+exec </dev/null
+
+# list of potentially unwanted binaries
+inline_cfg() {
+	for i in \
+	  addpart agetty \
+	  badblocks blkdiscard blkid blkzone blockdev bsd-write \
+	  chcpu chmem ctrlaltdel \
+	  debugfs delpart dmesg dumpe2fs \
+	  'e2scrub*' e2freefrag e2fsck e2image e2label e2mmpstatus e2scrub \
+	    e2undo e4crypt e4defrag \
+	  'fsck.*' fdformat fincore findfs fsck fsfreeze fstrim \
+	  getty \
+	  hwclock \
+	  isosize \
+	  last lastb ldattach lsblk lslogins \
+	  'mkfs.*' mcookie mesg mke2fs mkfs mklost+found mkswap mount \
+	  partx pivot_root \
+	  raw readprofile resize2fs resizepart rtcwake \
+	  su sulogin swaplabel swapoff swapon switch_root \
+	  tune2fs \
+	  umount utmpdump \
+	  wall wdctl wipefs write write.ul \
+	  zramctl \
+	; do
+		printf 'match=%s\n' "$i"
+	done
+}
+
+do_work() {
+	w=$(mktemp -d) ; : "${w:?}"
+
+	inline_cfg | sort -uV > "$w/cfg"
+
+	for d in /bin /sbin /usr/bin /usr/sbin ; do
+		xglob "$d" "$w/cfg" -- printf '%s\n'
+	done \
+	| sort -uV > "$w/exe"
+
+	xargs -r -a "$w/exe" dpkg-which \
+	| sort -uV > "$w/pkg"
+
+	while read -r pkg_name ; do
+		[ -n "${pkg_name}" ] || continue
+
+		pkg_list="${dpkg_info_dir}/${pkg_name}.list"
+		out="/etc/k2/dpkg-filter/${pkg_name}.auto"
+
+		set +e
+		(
+			cat "${out}" 2>/dev/null
+
+			grep -Fx -f "$w/exe" < "${pkg_list}" \
+			| sed -E 's,^,delete=,'
+		) \
+		| grep -Fxv -e '' \
+		| sort -uV > "$w/out.tmp"
+
+		if ! cmp -s "$w/out.tmp" "${out}" ; then
+			echo "# '#PACKAGE#' is going to install/update 'k2-cleanup' configuration:"
+			echo "# file: ${out}"
+			sed -E 's/^/# > /' < "$w/out.tmp"
+		fi >&2
+
+		cat < "$w/out.tmp" > "${out}"
+		set -e
+	done < "$w/pkg"
+
+	rm -rf "$w"
+}
+
+case "$1" in
+triggered )
+	case " $2 " in
+	*" ${refine_trigger} "* )
+		do_work
+		exit 0
+	;;
+	esac
+
+	dpkg-trigger ${refine_trigger}
+	exit 0
+;;
+esac
+
+#DEBHELPER#

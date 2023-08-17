@@ -1,3 +1,0 @@
-lib/container/persistence/ca-bundle.sh etc/ca-certificates/update.d/hook-container-persistent-ca-bundle
-lib/container/persistence/ca-bundle.sh sbin/restore-container-persistent-ca-bundle
-lib/container/persistence/ca-bundle.sh sbin/update-container-persistent-ca-bundle
