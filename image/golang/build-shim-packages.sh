@@ -47,9 +47,6 @@ build_single() {
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
-	stem_path=$(build_artifacts_path "${stem}")
-	find "${stem_path}/src/" "${stem_path}/pkg/" -name "container-shim-golang-${GOLANG_BASE_VERSION}*" -delete
-
 	build_image="${IMAGE_PATH}/golang-shim-build:${GOLANG_VERSION}-${SUITE}"
 
 	set -e

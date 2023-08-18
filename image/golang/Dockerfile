@@ -25,15 +25,15 @@ ARG SUITE
 ARG GOLANG_VERSION
 ARG GOLANG_BASE_VERSION
 
-COPY /package/.template/    /tmp/debian/
-COPY /package/golang/shim/  /tmp/debian/
+COPY /package/.template/    /tmp/package/debian/
+COPY /package/golang/shim/  /tmp/package/debian/
 
 # "ep.env" ensures that container limits and env are taken in account
 RUN build_start=$(date -R) ; \
     apt-update ; \
-    ep.env deb-src-export ${_SRC_DIR} /tmp/debian ; \
+    ep.env deb-src-export ${_SRC_DIR} /tmp/package/debian ; \
     set +e ; \
-    ep.env deb-src-build ${_SRC_DIR}/container-shim-golang-*.dsc ${_PKG_DIR} ; \
+    ep.env deb-src-build ${_SRC_DIR}/k2-golang-shim-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \
@@ -60,16 +60,16 @@ ARG GOLANG_BASE_VERSION
 ARG DEB_BUILD_OPTIONS
 ARG DEB_BUILD_PROFILES
 
-COPY /package/.template/                      /tmp/debian/
-COPY /package/golang/template/                /tmp/debian/
-COPY /package/golang/${GOLANG_BASE_VERSION}/  /tmp/debian/
+COPY /package/.template/                      /tmp/package/debian/
+COPY /package/golang/template/                /tmp/package/debian/
+COPY /package/golang/${GOLANG_BASE_VERSION}/  /tmp/package/debian/
 
 # "ep.env" ensures that container limits and env are taken in account
 RUN apt-update ; \
-    ep.env deb-src-export ${_SRC_DIR} /tmp/debian ; \
+    ep.env deb-src-export ${_SRC_DIR} /tmp/package/debian ; \
     cleanup ; \
     # linkage with "build-pkg" layer
-    touch /tmp/dsc
+    touch /dsc-mark
 
 # ---
 
@@ -77,7 +77,7 @@ FROM ${IMAGE_PATH}/${BUILD_IMAGE} as build-pkg
 SHELL [ "/bin/sh", "-ec" ]
 
 # linkage with "build-dsc" layer
-COPY --from=build-dsc /tmp/dsc /tmp/
+COPY --from=build-dsc /dsc-mark /tmp/
 
 ARG CI
 
@@ -99,21 +99,24 @@ ARG GOPROXY
 ARG GOSUMDB
 ARG GOPRIVATE
 
+# these variables are build-only
+ARG GOPROXY_BUILD
+ARG GOSUMDB_BUILD
+
 # CI/manual execution handler
-ENV BUILDINFO_MASK="container-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*_*.buildinfo"
+ENV BUILDINFO_MASK="k2-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*_*.buildinfo"
 RUN [ -z "${CI}" ] || exit 0; \
     if find ${_PKG_DIR}/ -maxdepth 1 -name "${BUILDINFO_MASK}" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
-      # implicitly deletes /tmp/dsc
+      # implicitly deletes /tmp/dsc-mark
       cleanup ; \
-      exit 0 ; \
     fi
 
 # "ep.env" ensures that container limits are taken in account
-RUN [ -e /tmp/dsc ] || exit 0 ; \
+RUN [ -e /tmp/dsc-mark ] || exit 0 ; \
     apt-update ; \
     build_start=$(date -R) ; \
     set +e ; \
-    ep.env deb-src-build ${_SRC_DIR}/container-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*.dsc ${_PKG_DIR} ; \
+    ep.env deb-src-build ${_SRC_DIR}/k2-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \
@@ -125,25 +128,27 @@ RUN [ -e /tmp/dsc ] || exit 0 ; \
 
 # ---
 
+FROM scratch as pkg
+
+COPY --from=packages [ "*.deb", "/deb/" ]
+
+# ---
+
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as go-layout
 SHELL [ "/bin/sh", "-ec" ]
 
 ENV GOPATH=/go \
-    GOTMPROOT=/go.tmp \
     CGO_ENABLED=0
 
 ENV PATH="${GOPATH}/bin:${PATH}" \
-    GOTMPDIR="${GOTMPROOT}/tmp" \
-    GOCACHE="${GOTMPROOT}/build-cache" \
-    GOMODCACHE="${GOTMPROOT}/mod-cache"
+    GOTMPDIR="/tmp" \
+    GOCACHE="/tmp/build-cache" \
+    GOMODCACHE="/tmp/mod-cache"
 
-RUN mkdir -p "${GOPATH}" "${GOPATH}/bin" "${GOPATH}/src" \
-      "${GOTMPROOT}" "${GOTMPDIR}" "${GOCACHE}" "${GOMODCACHE}" ; \
-    chmod -R 01777 "${GOPATH}" "${GOTMPROOT}"
+RUN mkdir -p "${GOPATH}" "${GOPATH}/bin" "${GOPATH}/src" ; \
+    chmod -R 01777 "${GOPATH}"
 
 WORKDIR "${GOPATH}"
-
-VOLUME [ "${GOTMPDIR}", "${GOCACHE}", "${GOMODCACHE}" ]
 
 CMD [ "go" ]
 
@@ -153,10 +158,9 @@ FROM go-layout as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
-  "container-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*.deb", \
-  "container-golang-${GOLANG_BASE_VERSION}-src_${GOLANG_VERSION}-*.deb", \
-  "container-shim-golang-${GOLANG_BASE_VERSION}_*.deb", \
-  "container-shim-golang-${GOLANG_BASE_VERSION}-src_*.deb", \
+  "k2-golang-${GOLANG_BASE_VERSION}_${GOLANG_VERSION}-*.deb", \
+  "k2-golang-${GOLANG_BASE_VERSION}-src_${GOLANG_VERSION}-*.deb", \
+  "k2-golang-shim-${GOLANG_BASE_VERSION}_*.deb", \
   "/tmp/" ]
 
 RUN apt-install /tmp/*.deb ; \
@@ -171,7 +175,7 @@ FROM ${IMAGE_PATH}/${GOLANG_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
-  "container-golang-${GOLANG_BASE_VERSION}-full_${GOLANG_VERSION}-*.deb", \
+  "k2-golang-${GOLANG_BASE_VERSION}-full_${GOLANG_VERSION}-*.deb", \
   "/tmp/" ]
 
 ENV CGO_ENABLED=1
@@ -187,7 +191,7 @@ RUN apt-install /tmp/*.deb ; \
 FROM go-layout as minimal-ci
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-golang-${GOLANG_BASE_VERSION} ; \
+RUN apt-install k2-golang-shim-${GOLANG_BASE_VERSION} ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \
@@ -200,7 +204,7 @@ SHELL [ "/bin/sh", "-ec" ]
 
 ENV CGO_ENABLED=1
 
-RUN apt-install container-golang-${GOLANG_BASE_VERSION}-full ; \
+RUN apt-install k2-golang-${GOLANG_BASE_VERSION}-full ; \
     cleanup ; \
     # smoke/qa
     set -xv ; \

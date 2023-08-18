@@ -1,9 +1,9 @@
-Source: container-golang-@{GOLANG_BASE_VERSION}
+Source: k2-golang-@{GOLANG_BASE_VERSION}
 Section: golang
 Priority: optional
 Maintainer: @{DEB_MAINTAINER}
 Build-Depends: debhelper-compat (= 13),
-               @{golang_extra_latest}golang-@{golang_debian_latest},
+               @{golang_k2_latest}@{golang_debian_latest},
                netbase,
                pkg-config,
 Rules-Requires-Root: no
@@ -12,57 +12,56 @@ Homepage: https://go.dev/
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/golang/@{GOLANG_BASE_VERSION}
 
-Package: container-golang-@{GOLANG_BASE_VERSION}-full
+Package: k2-golang-@{GOLANG_BASE_VERSION}-full
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
-Depends: container-golang-@{GOLANG_BASE_VERSION},
+Depends: k2-golang-@{GOLANG_BASE_VERSION},
          build-essential,
          ca-certificates,
          pkg-config,
-Description: Go v@{GOLANG_BASE_VERSION} - full installation
- This package installs container-golang-@{GOLANG_BASE_VERSION} along with
+Description: K2 - Go v@{GOLANG_BASE_VERSION} - full installation
+ This package installs k2-golang-@{GOLANG_BASE_VERSION} along with
  recommended packages.
 
-Package: container-golang-@{GOLANG_BASE_VERSION}
+Package: k2-golang-@{GOLANG_BASE_VERSION}
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         container-shim-golang-@{GOLANG_BASE_VERSION},
-         container-golang-@{GOLANG_BASE_VERSION}-src,
+         k2-golang-@{GOLANG_BASE_VERSION}-src,
          binutils,
          dpkg-dev,
          git,
-Recommends: ca-certificates,
+Recommends: k2-golang-shim-@{GOLANG_BASE_VERSION},
+            ca-certificates,
             g++,
             gcc,
-            libc6-dev,
+            libc6-dev | libc-dev,
             pkg-config,
 Suggests: bzr | brz,
           mercurial,
           subversion,
-Description: Go v@{GOLANG_BASE_VERSION}
+Description: K2 - Go v@{GOLANG_BASE_VERSION}
  This package provides an assembler, compiler, linker, and compiled libraries
  for the Go programming language.
 
-Package: container-golang-@{GOLANG_BASE_VERSION}-src
+Package: k2-golang-@{GOLANG_BASE_VERSION}-src
 Architecture: all
 Depends: ${misc:Depends},
-         container-shim-golang-@{GOLANG_BASE_VERSION}-src,
-Description: Go v@{GOLANG_BASE_VERSION} - source files
+Description: K2 - Go v@{GOLANG_BASE_VERSION} - source files
  This package provides the Go programming language source files needed for
  compilation.
 
-Package: container-golang-@{GOLANG_BASE_VERSION}-misc
+Package: k2-golang-@{GOLANG_BASE_VERSION}-misc
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-Description: Go v@{GOLANG_BASE_VERSION} - miscellaneous files
+Description: K2 - Go v@{GOLANG_BASE_VERSION} - miscellaneous files
  This package contains auxiliary files for Go v@{GOLANG_BASE_VERSION}.
 
-Package: thin-ci-container-golang-@{GOLANG_BASE_VERSION}
+Package: k2-thin-ci-golang-@{GOLANG_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          k2-common-scripts,
-Description: Go v@{GOLANG_BASE_VERSION} - thin CI installer
- This package contains wrapper script to install container-golang-@{GOLANG_BASE_VERSION}
+Description: K2 - Go v@{GOLANG_BASE_VERSION} - thin CI installer
+ This package contains wrapper script to install k2-golang-@{GOLANG_BASE_VERSION}
  on first call.

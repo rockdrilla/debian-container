@@ -1,3 +1,4 @@
+bin/apt-wrap-golang
 bin/apt-wrap-nodejs
 bin/apt-wrap-python
 bin/apt-wrap-sodeps

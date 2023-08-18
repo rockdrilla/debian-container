@@ -3,11 +3,11 @@
 # (c) 2023, Konstantin Demin
 set -ef
 
-pkg='container-golang-@{GOLANG_BASE_VERSION}'
+pkg='k2-golang-@{GOLANG_BASE_VERSION}'
 case "${0##*/}" in
-go | go-@{GOLANG_BASE_VERSION}) ;;
-gofmt | gofmt-@{GOLANG_BASE_VERSION}) ;;
-*)
+go | go-@{GOLANG_BASE_VERSION} ) ;;
+gofmt | gofmt-@{GOLANG_BASE_VERSION} ) ;;
+* )
 	echo "can't determine required package on (this) binary name: ${0##*/}" >&2
 	exit 1
 ;;

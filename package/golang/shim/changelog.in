@@ -1,3 +1,10 @@
+k2-golang-shim-@{GOLANG_BASE_VERSION} (20230818) @{SUITE}; urgency=medium
+
+  * Global renaming.
+  * Adjust dependency graph.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Fri, 18 Aug 2023 00:29:00 +0300
+
 container-shim-golang-@{GOLANG_BASE_VERSION} (20230310) @{SUITE}; urgency=medium
 
   * Adjust Provides/Conflicts/Breaks.

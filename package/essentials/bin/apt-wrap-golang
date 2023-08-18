@@ -1,0 +1,261 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} [options] <command> [arguments]
+	# NB: if command isn't related with Golang - consider using generic scripts:
+	#     'apt-wrap' or 'apt-wrap-sodeps'.
+	# options:
+	#  -d <packages>, --deps <packages>, --deps=<packages>
+	#    packages to be installed along with Golang
+	#  -V <version>, --golang-version <version>, --golang-version=<version>
+	#    Golang version selector
+	#  -u <user>[:<group>], --user <user>[:<group>], --user=<user>[:<group>]
+	#    user switching (for command)
+	#  -p <dir>[:<dir> ..], --path <dir>[:<dir> ..], --path=<dir>[:<dir> ..]
+	#    scan paths override
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
+
+# internal methods
+case "$1" in
+--do )
+	# run command and do some postprocessing
+	shift
+
+	# environment sanity check
+	: "${APT_WRAP_KEEP:?}"
+
+	goverspec="${1:?}"
+	pathspec="$2"
+	shift 2
+
+	old_PATH="${PATH}"
+	export PATH="/opt/golang-${goverspec}/bin:${PATH}"
+
+	set +e
+	"$@"
+	r=$?
+
+	export PATH="${old_PATH}"
+
+	# early exit
+	if [ $r != 0 ] ; then
+		: > "${APT_WRAP_KEEP}"
+		exit $r
+	fi
+
+	t=$(mktemp)
+
+	# move original keep list
+	tr -s '[:space:]' '\n' < "${APT_WRAP_KEEP}" > "$t"
+	: > "${APT_WRAP_KEEP}"
+
+	if [ -n "${pathspec}" ] ; then
+		printf '%s' "${pathspec}" | tr ':' '\0' \
+		| grep -zFxv -e '' | sort -zuV \
+		| xvp sodeps - >> "$t" || r=$?
+	fi
+
+	# (not so) early exit
+	if [ $r != 0 ] ; then
+		rm -f "$t"
+		exit $r
+	fi
+
+	# restore keep list
+	sort -uV < "$t" > "${APT_WRAP_KEEP}"
+	rm -f "$t"
+
+	exit 0
+;;
+esac
+
+# naive check for format
+verify_version() {
+	case "$1" in
+	[1-9].[0-9] | [1-9].[1-9][0-9] )
+		return 0
+	;;
+	esac
+	msg 'error: golang version specifier is broken (must be in form "\d+.\d+")'
+	usage 1
+}
+
+verify_user() {
+	if run-as "$1" true >&2 ; then return 0 ; fi
+	msg 'error: user specifier is broken'
+	usage 1
+}
+
+# very naive: just check value presence
+verify_path() {
+	[ -z "$1" ] || return 0
+	msgf 'error: wrong path specifier: %q' "$1"
+	usage 1
+}
+
+o_deps=
+o_version=
+o_user=
+o_path=
+
+# process options
+want_value=
+n_opt=0
+for i ; do
+	if [ -n "${want_value}" ] ; then
+		case "${want_value}" in
+		deps )
+			o_deps="$i"
+		;;
+		version )
+			o_version="$i"
+			verify_version "${o_version}"
+		;;
+		user )
+			o_user="$i"
+			verify_user "${o_user}"
+		;;
+		path )
+			o_path="$i"
+			verify_path "${o_path}"
+		;;
+		esac
+
+		want_value=
+		n_opt=$((n_opt+1))
+		continue
+	fi
+
+	case "$i" in
+	-d | --deps | --deps=* )
+		if [ -n "${o_deps}" ] ; then
+			msg 'error: deps specifier already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_deps="${i#*=}"
+		;;
+		* ) want_value=deps ;;
+		esac
+	;;
+	-V | --golang-version | --golang-version=* )
+		if [ -n "${o_version}" ] ; then
+			msg 'error: golang version specifier already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_version="${i#*=}"
+			verify_version "${o_version}"
+		;;
+		* ) want_value=version ;;
+		esac
+	;;
+	-u | --user | --user=* )
+		if [ -n "${o_user}" ] ; then
+			msg 'error: user specifier already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_user="${i#*=}"
+			verify_user "${o_user}"
+		;;
+		* ) want_value=user ;;
+		esac
+	;;
+	-p | --path | --path=* )
+		if [ -n "${o_path}" ] ; then
+			msg 'error: root directory already set'
+			usage 1
+		fi
+		case "$i" in
+		*=* )
+			o_path="${i#*=}"
+			verify_path "${o_path}"
+		;;
+		* ) want_value=path ;;
+		esac
+	;;
+	-* )
+		msgf 'unknown option: %q' "$i"
+		usage 1
+	;;
+	* ) break ;;
+	esac
+
+	n_opt=$((n_opt+1))
+done
+
+[ ${n_opt} = 0 ] || shift ${n_opt}
+
+[ $# != 0 ] || usage 1
+
+_apt_search() {
+	apt-cache search "$1" | mawk "/^$2 /{print \$1}" | sort -ruV | head -n 1
+}
+
+# apt cache is used anyway
+apt-update
+
+# k2-golang-@{GOLANG_BASE_VERSION}-full
+
+gopkg=
+if [ -n "${o_version}" ] ; then
+	gopkg=$(_apt_search "k2-golang-${o_version}" 'k2-golang-[0-9.]+')
+	if [ -z "${gopkg}" ] ; then
+		msg 'error: unable to find suitable golang package'
+		exit 1
+	fi
+else
+	b=/usr/bin/go
+	if [ -e "$b" ] ; then
+		gopkg=$(readlink -ne "$b" | xvp dpkg-which - )
+	fi
+	if [ -z "${gopkg}" ] ; then
+		gopkg=$(_apt_search k2-golang 'k2-golang-[0-9.]+')
+	fi
+	if [ -z "${gopkg}" ] ; then
+		msg 'error: unable to find suitable golang package'
+		exit 1
+	fi
+
+	o_version=$(printf '%s' "${gopkg}" | grep -oE '[0-9.]+')
+fi
+
+if [ -z "${o_version}" ] ; then
+	msg 'error: unable to find suitable golang package'
+	exit 1
+fi
+
+gopkg="k2-golang-shim-${o_version}"
+
+deps="${gopkg} build-essential debhelper fakeroot pkg-config"
+case "${APT_WRAP_INSTALL_METHOD}" in
+satisfy )
+	deps=$(printf '%s, ' ${deps})
+;;
+esac
+
+if [ -n "${o_deps}" ] ; then
+	deps="${deps} ${o_deps}"
+fi
+
+exec apt-wrap ${o_user:+ -u "${o_user}" } "${deps}" "$0" --do "${o_version}" "${o_path}" "$@"

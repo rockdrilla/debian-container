@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -ef
+
+wrapper=/@{GOLANG_PREFIX}/share/thin-ci.sh
+
+if [ "$1" != "upgrade" ]; then
+
+	# k2-golang-@{GOLANG_BASE_VERSION}
+
+	for suffix in '' '-@{GOLANG_BASE_VERSION}' ; do
+		update-alternatives --remove \
+		  go${suffix} \
+		  ${wrapper}
+	done
+fi
+
+#DEBHELPER#
+
+exit 0

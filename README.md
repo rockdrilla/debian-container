@@ -69,9 +69,9 @@ Versions:
 - 1.20.7
 
 Images on Docker.io:
-[minimal](https://hub.docker.com/r/rockdrilla/golang-min/tags)
+[minimal (no CGO)](https://hub.docker.com/r/rockdrilla/golang-min/tags)
 |
-[standard](https://hub.docker.com/r/rockdrilla/golang/tags)
+[standard (with CGO)](https://hub.docker.com/r/rockdrilla/golang/tags)
 
 ### nodejs - minimal/standard
 

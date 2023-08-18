@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" != "upgrade" ]; then
+	golang_bin=/@{GOLANG_PREFIX}/bin
+
+	for suffix in '' '-@{GOLANG_BASE_VERSION}' ; do
+		update-alternatives --remove \
+		  go${suffix} \
+		  ${golang_bin}/go
+	done
+fi
+
+#DEBHELPER#
+
+exit 0

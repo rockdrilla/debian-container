@@ -9,16 +9,15 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
+include debian/rules.common-defs
+
 export SOURCE_DATE_EPOCH
 
 ifeq (,$(GOLANG_VERSION))
 $(error GOLANG_VERSION is not set)
 endif
 
-empty :=
-space :=$(empty) $(empty)
-comma :=,
-xsedx :=$(shell printf '\027')
+DEB_EPOCH_FAKE = 9:
 
 GOLANG_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(GOLANG_VERSION)))
 GOLANG_MINOR_VERSION = $(word 2,$(subst .,$(space),$(GOLANG_VERSION)))

@@ -1,4 +1,4 @@
-Source: container-shim-golang-@{GOLANG_BASE_VERSION}
+Source: k2-golang-shim-@{GOLANG_BASE_VERSION}
 Section: metapackages
 Priority: optional
 Maintainer: Konstantin Demin <rockdrilla@gmail.com>
@@ -9,29 +9,19 @@ Homepage: https://github.com/rockdrilla/debian-container
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/golang/shim
 
-Package: container-shim-golang-@{GOLANG_BASE_VERSION}
+Package: k2-golang-shim-@{GOLANG_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-shim-golang-@{GOLANG_BASE_VERSION}-src,
-Provides: golang (= @{GOLANG_VERSION}),
+         k2-golang-@{GOLANG_BASE_VERSION},
+Provides: golang (= @{DEB_EPOCH_FAKE}@{GOLANG_VERSION}),
+          golang-go (= @{DEB_EPOCH_FAKE}@{GOLANG_VERSION}),
           golang-@{GOLANG_BASE_VERSION} (= @{GOLANG_VERSION}),
           golang-@{GOLANG_BASE_VERSION}-go (= @{GOLANG_VERSION}),
 Conflicts: golang-@{GOLANG_BASE_VERSION} (<< @{GOLANG_VERSION}),
            golang-@{GOLANG_BASE_VERSION}-go (<< @{GOLANG_VERSION}),
 Breaks: golang-@{GOLANG_BASE_VERSION} (<< @{GOLANG_VERSION}),
         golang-@{GOLANG_BASE_VERSION}-go (<< @{GOLANG_VERSION}),
-Description: container shim: Go v@{GOLANG_BASE_VERSION}
+Description: K2 shim - Go v@{GOLANG_BASE_VERSION}
  This package provides Debian/Ubuntu compatibility shim for
- container-golang-@{GOLANG_BASE_VERSION}.
-
-Package: container-shim-golang-@{GOLANG_BASE_VERSION}-src
-Architecture: all
-Multi-Arch: allowed
-Depends: ${misc:Depends},
-Provides: golang-@{GOLANG_BASE_VERSION}-src (= @{GOLANG_VERSION}),
-Conflicts: golang-@{GOLANG_BASE_VERSION}-src (<< @{GOLANG_VERSION}),
-Breaks: golang-@{GOLANG_BASE_VERSION}-src (<< @{GOLANG_VERSION}),
-Description: container shim: Go v@{GOLANG_BASE_VERSION} - source files
- This package provides Debian/Ubuntu compatibility shim for
- container-golang-@{GOLANG_BASE_VERSION}-src.
+ k2-golang-@{GOLANG_BASE_VERSION}.

@@ -1,4 +1,4 @@
-container-golang-@{GOLANG_BASE_VERSION} (@{DEB_EPOCH}@{GOLANG_VERSION}-1) @{SUITE}; urgency=medium
+k2-golang-@{GOLANG_BASE_VERSION} (@{DEB_EPOCH}@{GOLANG_VERSION}-1) @{SUITE}; urgency=medium
 
   * New upstream version @{GOLANG_VERSION}.
 

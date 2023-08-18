@@ -1,0 +1,34 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+configure )
+	prio=$(( @{DEB_GOLANG_PRIO} + 1 ))
+	bin=/usr/bin
+	golang_bin=/@{GOLANG_PREFIX}/bin
+
+	for suffix in '' '-@{GOLANG_BASE_VERSION}' ; do
+		update-alternatives --install \
+		  ${bin}/go${suffix} \
+		  go${suffix} \
+		  ${golang_bin}/go \
+		${prio} \
+		--slave \
+		  ${bin}/gofmt${suffix} \
+		  gofmt${suffix} \
+		  ${golang_bin}/gofmt \
+
+	done
+;;
+abort-upgrade | abort-remove | abort-deconfigure )
+;;
+* )
+	echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+;;
+esac
+
+#DEBHELPER#
+
+exit 0

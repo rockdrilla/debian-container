@@ -47,6 +47,13 @@ build_single() {
 
 	set -e
 
+	if [ -z "${CI}" ] ; then
+		GOLANG_PKG_IMAGE="golang-pkg:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+
+		BUILD_IMAGE_TARGET="pkg" \
+		scripts/build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_PKG_IMAGE}"
+	fi
+
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
 	BUILD_IMAGE_ENV="GOLANG_VERSION GOLANG_BASE_VERSION" \
 	scripts/build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ${extra_tags}
