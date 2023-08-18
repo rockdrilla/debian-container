@@ -6,7 +6,7 @@ wrapper=/usr/lib/python@{PYTHON_BASE_VERSION}/thin-ci.sh
 
 if [ "$1" != "upgrade" ]; then
 
-	# container-python-{PYTHON_BASE_VERSION}
+	# k2-python-{PYTHON_BASE_VERSION}
 
 	for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		update-alternatives --remove \
@@ -14,7 +14,7 @@ if [ "$1" != "upgrade" ]; then
 		  ${wrapper}
 	done
 
-	# container-python-{PYTHON_BASE_VERSION}-full
+	# k2-python-{PYTHON_BASE_VERSION}-full
 
 	for n in pip virtualenv wheel ; do
 		for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
@@ -24,7 +24,7 @@ if [ "$1" != "upgrade" ]; then
 		done
 	done
 
-	# container-python-{PYTHON_BASE_VERSION}-dev
+	# k2-python-{PYTHON_BASE_VERSION}-dev
 
 	for suffix in '' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		stem=python${suffix}

@@ -1,4 +1,4 @@
-container-python-@{PYTHON_BASE_VERSION} (@{DEB_EPOCH}@{PYTHON_VERSION}-1) @{SUITE}; urgency=medium
+k2-python-@{PYTHON_BASE_VERSION} (@{DEB_EPOCH}@{PYTHON_VERSION}-1) @{SUITE}; urgency=medium
 
   * New upstream version @{PYTHON_VERSION}.
 

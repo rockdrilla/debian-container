@@ -27,7 +27,7 @@ sort-build-objects.patch
 build-shared-mods.patch
 install-no-pycache.patch
 disable-network-tests.patch
-container-python-compat-switch.patch
+python-compat-switch.patch
 hybrid-layout.patch
 python-config.patch
 

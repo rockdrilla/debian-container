@@ -1,4 +1,4 @@
-Source: container-python-@{PYTHON_BASE_VERSION}
+Source: k2-python-@{PYTHON_BASE_VERSION}
 Section: python
 Priority: optional
 Maintainer: @{DEB_MAINTAINER}
@@ -34,15 +34,15 @@ Homepage: https://www.python.org/
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/python/@{PYTHON_BASE_VERSION}
 
-Package: container-python-@{PYTHON_BASE_VERSION}
+Package: k2-python-@{PYTHON_BASE_VERSION}
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
          media-types | mime-support,
          tzdata,
-Recommends: container-shim-python-@{PYTHON_BASE_VERSION},
+Recommends: k2-python-shim-@{PYTHON_BASE_VERSION},
 Suggests: binutils,
-          container-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
+          k2-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
 Provides: python@{PYTHON_BASE_VERSION}:any (= @{PYTHON_VERSION}),
           python3:any (= @{PYTHON_VERSION}),
           python3-minimal:any (= @{PYTHON_VERSION}),
@@ -50,13 +50,13 @@ Description: Python v@{PYTHON_BASE_VERSION}
  This package contains almost full Python installation (executable,
  shared library, runtime) except package manager and development files.
 
-Package: container-python-@{PYTHON_BASE_VERSION}-full
+Package: k2-python-@{PYTHON_BASE_VERSION}-full
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
-Recommends: container-shim-python-@{PYTHON_BASE_VERSION}-full,
-            container-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
+         k2-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
+Recommends: k2-python-shim-@{PYTHON_BASE_VERSION}-full,
+            k2-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
 Suggests: ca-certificates,
 Provides: python@{PYTHON_BASE_VERSION}-venv:any (= @{PYTHON_VERSION}),
           python3-venv:any (= @{PYTHON_VERSION}),
@@ -67,14 +67,14 @@ Description: Python v@{PYTHON_BASE_VERSION} - full package
  "setuptools" and "wheel") and "ensurepip" package.
  It also installs /etc/pip.conf with sane defaults.
 
-Package: container-python-@{PYTHON_BASE_VERSION}-dev
+Package: k2-python-@{PYTHON_BASE_VERSION}-dev
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         container-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
+         k2-python-@{PYTHON_BASE_VERSION}-full (= ${binary:Version}),
          pkg-config,
          libffi-dev,
          zlib1g-dev,
-Recommends: container-shim-python-@{PYTHON_BASE_VERSION}-dev,
+Recommends: k2-python-shim-@{PYTHON_BASE_VERSION}-dev,
             libbz2-dev,
             libc6-dev | libc-dev,
             libdb-dev | libgdbm-compat-dev,
@@ -97,11 +97,11 @@ Description: Python v@{PYTHON_BASE_VERSION} - development files
  Python v@{PYTHON_BASE_VERSION} modules, extending the Python interpreter
  or embedding Python v@{PYTHON_BASE_VERSION} in applications.
 
-Package: container-python-@{PYTHON_BASE_VERSION}-misc
+Package: k2-python-@{PYTHON_BASE_VERSION}-misc
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         container-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
-Recommends: container-shim-python-@{PYTHON_BASE_VERSION}-misc,
+         k2-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
+Recommends: k2-python-shim-@{PYTHON_BASE_VERSION}-misc,
 Description: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
  This package contains static library, less common libraries (IDLE,
  tkinter, and so on) and auxiliary files for Python v@{PYTHON_BASE_VERSION}.
@@ -109,12 +109,12 @@ Description: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
  If you are encouraged to install this package then something goes wrong.
  Feel free to open the issue/PR.
 
-Package: thin-ci-container-python-@{PYTHON_BASE_VERSION}
+Package: k2-thin-ci-python-@{PYTHON_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          k2-common-scripts,
 Description: Python v@{PYTHON_BASE_VERSION} - thin CI installer
- This package contains wrapper script to install container-python-@{PYTHON_BASE_VERSION},
- container-python-@{PYTHON_BASE_VERSION}-dev or container-python-@{PYTHON_BASE_VERSION}-full
+ This package contains wrapper script to install k2-python-@{PYTHON_BASE_VERSION},
+ k2-python-@{PYTHON_BASE_VERSION}-dev or k2-python-@{PYTHON_BASE_VERSION}-full
  on first call.

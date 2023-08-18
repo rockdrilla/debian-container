@@ -5,11 +5,11 @@ set -ef
 wrapper=/@{PYTHON_PREFIX}/share/thin-ci.sh
 
 case "$1" in
-configure)
+configure )
 	prio=@{DEB_PYTHON_PRIO}
 	bin=/usr/bin
 
-	# container-python-{PYTHON_BASE_VERSION}
+	# k2-python-{PYTHON_BASE_VERSION}
 
 	for suffix in '' '-@{PYTHON_BASE_VERSION}' ; do
 		update-alternatives --install \
@@ -41,7 +41,7 @@ configure)
 
 	done
 
-	# container-python-{PYTHON_BASE_VERSION}-full
+	# k2-python-{PYTHON_BASE_VERSION}-full
 
 	for n in pip virtualenv wheel ; do
 		for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
@@ -53,7 +53,7 @@ configure)
 		done
 	done
 
-	# container-python-{PYTHON_BASE_VERSION}-dev
+	# k2-python-{PYTHON_BASE_VERSION}-dev
 
 	for suffix in '' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 		stem=python${suffix}
@@ -77,9 +77,9 @@ configure)
 	${prio} \
 
 ;;
-abort-upgrade|abort-remove|abort-deconfigure)
+abort-upgrade | abort-remove | abort-deconfigure )
 ;;
-*)
+* )
 	echo "postinst called with unknown argument \`$1'" >&2
 	exit 1
 ;;

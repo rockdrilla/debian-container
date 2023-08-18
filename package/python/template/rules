@@ -56,7 +56,7 @@ include debian/rules.gcc-flags
 include debian/rules.gcc-lto
 
 DEB_PGO_LEVEL_DEFAULT = 4
-DEB_PGO_PACKAGE = container-python-$(PYTHON_VERSION)-pgo
+DEB_PGO_PACKAGE = k2-python-$(PYTHON_VERSION)-pgo
 include debian/rules.gcc-pgo
 
 export DEB_SRC_TOPDIR = $(CURDIR)
@@ -732,17 +732,17 @@ execute_before_dh_install:
 include debian/rules.install-extras
 
 override_dh_install:
-	dh_install -p thin-ci-container-python-$(PYTHON_BASE_VERSION)
+	dh_install -p k2-thin-ci-python-$(PYTHON_BASE_VERSION)
 
 	mkdir -p debian/tmp/$(PYTHON_PREFIX)/share
 	cp -t debian/tmp/$(PYTHON_PREFIX)/share \
 	  debian/ensurepip-simple.py \
 	  debian/pip.conf
 
-	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-misc )
-	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-dev )
-	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION)-full )
-	$(call dh_install_move, container-python-$(PYTHON_BASE_VERSION) )
+	$(call dh_install_move, k2-python-$(PYTHON_BASE_VERSION)-misc )
+	$(call dh_install_move, k2-python-$(PYTHON_BASE_VERSION)-dev )
+	$(call dh_install_move, k2-python-$(PYTHON_BASE_VERSION)-full )
+	$(call dh_install_move, k2-python-$(PYTHON_BASE_VERSION) )
 
 ifeq ($(with_pgo)$(pgo_reuse),yesno)
 	d=debian/$(DEB_PGO_PACKAGE)/$(DEB_PGO_FROM_PKG) ; \
@@ -768,7 +768,7 @@ override_dh_strip:
 
 override_dh_shlibdeps:
 	env -u LD_LIBRARY_PATH -u LD_PRELOAD \
-	dh_shlibdeps -l$(CURDIR)/debian/container-python-$(PYTHON_BASE_VERSION)/$(PYTHON_PREFIX)/lib
+	dh_shlibdeps -l$(CURDIR)/debian/k2-python-$(PYTHON_BASE_VERSION)/$(PYTHON_PREFIX)/lib
 
 DH_GENCTRL_COMMON = -Tdebian/pip.substvars -Tdebian/substvars
 override_dh_gencontrol:

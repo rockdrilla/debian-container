@@ -3,7 +3,7 @@
 set -e
 
 case "$1" in
-configure)
+configure )
 	prio=$(( @{DEB_PYTHON_PRIO} + 1 ))
 	bin=/usr/bin
 	python_bin=/@{PYTHON_PREFIX}/bin
@@ -69,9 +69,9 @@ configure)
 
 	rm -rf "${tmpinfo}"
 ;;
-abort-upgrade|abort-remove|abort-deconfigure)
+abort-upgrade | abort-remove | abort-deconfigure )
 ;;
-*)
+* )
 	echo "postinst called with unknown argument \`$1'" >&2
 	exit 1
 ;;

@@ -3,9 +3,9 @@
 # (c) 2023, Konstantin Demin
 set -ef
 
-pkg_regular='container-python-@{PYTHON_BASE_VERSION}'
-pkg_dev='container-python-@{PYTHON_BASE_VERSION}-dev'
-pkg_full='container-python-@{PYTHON_BASE_VERSION}-full'
+pkg_regular='k2-python-@{PYTHON_BASE_VERSION}'
+pkg_dev='k2-python-@{PYTHON_BASE_VERSION}-dev'
+pkg_full='k2-python-@{PYTHON_BASE_VERSION}-full'
 
 pkg=
 case "${0##*/}" in
@@ -18,7 +18,7 @@ python* | pydoc* | 2to3* )
 pip* | virtualenv* | wheel* )
 	pkg="${pkg_full}"
 ;;
-*)
+* )
 	echo "can't determine required package on (this) binary name: ${0##*/}" >&2
 	exit 1
 ;;

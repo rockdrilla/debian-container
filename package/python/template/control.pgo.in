@@ -1,4 +1,4 @@
-Package: container-python-@{PYTHON_VERSION}-pgo
+Package: k2-python-@{PYTHON_VERSION}-pgo
 Architecture: any
 Depends: ${misc:Depends},
 Description: Python v@{PYTHON_VERSION} - PGO data (@{DEB_TSVER})

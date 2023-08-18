@@ -1,4 +1,4 @@
-Source: container-shim-python-@{PYTHON_BASE_VERSION}
+Source: k2-python-shim-@{PYTHON_BASE_VERSION}
 Section: metapackages
 Priority: optional
 Maintainer: Konstantin Demin <rockdrilla@gmail.com>
@@ -9,11 +9,11 @@ Homepage: https://github.com/rockdrilla/debian-container
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/python/shim
 
-Package: container-shim-python-@{PYTHON_BASE_VERSION}
+Package: k2-python-shim-@{PYTHON_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-python-@{PYTHON_BASE_VERSION},
+         k2-python-@{PYTHON_BASE_VERSION},
 Provides: python@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
           python@{PYTHON_BASE_VERSION}-distutils (= @{PYTHON_VERSION}),
           python@{PYTHON_BASE_VERSION}-gdbm (= @{PYTHON_VERSION}),
@@ -41,28 +41,28 @@ Breaks: python@{PYTHON_BASE_VERSION} (<< @{PYTHON_VERSION}),
         python-is-python2,
 Description: container shim: Python v@{PYTHON_BASE_VERSION}
  This package provides Debian/Ubuntu compatibility shim for
- container-python-@{PYTHON_BASE_VERSION}.
+ k2-python-@{PYTHON_BASE_VERSION}.
 
-Package: container-shim-python-@{PYTHON_BASE_VERSION}-full
+Package: k2-python-shim-@{PYTHON_BASE_VERSION}-full
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-python-@{PYTHON_BASE_VERSION}-full,
-         container-shim-python-@{PYTHON_BASE_VERSION},
+         k2-python-@{PYTHON_BASE_VERSION}-full,
+         k2-python-shim-@{PYTHON_BASE_VERSION},
 Provides: python@{PYTHON_BASE_VERSION}-venv (= @{PYTHON_VERSION}),
           python3-venv (= @{PYTHON_VERSION}),
 Conflicts: python@{PYTHON_BASE_VERSION}-venv (<< @{PYTHON_VERSION}),
 Breaks: python@{PYTHON_BASE_VERSION}-venv (<< @{PYTHON_VERSION}),
 Description: container shim: Python v@{PYTHON_BASE_VERSION} - full package
  This package provides Debian/Ubuntu compatibility shim for
- container-python-@{PYTHON_BASE_VERSION}-full.
+ k2-python-@{PYTHON_BASE_VERSION}-full.
 
-Package: container-shim-python-@{PYTHON_BASE_VERSION}-dev
+Package: k2-python-shim-@{PYTHON_BASE_VERSION}-dev
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-python-@{PYTHON_BASE_VERSION}-dev,
-         container-shim-python-@{PYTHON_BASE_VERSION}-full,
+         k2-python-@{PYTHON_BASE_VERSION}-dev,
+         k2-python-shim-@{PYTHON_BASE_VERSION}-full,
 Provides: python@{PYTHON_BASE_VERSION}-dev (= @{PYTHON_VERSION}),
           libpython@{PYTHON_BASE_VERSION}-dev (= @{PYTHON_VERSION}),
           libpython3-all-dev (= @{PYTHON_VERSION}),
@@ -78,13 +78,13 @@ Breaks: python@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
         python-dev-is-python2,
 Description: container shim: Python v@{PYTHON_BASE_VERSION} - development files
  This package provides Debian/Ubuntu compatibility shim for
- container-python-@{PYTHON_BASE_VERSION}-dev.
+ k2-python-@{PYTHON_BASE_VERSION}-dev.
 
-Package: container-shim-python-@{PYTHON_BASE_VERSION}-misc
+Package: k2-python-shim-@{PYTHON_BASE_VERSION}-misc
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
-         container-python-@{PYTHON_BASE_VERSION}-misc,
+         k2-python-@{PYTHON_BASE_VERSION}-misc,
 Provides: python@{PYTHON_BASE_VERSION}-tk (= @{PYTHON_VERSION}),
           idle-python@{PYTHON_BASE_VERSION} (= @{PYTHON_VERSION}),
           python@{PYTHON_BASE_VERSION}-examples (= @{PYTHON_VERSION}),
@@ -98,4 +98,4 @@ Breaks: python@{PYTHON_BASE_VERSION}-tk (<< @{PYTHON_VERSION}),
         python@{PYTHON_BASE_VERSION}-examples (<< @{PYTHON_VERSION}),
 Description: container shim: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
  This package provides Debian/Ubuntu compatibility shim for
- container-python-@{PYTHON_BASE_VERSION}-dev.
+ k2-python-@{PYTHON_BASE_VERSION}-dev.

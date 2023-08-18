@@ -1,3 +1,9 @@
+k2-python-shim-@{PYTHON_BASE_VERSION} (20230818) @{SUITE}; urgency=medium
+
+  * Global renaming.
+
+ -- Konstantin Demin <rockdrilla@gmail.com>  Fri, 18 Aug 2023 00:29:00 +0300
+
 container-shim-python-@{PYTHON_BASE_VERSION} (20230717) @{SUITE}; urgency=medium
 
   * container-shim-python-@{PYTHON_BASE_VERSION}:

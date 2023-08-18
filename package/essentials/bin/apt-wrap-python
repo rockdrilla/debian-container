@@ -223,7 +223,7 @@ apt-update
 
 pypkg=
 if [ -n "${o_version}" ] ; then
-	pypkg=$(_apt_search "container-python-${o_version}-dev" 'container-python-[0-9.]+-dev')
+	pypkg=$(_apt_search "k2-python-${o_version}-dev" 'k2-python-[0-9.]+-dev')
 	if [ -z "${pypkg}" ] ; then
 		msg 'error: unable to find suitable python package'
 		exit 1
@@ -234,7 +234,7 @@ else
 		pypkg=$(readlink -ne "$b" | xvp dpkg-which - )
 	fi
 	if [ -z "${pypkg}" ] ; then
-		pypkg=$(_apt_search container-python 'container-python-[0-9.]+')
+		pypkg=$(_apt_search k2-python 'k2-python-[0-9.]+')
 	fi
 	if [ -z "${pypkg}" ] ; then
 		msg 'error: unable to find suitable python package'
@@ -249,10 +249,10 @@ if [ -z "${o_version}" ] ; then
 	exit 1
 fi
 
-pypkg="container-python-${o_version}-dev"
+pypkg="k2-python-${o_version}-dev"
 want_shim=$(_apt_search "python${o_version}" "python${o_version}")
 if [ -n "${want_shim}" ] ; then
-	pypkg="container-shim-python-${o_version}-dev"
+	pypkg="k2-python-shim-${o_version}-dev"
 fi
 
 deps="${pypkg} build-essential debhelper fakeroot"

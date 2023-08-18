@@ -63,7 +63,7 @@
 +            if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
 +                # virtual environment
 +                return sitepackages
-+            # paths owned by container-python-{pyver}
++            # paths owned by k2-python-{pyver}
 +            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/dist-packages' % sys.version_info[:2]))
 +            # compatibility with world
 +            sitepackages.append(os.path.join('/usr/local/lib/python%d.%d/site-packages' % sys.version_info[:2]))
@@ -156,7 +156,7 @@
 -                                  'site-packages')
 -            self.assertEqual(dirs[-1], wanted)
 +            self.assertEqual(len(dirs), 6)
-+            # paths owned by container-python-{pyver}
++            # paths owned by k2-python-{pyver}
 +            self.assertEqual(dirs[0], os.path.join('xoxo/lib/python%d.%d/site-packages' % sys.version_info[:2]))
 +            self.assertEqual(dirs[1], os.path.join('xoxo/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
 +            # compatibility with world
