@@ -49,12 +49,12 @@ ci_apt_volumes() {
 }
 
 default_D_S_T='
-	debian:bullseye:11:oldstable
 	debian:bookworm:12:stable:latest
+	debian:bullseye:11:oldstable
 	debian:trixie:13:testing
 	debian:sid:unstable
-	ubuntu:focal:20.04:lts
 	ubuntu:jammy:22.04:stable:latest
+	ubuntu:focal:20.04:lts
 '
 
 if [ -z "${DISTRO_SUITE_TAGS}" ] ; then
