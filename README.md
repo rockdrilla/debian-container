@@ -93,7 +93,7 @@ Images on Docker.io:
 
 Minimized Ansible image - `image/ansible-mini/` ([dockerfile](image/ansible-mini/Dockerfile))
 
-Based on `python:3.11-bullseye`.
+Based on `python:3.11-bookworm`.
 
 Versions:
 
