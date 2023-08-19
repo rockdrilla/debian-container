@@ -11,9 +11,7 @@ set -f
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 . "${rootdir}/image/ansible-mini/common.envsh"
 
 build_single() {
@@ -34,7 +32,7 @@ build_single() {
 
 	set -e
 
-	scripts/build-image.sh image/ansible-mini/ "${image}" ${extra_tags}
+	build-image.sh image/ansible-mini/ "${image}" ${extra_tags}
 
 	set +e
 

@@ -11,9 +11,7 @@ set -f
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 
 for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	tags=
@@ -33,10 +31,10 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	helper_image="${IMAGE_PATH}/${DISTRO}-buildd-helper:${SUITE}${IMAGE_TAG_SUFFIX}"
 
 	BUILD_IMAGE_TARGET="buildd" \
-	scripts/build-image.sh image/buildd/ "${IMAGE_PATH}/${BUILDD_IMAGE}" ${tags}
+	build-image.sh image/buildd/ "${IMAGE_PATH}/${BUILDD_IMAGE}" ${tags}
 
 	BUILD_IMAGE_TARGET="buildd-helper" \
 	BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS} BUILDD_IMAGE" \
-	scripts/build-image.sh image/buildd/ "${helper_image}" ${tags}
+	build-image.sh image/buildd/ "${helper_image}" ${tags}
 
 done

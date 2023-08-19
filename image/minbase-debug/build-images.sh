@@ -11,9 +11,7 @@ set -f
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 
 for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	tags=
@@ -29,7 +27,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 		$(ci_apt_volumes)
 	"
 
-	scripts/build-image.sh image/minbase-debug/ \
+	build-image.sh image/minbase-debug/ \
 	  "${IMAGE_PATH}/${DISTRO}-debug:${SUITE}${IMAGE_TAG_SUFFIX}" \
 	  ${tags}
 done

@@ -11,9 +11,7 @@ set -f
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 . "${rootdir}/image/python/common.envsh"
 
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
@@ -54,22 +52,22 @@ build_single() {
 		PYTHON_PKG_IMAGE="python-pkg:${PYTHON_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 
 		BUILD_IMAGE_TARGET="pkg" \
-		scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_PKG_IMAGE}"
+		build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_PKG_IMAGE}"
 	fi
 
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
 	BUILD_IMAGE_ENV="PYTHON_VERSION PYTHON_BASE_VERSION" \
-	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ${extra_tags}
+	build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ${extra_tags}
 
 	# "python" derives env from "python-min"
 
 	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
-	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_IMAGE}" ${extra_tags}
+	build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_IMAGE}" ${extra_tags}
 
 	# "python-dev" derives env from "python"
 
 	BUILD_IMAGE_TARGET="dev${CI:+-ci}" \
-	scripts/build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_DEV_IMAGE}" ${extra_tags}
+	build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_DEV_IMAGE}" ${extra_tags}
 
 	set +e
 

@@ -11,9 +11,7 @@ set -f
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 . "${rootdir}/image/golang/common.envsh"
 
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
@@ -51,17 +49,17 @@ build_single() {
 		GOLANG_PKG_IMAGE="golang-pkg:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 
 		BUILD_IMAGE_TARGET="pkg" \
-		scripts/build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_PKG_IMAGE}"
+		build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_PKG_IMAGE}"
 	fi
 
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
 	BUILD_IMAGE_ENV="GOLANG_VERSION GOLANG_BASE_VERSION" \
-	scripts/build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ${extra_tags}
+	build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ${extra_tags}
 
 	# "golang" derives env from "golang-min"
 
 	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
-	scripts/build-image.sh image/golang/ "${full_image}" ${extra_tags}
+	build-image.sh image/golang/ "${full_image}" ${extra_tags}
 
 	set +e
 

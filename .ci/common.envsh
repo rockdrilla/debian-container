@@ -4,6 +4,10 @@
 
 set -f
 
+if [ -n "${rootdir}" ] ; then
+	export PATH="${rootdir}/.ci:${PATH}"
+fi
+
 : "${SOURCE_DATE_EPOCH:=$(date -u '+%s')}"
 : "${BUILD_IMAGE_ARGS:=IMAGE_PATH DISTRO SUITE}"
 : "${BUILD_IMAGE_PUSH:=0}"
@@ -16,7 +20,7 @@ stub_build() {
 	BUILD_IMAGE_BASE=0 \
 	BUILD_IMAGE_SCRIPT_PRE=/bin/true \
 	BUILD_IMAGE_SCRIPT_POST=/bin/true \
-	"${rootdir:?}/scripts/build-image.sh" /bin/true "$@"
+	build-image.sh /bin/true "$@"
 }
 
 _build_artifacts_path() {
@@ -57,9 +61,7 @@ default_D_S_T='
 	ubuntu:focal:20.04:lts
 '
 
-if [ -z "${DISTRO_SUITE_TAGS}" ] ; then
-DISTRO_SUITE_TAGS="${default_D_S_T}"
-fi
+[ -n "${DISTRO_SUITE_TAGS}" ] || DISTRO_SUITE_TAGS="${default_D_S_T}"
 
 set_default_distro_suite() {
 	[ -n "${DISTRO}" ] || export DISTRO=debian

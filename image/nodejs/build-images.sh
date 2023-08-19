@@ -11,9 +11,7 @@ set -f
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 . "${rootdir}/image/nodejs/common.envsh"
 
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
@@ -50,12 +48,12 @@ build_single() {
 
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
 	BUILD_IMAGE_ENV="NODEJS_VERSION NODEJS_MAJOR_VERSION" \
-	scripts/build-image.sh image/nodejs/ "${IMAGE_PATH}/${NODEJS_MIN_IMAGE}" ${extra_tags}
+	build-image.sh image/nodejs/ "${IMAGE_PATH}/${NODEJS_MIN_IMAGE}" ${extra_tags}
 
 	# "nodejs" derives env from "nodejs-min"
 
 	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
-	scripts/build-image.sh image/nodejs/ "${full_image}" ${extra_tags}
+	build-image.sh image/nodejs/ "${full_image}" ${extra_tags}
 
 	set +e
 

@@ -7,9 +7,7 @@ set -f
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 . "${rootdir}/image/python/common.envsh"
 
 if [ $# = 0 ] ; then
@@ -62,7 +60,7 @@ build_single() {
 	set -e
 
 	BUILD_IMAGE_TARGET=build-pkg \
-	scripts/build-image.sh image/python/ "${build_image}"
+	build-image.sh image/python/ "${build_image}"
 
 	podman image rm -f "${build_image}"
 

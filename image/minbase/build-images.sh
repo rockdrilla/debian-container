@@ -11,9 +11,7 @@ set -ef
 rootdir=$(readlink -e "$(dirname "$0")/../..")
 cd "${rootdir:?}" || exit
 
-export PATH="${rootdir}/scripts:${PATH}"
-
-. "${rootdir}/scripts/_common.sh"
+. "${rootdir}/.ci/common.envsh"
 
 for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 
@@ -66,7 +64,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 			"
 		fi
 
-		scripts/build-image.sh image/minbase/Dockerfile.stage1 "${stage1_image}"
+		build-image.sh image/minbase/Dockerfile.stage1 "${stage1_image}"
 	) || exit 1
 
 	# remove intermediate images
