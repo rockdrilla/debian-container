@@ -41,8 +41,8 @@
 /* embeds CC_NO_INLINE */
 #define SHLIB_EXPORT __attribute__ (( used,noinline,visibility("default") ))
 
-static int    ncpu       = 0;
-static size_t cpuset_len = 0;
+static int ncpu = 0;
+// static size_t cpuset_len = 0;
 
 static int init_real_sysconf(void);
 
@@ -57,10 +57,9 @@ void init_shlib(void)
 	/* incontainer/nproc.h */
 
 	ncpu = get_container_cpus();
-	if (ncpu < 1) ncpu = 1;
-	set_env_container_cpus(ncpu);
 
-	cpuset_len = get_system_cpuset_len();
+	/* doesn't work as expected */
+	// cpuset_len = get_system_cpuset_len();
 
 	/* set affinity if requested by env */
 	adjust_container_cpuset(ncpu);
@@ -119,19 +118,11 @@ long __sysconf(int name)
 	return new_sysconf(name);
 }
 
-static
-CC_FORCE_INLINE
-int new_sched_cpucount(size_t setsize, const cpu_set_t * cpuset)
-{
-	int x = nproc_sched_cpucount(setsize, cpuset);
-	return min(x, ncpu);
-}
-
 /* NB: not a real exported symbol as of 2023.08.01 in glibc 2.37 */
 SHLIB_EXPORT
 int sched_cpucount(size_t setsize, const cpu_set_t * cpuset)
 {
-	return new_sched_cpucount(setsize, cpuset);
+	return ncpu;
 }
 
 #if 0
@@ -145,7 +136,7 @@ cpu_set_t * __sched_cpualloc(size_t count)
 SHLIB_EXPORT
 int __sched_cpucount(size_t setsize, const cpu_set_t * cpuset)
 {
-	return new_sched_cpucount(setsize, cpuset);
+	return ncpu;
 }
 
 static

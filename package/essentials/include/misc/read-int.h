@@ -93,9 +93,9 @@ unsigned int read_uint_str(int base, const char * string) {
 		ssize_t nread; \
 		if (fd < 0) return result; \
 		if (base < 3) return result; \
-		nread = read(fd, buf, sizeof(buf)); \
+		nread = read(fd, buf, sizeof(buf) - 1); \
 		if (nread <= 0) return result; \
-		buf[nread - 1] = 0; \
+		buf[nread] = 0; \
 		return read_ ## n ## _str (base, buf); \
 	} \
 	static \

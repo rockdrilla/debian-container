@@ -52,6 +52,12 @@ typedef struct {
 	int count, min, max;
 } cpu_set_info_t;
 
+enum {
+	nproc_kind_normal = 0,
+	nproc_kind_force,
+	nproc_kind_min,
+};
+
 /* TODO: add "fixed" layout too */
 enum {
 	nproc_adjust_cpuset_none = 0,
@@ -59,6 +65,7 @@ enum {
 };
 
 static const char * env_nproc = "NPROC";
+static const char * env_nproc_kind = "NPROC_KIND";
 static const char * file_nproc = "/run/lock/nproc";
 
 static long   nproc_sched_getaffinity_sys(pid_t tid, size_t cpusetsize, cpu_set_t * cpuset);
@@ -69,9 +76,12 @@ static uint32_t nproc_sched_cpucount(size_t cpusetsize, const cpu_set_t * cpuset
 static uint32_t nproc_sched_cpucount_ex(size_t cpusetsize, const cpu_set_t * cpuset, cpu_set_info_t * info);
 static uint32_t nproc_sched_cpucount_lean(pid_t tid);
 
-static int get_container_cpus_private(void);
+static int get_nproc_value(void);
+static void set_nproc_value(int value);
+static void set_nproc_file_value(int value, int force);
+static int get_nproc_kind(void);
+static void set_nproc_kind(int kind);
 
-static int get_container_cpus_env(void);
 static int get_container_cpus_sysfs(void);
 static int get_container_cpus_cgroups(void);
 static int get_container_cpus_sched_affinity(void);
@@ -93,56 +103,68 @@ int clamp_cpucount(long n)
 static
 int get_container_cpus(void)
 {
-	int x, x_env, x_sysfs, x_cgroups, x_sched;
+	pid_t pid = 0;
+	int x = 0, n = 0, k = nproc_kind_normal;
 
-	x = get_container_cpus_private();
+	pid = getpid();
+	if (pid > 1) {
+		x = read_int_file(10, file_nproc);
+		if ((x < 1) || (x > cpu_max)) {
+			x = 0;
+		}
+	}
 
-	/* positive value means "enforced value" */
-	if (x > 0) return x;
+	if (!x) {
+		x = min_positive(x, get_container_cpus_sysfs());
+		x = min_positive(x, get_container_cpus_cgroups());
+		x = min_positive(x, get_container_cpus_sched_affinity());
 
-	/* negative value means "soft limit" */
-	if (x < 0) x = -x;
+		set_nproc_file_value(x, 1);
+	}
 
-	x_env     = get_container_cpus_env();
-	x_sysfs   = get_container_cpus_sysfs();
-	x_cgroups = get_container_cpus_cgroups();
-	x_sched   = get_container_cpus_sched_affinity();
+	n = get_nproc_value();
+	k = get_nproc_kind();
 
-	x = min_positive(x, x_env);
-	x = min_positive(x, x_sysfs);
-	x = min_positive(x, x_cgroups);
-	x = min_positive(x, x_sched);
+	if (!n) n = x;
+
+	if (k == nproc_kind_min) {
+		if (n > x)
+			set_nproc_kind(k = nproc_kind_force);
+		else
+			n = x;
+	}
+
+	if (x >= n)
+		set_nproc_kind(k = nproc_kind_normal);
+
+	switch (k) {
+	case nproc_kind_force:
+		x = n;
+		break;
+	case nproc_kind_normal:
+		x = min_positive(x, n);
+		break;
+	}
+
+	/* last resort */
+	if (!x) x = 1;
+
+	set_nproc_value(x);
+
+	if (pid == 1)
+		set_nproc_file_value(x, 1);
+
 	return x;
-}
-
-static
-void set_env_container_cpus(int num)
-{
-	char b[16];
-	int f;
-
-	memset(b, 0, sizeof(b));
-	sprintf(b, "%d", num);
-
-	setenv(env_nproc, b, 1);
-
-	f = open(file_nproc, O_WRONLY | O_CREAT | O_EXCL, 0444);
-	if (f < 0) return;
-
-	b[strlen(b)] = '\n';
-	(void) write(f, b, strlen(b));
-	(void) fsync(f);
-	(void) close(f);
 }
 
 static
 void adjust_container_cpuset(int num)
 {
-	char * s_env;
+	char * s_env = NULL;
 	int mode = nproc_adjust_cpuset_none;
 	size_t length;
 	cpu_set_info_t cpuset_info;
-	cpu_set_t * cpuset;
+	cpu_set_t * cpuset = NULL;
 
 	if ((s_env = getenv("NPROC_CPUSET"))) {
 		if (strcmp(s_env, "none") == 0) {
@@ -189,56 +211,94 @@ static long cpulist_from_file(FILE * file);
 static long cpulist_from_path(const char * directory, const char * filepath);
 
 static
-int get_container_cpus_private(void)
+CC_INLINE
+int get_nproc_value(void)
 {
-	int x_file = 0,
-	    x_env = 0,
-		x_env_force = 0;
-	char * s_env;
-	char * s_value;
-
-	x_file = read_int_file(10, file_nproc);
-	if ((x_file < 1) || (x_file > cpu_max)) {
-		x_file = 0;
-		(void) unlink(file_nproc);
-	}
+	int v = 0;
+	char * s_env = NULL;
 
 	s_env = getenv(env_nproc);
-	if (s_env) {
-		s_value = s_env;
-		if (strncmp(s_env, "force:", sizeof("force:") - 1) == 0) {
-			s_value = s_env + sizeof("force:") - 1;
-			x_env_force = 1;
-		}
+	if (!s_env) return 0;
 
-		x_env = read_int_str(10, s_value);
-		if ((x_env < 1) || (x_env > cpu_max)) {
-			x_env = 0;
-		}
+	v = read_int_str(10, s_env);
+	if ((v < 1) || (v > cpu_max)) {
+		return 0;
 	}
 
-	if (x_file > 0) {
-		return min_positive(x_file, x_env);
-	}
-
-	/* enforced value */
-	if (x_env_force)
-		return clamp_cpucount(x_env);
-
-	/* soft limit */
-	return -(clamp_cpucount(x_env));
+	return v;
 }
 
 static
-int get_container_cpus_env(void)
+CC_INLINE
+void set_nproc_value(int value)
 {
-	int x = 0,
-	    x_omp_thread_limit;
+	char b[16];
 
-	x_omp_thread_limit = clamp_cpucount(read_int_str(10, getenv("OMP_THREAD_LIMIT")));
+	(void) memset(b, 0, sizeof(b));
+	(void) sprintf(b, "%d", value);
 
-	x = min_positive(x, x_omp_thread_limit);
-	return x;
+	(void) setenv(env_nproc, b, 1);
+}
+
+static
+CC_INLINE
+void set_nproc_file_value(int value, int force)
+{
+	char b[16];
+	int f;
+
+	f = open(file_nproc, O_WRONLY | O_CREAT | ((force) ? O_TRUNC : O_EXCL), 0444);
+	if (f < 0) return;
+
+	(void) memset(b, 0, sizeof(b));
+	(void) sprintf(b, "%d", value);
+
+	(void) write(f, b, strnlen(b, sizeof(b)));
+	(void) fchmod(f, 0444);
+	(void) fsync(f);
+	(void) close(f);
+}
+
+static
+CC_INLINE
+int get_nproc_kind(void)
+{
+	int k = nproc_kind_normal;
+	char * s_env = NULL;
+
+	s_env = getenv(env_nproc_kind);
+	if (!s_env) return nproc_kind_normal;
+
+	if (strcmp(s_env, "force") == 0)
+		k = nproc_kind_force;
+	else
+	if (strcmp(s_env, "min") == 0)
+		k = nproc_kind_min;
+
+	return k;
+}
+
+static
+CC_INLINE
+void set_nproc_kind(int kind)
+{
+	char * s = NULL;
+
+	switch (kind) {
+	case nproc_kind_force:
+		s = "force";
+		break;
+	case nproc_kind_min:
+		s = "min";
+		break;
+	default:
+		(void) unsetenv(env_nproc_kind);
+		return;
+	}
+
+	if (!s) return;
+
+	(void) setenv(env_nproc_kind, s, 1);
 }
 
 static
@@ -246,18 +306,11 @@ int get_container_cpus_sysfs(void)
 {
 	static const char * sysfs_dir = "/sys/devices/system/cpu";
 
-	int x = 0,
-	    x_online,
-	    x_possible,
-	    x_present;
+	int x = 0;
 
-	x_online   = clamp_cpucount(cpulist_from_path(sysfs_dir, "online"));
-	x_possible = clamp_cpucount(cpulist_from_path(sysfs_dir, "possible"));
-	x_present  = clamp_cpucount(cpulist_from_path(sysfs_dir, "present"));
-
-	x = min_positive(x, x_online);
-	x = min_positive(x, x_possible);
-	x = min_positive(x, x_present);
+	x = min_positive(x, clamp_cpucount(cpulist_from_path(sysfs_dir, "online")));
+	x = min_positive(x, clamp_cpucount(cpulist_from_path(sysfs_dir, "possible")));
+	x = min_positive(x, clamp_cpucount(cpulist_from_path(sysfs_dir, "present")));
 	return x;
 }
 
@@ -265,31 +318,21 @@ static
 int get_container_cpus_cgroups(void)
 {
 	char tpath[PATH_MAX];
-	int x = 0,
-	    x_v1_cpuset = 0,
-	    x_v1_quota  = 0,
-	    x_v1_shares = 0,
-	    x_v2_cpuset = 0,
-	    x_v2_quota  = 0;
+	int x = 0;
 
 	if (get_cgroup_v1_path(0, "cpuset", tpath))
-		x_v1_cpuset = get_cpuset(tpath, "cpuset.effective_cpus");
+		x = min_positive(x, get_cpuset(tpath, "cpuset.effective_cpus"));
 
 	if (get_cgroup_v1_path(0, "cpu", tpath)) {
-		x_v1_quota  = get_quota_v1(tpath);
-		x_v1_shares = get_shares_v1(tpath);
+		x = min_positive(x, get_quota_v1(tpath));
+		x = min_positive(x, get_shares_v1(tpath));
 	}
 
 	if (get_cgroup_v2_path(0, tpath)) {
-		x_v2_cpuset = get_cpuset(tpath, "cpuset.cpus.effective");
-		x_v2_quota  = get_quota_v2(tpath);
+		x = min_positive(x, get_cpuset(tpath, "cpuset.cpus.effective"));
+		x = min_positive(x, get_quota_v2(tpath));
 	}
 
-	x = min_positive(x, x_v1_cpuset);
-	x = min_positive(x, x_v1_quota);
-	x = min_positive(x, x_v1_shares);
-	x = min_positive(x, x_v2_cpuset);
-	x = min_positive(x, x_v2_quota);
 	return x;
 }
 
@@ -379,7 +422,7 @@ size_t nproc_sched_getaffinity(pid_t tid, size_t cpusetsize, cpu_set_t * cpuset)
 static
 uint32_t nproc_sched_cpucount(size_t cpusetsize, const cpu_set_t * cpuset)
 {
-	const size_t * mask;
+	const size_t * mask = NULL;
 	size_t rounds;
 	uint32_t count;
 
@@ -403,7 +446,7 @@ uint32_t nproc_sched_cpucount(size_t cpusetsize, const cpu_set_t * cpuset)
 static
 uint32_t nproc_sched_cpucount_ex(size_t cpusetsize, const cpu_set_t * cpuset, cpu_set_info_t * info)
 {
-	const size_t * mask;
+	const size_t * mask = NULL;
 	size_t x, rounds;
 	uint32_t count, length, n_min, cpu_min, cpu_max;
 
@@ -534,7 +577,7 @@ int get_shares_v1(const char * cgroup_path)
 static
 int get_quota_v2(const char * cgroup_path)
 {
-	FILE * f;
+	FILE * f = NULL;
 	long result;
 
 	if (!cgroup_path) return 0;
@@ -582,8 +625,8 @@ long cpulist_to_count(const char * string)
 	char buf[128];
 	char * range[n_range + 1];
 	long result, a, b;
-	const char * s;
-	const char * t;
+	const char * s = NULL;
+	const char * t = NULL;
 
 	if (!string) return 0;
 
@@ -640,7 +683,7 @@ long cpulist_from_file(FILE * file)
 static
 long cpulist_from_path(const char * directory, const char * filepath)
 {
-	FILE * f;
+	FILE * f = NULL;
 	long result;
 
 	if (!directory) return 0;
