@@ -13,7 +13,7 @@ tarball=$(mktemp -u)'.tar'
 dir0=$(readlink -f "$(dirname "$0")")
 
 ts=
-. "${dir0}/_common.sh"
+. "${dir0}/common.envsh"
 
 image=$(to_lower "${image}")
 

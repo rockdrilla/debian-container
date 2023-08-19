@@ -12,7 +12,7 @@ dir0=$(readlink -f "$(dirname "$0")")
 rootdir=$(readlink -e "${dir0}/../..")
 
 ts=
-. "${dir0}/_common.sh"
+. "${dir0}/common.envsh"
 
 # mmdebstrap companion script
 : "${TARFILTER:=tarfilter}"
