@@ -24,11 +24,10 @@ RUN apt-install \
 
 COPY /ansible-filter.xglob.txt /etc/k2/cleanup/python-site-packages
 
-RUN apt-wrap-python \
-      pip install \
-        "ansible~=${ANSIBLE_VERSION}.0" \
-        ansible-lint \
-        netaddr \
+RUN pip install \
+      "ansible~=${ANSIBLE_VERSION}.0" \
+      ansible-lint \
+      netaddr \
     ; \
     python-site-cleanup ; \
     cleanup ; \
