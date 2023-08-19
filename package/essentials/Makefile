@@ -4,7 +4,7 @@ SHELL       :=/bin/sh
 MAKEFLAGS   +=--no-print-directory
 
 BIN = is-elf ufind xvp nproc.k2 uptime.k2
-SHLIB = k2env.so
+SHLIB = k2env.so empty.so
 
 # using compressed debug sections
 # CFLAGS += -gz
@@ -40,6 +40,13 @@ nproc.k2: nproc.c.o
 
 uptime.k2: uptime.cc.o
 
+empty.c:
+	: > $@
+
+empty.so: CFLAGS  += -fPIC
+empty.so: LDFLAGS += -shared
+empty.so: empty.c.o
+
 k2env.so: CFLAGS  += -fPIC
 k2env.so: LDFLAGS += -shared -Wl,--no-as-needed,-ldl
 k2env.so: shlib.k2env.c.o
@@ -53,7 +60,7 @@ $(BIN) $(SHLIB):
 %.cc.o: %.cc
 	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $^
 
-GEN = *.o $(BIN) $(SHLIB) $(addsuffix .tdata,$(BIN)) $(addsuffix .tdata.*,$(BIN))
+GEN = empty.c *.o $(BIN) $(SHLIB) $(addsuffix .tdata,$(BIN)) $(addsuffix .tdata.*,$(BIN))
 clean:
 	$(if $(wildcard $(GEN)),rm -vf $(wildcard $(GEN)),true)
 
