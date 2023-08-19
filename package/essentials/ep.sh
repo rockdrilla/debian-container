@@ -29,12 +29,10 @@ set -f
 
 # normalize LD_PRELOAD:
 # - normalize separators
-# - strip k2env.so (if any)
+# - strip k2env.so in middle/end of string (if any)
+# - prepend k2env.so to beginning of string
 reparse_ld_preload() {
-	tr -s ' :' '\0' \
-	| grep -zEv '^(.+/|)k2env\.so$' \
-	| paste -zsd':' \
-	| tr -d '\0'
+	sed -zE 's/[ :]+/:/g;s/:k2env\.so(:|$)/:/g;s/^:*/k2env.so:/;s/:$//'
 }
 
 enforce_k2env_so() {
@@ -42,7 +40,7 @@ enforce_k2env_so() {
 	unset LD_PRELOAD
 	set +e
 	LD_PRELOAD=$(printf '%s' "${_ld_preload}" | reparse_ld_preload)
-	export LD_PRELOAD="k2env.so${LD_PRELOAD:+:$LD_PRELOAD}"
+	export LD_PRELOAD
 	unset _ld_preload
 }
 
@@ -51,10 +49,8 @@ case "${LD_PRELOAD}" in
 k2env.so | k2env.so[\ :]* ) ;;
 * )
 	enforce_k2env_so
-
-	# early set NPROC
-	NPROC=$(nproc)
-	export NPROC
+	# re-execute self
+	exec "$0" "$@"
 ;;
 esac
 
@@ -187,7 +183,7 @@ while read -r f ; do
 	;;
 	esac
 done <<EOF
-$(if [ -d /ep.ovl ] ; then overlay-dir-list /ep.d /ep.ovl ; else ufind -q /ep.d | sort -V ; fi)
+$(if [ -d /ep.ovl ] ; then overlay-dir-list /ep.d /ep.ovl ; else find /ep.d -follow -type f | sort -V ; fi)
 EOF
 
 unset __EP_SRC EP_VERBOSE
