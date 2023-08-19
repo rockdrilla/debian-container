@@ -190,9 +190,9 @@ execute_before_dh_install:
 
 include debian/rules.install-extras
 
-pkg_src = debian/k2-golang-$(GOLANG_BASE_VERSION)-src$(GOROOT_FINAL)
-pkg_misc = debian/k2-golang-$(GOLANG_BASE_VERSION)-misc$(GOROOT_FINAL)
-pkg_base = debian/k2-golang-$(GOLANG_BASE_VERSION)$(GOROOT_FINAL)
+pkg_src = debian/k2-golang-$(GOLANG_BASE_VERSION)-src/$(GOLANG_PREFIX)
+pkg_misc = debian/k2-golang-$(GOLANG_BASE_VERSION)-misc/$(GOLANG_PREFIX)
+pkg_base = debian/k2-golang-$(GOLANG_BASE_VERSION)/$(GOLANG_PREFIX)
 
 override_dh_install:
 	dh_install -pk2-thin-ci-golang-$(GOLANG_BASE_VERSION)
@@ -203,10 +203,16 @@ override_dh_install:
 	$(call dh_dedup_ex, $(pkg_src) , . )
 
 	mkdir -p $(pkg_misc)
-	mv -t $(pkg_misc) $$(ls -1d lib pkg/*_race )
+	s=$$(ls -1d lib pkg/*_race ) || true ; \
+	[ -n "$$s" ] || exit 0 ; \
+	tar -cf - $$s | tar -C $(pkg_misc) -xf - ; \
+	rm -rf $$s
 
 	mkdir -p $(pkg_base)
-	mv -t $(pkg_base) $$(ls -1d VERSION bin pkg/include pkg/tool src go.env pkg/*_* )
+	s=$$(ls -1d VERSION bin pkg/include pkg/tool src go.env pkg/*_* ) || true ; \
+	[ -n "$$s" ] || exit 0 ; \
+	tar -cf - $$s | tar -C $(pkg_base) -xf - ; \
+	rm -rf $$s
 
 override_dh_strip_nondeterminism:
 	dh_strip_nondeterminism $(addprefix --exclude=,.png testdata)
