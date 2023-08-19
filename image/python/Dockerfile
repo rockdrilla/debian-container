@@ -131,6 +131,8 @@ COPY --from=packages [ "*.deb", "/deb/" ]
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as python-layout
 SHELL [ "/bin/sh", "-ec" ]
 
+ENV SITE_PACKAGES=/opt/python-${PYTHON_BASE_VERSION}/lib/python${PYTHON_BASE_VERSION}/site-packages
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 CMD [ "python" ]
