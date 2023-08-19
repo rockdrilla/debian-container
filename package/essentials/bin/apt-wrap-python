@@ -241,7 +241,7 @@ else
 		exit 1
 	fi
 
-	o_version=$(printf '%s' "${pypkg}" | grep -oE '[0-9.]+')
+	o_version=$(printf '%s' "${pypkg}" | grep -oE '[0-9.]+$')
 fi
 
 if [ -z "${o_version}" ] ; then
