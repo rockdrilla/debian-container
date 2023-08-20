@@ -1,4 +1,3 @@
-# modern Ansible versions
 match=ansible_collections/amazon/
 match=ansible_collections/arista/
 match=ansible_collections/azure/

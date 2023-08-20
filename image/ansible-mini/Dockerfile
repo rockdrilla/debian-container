@@ -3,12 +3,51 @@ ARG DISTRO=debian
 ARG SUITE=stable
 
 ARG PYTHON_VERSION=3.11
-ARG BASE_IMAGE=python:${PYTHON_VERSION}-${SUITE}
+ARG BASE_IMAGE=python-min:${PYTHON_VERSION}-${SUITE}
+ARG STAGE_IMAGE=python-dev:${PYTHON_VERSION}-${SUITE}
+
+# ---
+
+FROM ${IMAGE_PATH}/${STAGE_IMAGE} as stage
+SHELL [ "/bin/sh", "-ec" ]
+
+COPY /ansible-filter.xglob.txt /etc/k2/cleanup/python-site-packages
+
+RUN apt-wrap-python \
+      pip install \
+        --no-binary 'cffi' \
+        "ansible~=${ANSIBLE_VERSION}.0" \
+        ansible-lint \
+        netaddr \
+    ; \
+    ## list packages
+    echo ; \
+    pip list --format freeze ; \
+    echo ; \
+    ## Python site-packages cleanup
+    python-site-cleanup ; \
+    ## adjust certifi
+    find ${SITE_PACKAGES}/ -name cacert.pem -type f \
+    | while read -r f ; do \
+        [ -n "$f" ] || continue ; \
+        rm -f "$f" ; \
+        ln -s /etc/ssl/certs/ca-certificates.crt "$f" ; \
+    done ; \
+    ## strip debug info
+    quiet apt-install binutils ; \
+    ufind -z /usr/local ${SITE_PACKAGES} | xvp is-elf -z - | sort -zV > /tmp/elves ; \
+    xvp ls -lS /tmp/elves ; \
+    xvp strip --strip-debug /tmp/elves ; echo ; \
+    xvp ls -lS /tmp/elves ; \
+    cleanup
 
 # ---
 
 FROM ${IMAGE_PATH}/${BASE_IMAGE}
 SHELL [ "/bin/sh", "-ec" ]
+
+COPY --from=stage  ${SITE_PACKAGES}/  ${SITE_PACKAGES}/
+COPY --from=stage  /usr/local/        /usr/local/
 
 RUN apt-install \
       ca-certificates \
@@ -21,19 +60,6 @@ RUN apt-install \
       sshpass \
     ; \
     cleanup
-
-COPY /ansible-filter.xglob.txt /etc/k2/cleanup/python-site-packages
-
-RUN pip install \
-      "ansible~=${ANSIBLE_VERSION}.0" \
-      ansible-lint \
-      netaddr \
-    ; \
-    python-site-cleanup ; \
-    cleanup ; \
-    # smoke/qa
-    set -xv ; \
-    ansible --version
 
 ENV PAGER=cat
 
@@ -52,3 +78,7 @@ WORKDIR /work
 VOLUME /work
 
 CMD [ "bash" ]
+
+# smoke/qa
+RUN set -xv ; \
+    ansible --version
