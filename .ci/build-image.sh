@@ -371,6 +371,15 @@ run_script() {
 	fi
 }
 
+handle_auto_images() {
+	[ "${BUILD_IMAGE_NAME_AUTO}" = 1 ] || return 0
+	log "REMOVING auto-images (if any)"
+	podman images --format='{{.Id}}' \
+	  --filter "reference=${BUILD_IMAGE_NAME}" \
+	  ${BUILD_IMAGE_BASE_NAME:+ --filter "reference=${BUILD_IMAGE_BASE_NAME}" } \
+	| sort -uV | xargs -r podman image rm
+}
+
 # common shell functions: end
 
 # run proxy script (if any)
@@ -695,6 +704,7 @@ fi
 
 if [ ${result} -ne 0 ] ; then
 	log "build FAILED, return code: ${result}"
+	handle_auto_images
 	exit ${result}
 fi
 
@@ -728,6 +738,8 @@ podman images \
   --format='table {{.Size}} {{.ID}} {{.Repository}}:{{.Tag}}' \
   --filter "reference=${BUILD_IMAGE_NAME}" \
   ${BUILD_IMAGE_BASE_NAME:+--filter "reference=${BUILD_IMAGE_BASE_NAME}"}
+
+handle_auto_images
 
 # build-image.sh itself end
 

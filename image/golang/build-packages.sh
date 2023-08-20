@@ -64,14 +64,10 @@ build_single() {
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 
-	build_image="${IMAGE_PATH}/golang-build:${GOLANG_VERSION}-${SUITE}"
-
 	set -e
 
 	BUILD_IMAGE_TARGET=build-pkg \
-	build-image.sh image/golang/ "${build_image}"
-
-	podman image rm -f "${build_image}"
+	build-image.sh image/golang/
 
 	set +e
 

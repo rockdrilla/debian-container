@@ -25,7 +25,6 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	export DISTRO SUITE
 
 	stage0_image="${IMAGE_PATH}/${DISTRO}-stage0:${SUITE}"
-	stage1_image="${IMAGE_PATH}/${DISTRO}-stage1:${SUITE}"
 
 	image/minbase/image.stage0.sh ${DISTRO} ${SUITE} "${stage0_image}"
 
@@ -64,12 +63,11 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 			"
 		fi
 
-		build-image.sh image/minbase/Dockerfile.stage1 "${stage1_image}"
+		build-image.sh image/minbase/Dockerfile.stage1
 	) || exit 1
 
 	# remove intermediate images
 	podman image rm -f "${stage0_image}"
-	podman image rm -f "${stage1_image}"
 
 	sleep 1
 
