@@ -156,41 +156,27 @@ build_image() {
 	esac
 	append "--net=${BUILD_IMAGE_NETWORK}"
 
-	# record source script file
-	[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
-	append_label "git.file=$(git_ro rev-parse --show-prefix 2>/dev/null || :)${BUILD_IMAGE_SCRIPT}"
-
 	# (always) passthrough GitLab CI/CD env
-	# and add custom labels to image
 	if [ -n "${CI:+1}" ] ; then
 		append_arg CI
 	fi
-	if [ -n "${CI_PROJECT_URL:+1}" ] ; then
-		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
-		append_label "git.project=${CI_PROJECT_URL}"
-	fi
-	if [ -n "${CI_COMMIT_SHA:+1}" ] ; then
-		append_arg CI_COMMIT_SHA
-		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
-		append_label "git.commit=${CI_COMMIT_SHA}"
-	fi
-	if [ -n "${CI_COMMIT_REF_NAME:+1}" ] ; then
-		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
-		append_label "git.ref=${CI_COMMIT_REF_NAME}"
-	fi
-	if [ -n "${CI_COMMIT_TAG:+1}" ] ; then
-		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
-		append_label "git.tag=${CI_COMMIT_TAG}"
-	fi
-	if [ -n "${CI_COMMIT_REF_SLUG:+1}" ] ; then
-		append_arg CI_COMMIT_REF_SLUG
-		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
-		append_label "git.refslug=${CI_COMMIT_REF_SLUG}"
-	fi
-	if [ -n "${CI_PIPELINE_IID:+1}" ] ; then
-		append_arg CI_PIPELINE_IID
-		[ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 0 ] || \
-		append_label "ci.pipeline=${CI_PIPELINE_IID}"
+
+	if [ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 1 ] ; then
+		append_label "git.file=$(git_ro rev-parse --show-prefix 2>/dev/null || :)${BUILD_IMAGE_SCRIPT}"
+
+		case "${BUILD_IMAGE_CI_KIND:-gitlab}" in
+		gitlab )
+			[ -z "${CI_PROJECT_URL}" ]     || append_label "git.project=${CI_PROJECT_URL}"
+			[ -z "${CI_COMMIT_SHA}" ]      || append_label "git.commit=${CI_COMMIT_SHA}"
+			[ -z "${CI_COMMIT_REF_NAME}" ] || append_label "git.ref=${CI_COMMIT_REF_NAME}"
+			[ -z "${CI_COMMIT_TAG}" ]      || append_label "git.tag=${CI_COMMIT_TAG}"
+			[ -z "${CI_COMMIT_REF_SLUG}" ] || append_label "git.refslug=${CI_COMMIT_REF_SLUG}"
+			[ -z "${CI_PIPELINE_IID}" ]    || append_label "ci.pipeline=${CI_PIPELINE_IID}"
+		;;
+		* )
+			log "unhandled BUILD_IMAGE_CI_KIND='${BUILD_IMAGE_CI_KIND}' - no auto-labels"
+		;;
+		esac
 	fi
 
 	for _i in ${BUILD_IMAGE_ARGS} ; do
