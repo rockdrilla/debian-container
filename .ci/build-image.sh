@@ -569,45 +569,82 @@ fi
 
 # detect changes in "base image" (if any)
 while [ "${BUILD_IMAGE_BASE}" = 1 ] ; do
-	[ -n "${CI_COMMIT_SHA}" ] || break
-
 	case "${BUILD_IMAGE_BASE_REBUILD}" in
 	skip | force) break ;;
 	0) BUILD_IMAGE_BASE_REBUILD=skip  ; break ;;
 	1) BUILD_IMAGE_BASE_REBUILD=force ; break ;;
 	esac
 
-	# detect changes via GitLab CI
-	unset BUILD_IMAGE_BASE_REBUILD
+	export BUILD_IMAGE_BASE_REBUILD=skip
 
-	[ -n "${CI_COMMIT_SHA}" ] || break
+	have_cmd git || {
+		log "missing binary 'git' - unable to detect changes in base image"
+		break
+	}
+	have_cmd git-changes.sh || {
+		log "missing script 'git-changes.sh' - unable to detect changes in base image"
+		break
+	}
 
-	if printf '%s' "${CI_COMMIT_BEFORE_SHA}" | grep -Eqz '^0*$' ; then
-		: "${BUILD_IMAGE_GIT_REMOTE:=origin}"
-		: "${BUILD_IMAGE_GIT_BRANCH:=${CI_DEFAULT_BRANCH}}"
-		export BUILD_IMAGE_GIT_REMOTE BUILD_IMAGE_GIT_BRANCH
+	case "${BUILD_IMAGE_CI_KIND:-gitlab}" in
+	gitlab )
+		[ -n "${CI_COMMIT_SHA}" ] || {
+			log "CI_COMMIT_SHA is empty - unable to detect changes in base image"
+			break
+		}
 
-		[ -n "${BUILD_IMAGE_GIT_BRANCH}" ] || break
+		if printf '%s' "${CI_COMMIT_BEFORE_SHA}" | grep -Eqz '^0*$' ; then
+			: "${BUILD_IMAGE_GIT_REMOTE:=origin}"
+			: "${BUILD_IMAGE_GIT_BRANCH:=${CI_DEFAULT_BRANCH}}"
 
-		export CI_COMMIT_BEFORE_SHA="${BUILD_IMAGE_GIT_REMOTE}/${BUILD_IMAGE_GIT_BRANCH}"
-	fi
+			[ -n "${BUILD_IMAGE_GIT_REMOTE}" ] || {
+				log "BUILD_IMAGE_GIT_REMOTE is empty - unable to detect changes in base image"
+				break
+			}
+
+			[ -n "${BUILD_IMAGE_GIT_BRANCH}" ] || {
+				log "BUILD_IMAGE_GIT_BRANCH and/or CI_DEFAULT_BRANCH is empty - unable to detect changes in base image"
+				break
+			}
+
+			CI_COMMIT_BEFORE_SHA="${BUILD_IMAGE_GIT_REMOTE}/${BUILD_IMAGE_GIT_BRANCH}"
+		fi
+
+		BUILD_IMAGE_GIT_REF_BASE=${CI_COMMIT_BEFORE_SHA}
+		BUILD_IMAGE_GIT_REF_CURRENT=${CI_COMMIT_SHA}
+	;;
+	* )
+		log "unhandled BUILD_IMAGE_CI_KIND='${BUILD_IMAGE_CI_KIND}' - unable to detect changes in base image"
+		break
+	;;
+	esac
+
+	[ -n "${BUILD_IMAGE_GIT_REF_BASE}" ] || {
+		log "BUILD_IMAGE_GIT_REF_BASE is empty - unable to detect changes in base image"
+		break
+	}
+	[ -n "${BUILD_IMAGE_GIT_REF_CURRENT}" ] || {
+		log "BUILD_IMAGE_GIT_REF_CURRENT is empty - unable to detect changes in base image"
+		break
+	}
+	export BUILD_IMAGE_GIT_REF_BASE BUILD_IMAGE_GIT_REF_CURRENT
 
 	_change_list=$(mktemp)
 	: "${_change_list:?}"
 
 	# pass '' as last parameter to treat "${BUILD_IMAGE_BASE_SCRIPT}" as "pattern" not "pattern file"
-	git-changes.sh "${CI_COMMIT_BEFORE_SHA}" "${CI_COMMIT_SHA}" \
+	git-changes.sh "${BUILD_IMAGE_GIT_REF_BASE}" "${BUILD_IMAGE_GIT_REF_CURRENT}" \
 	"${BUILD_IMAGE_BASE_SCRIPT}" '' \
 	>> "${_change_list}"
 
 	if [ -n "${BUILD_IMAGE_BASE_DEPS}" ] ; then
 		# pass '' as last parameter to treat "${BUILD_IMAGE_BASE_DEPS}" as "pattern" not "pattern file"
-		git-changes.sh "${CI_COMMIT_BEFORE_SHA}" "${CI_COMMIT_SHA}" \
+		git-changes.sh "${BUILD_IMAGE_GIT_REF_BASE}" "${BUILD_IMAGE_GIT_REF_CURRENT}" \
 		"${BUILD_IMAGE_BASE_DEPS}" '' \
 		>> "${_change_list}"
 
 		if [ -s "${BUILD_IMAGE_BASE_DEPS}" ] ; then
-			git-changes.sh "${CI_COMMIT_BEFORE_SHA}" "${CI_COMMIT_SHA}" \
+			git-changes.sh "${BUILD_IMAGE_GIT_REF_BASE}" "${BUILD_IMAGE_GIT_REF_CURRENT}" \
 			"${BUILD_IMAGE_BASE_DEPS}" \
 			>> "${_change_list}"
 		fi
