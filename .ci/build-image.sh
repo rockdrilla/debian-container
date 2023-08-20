@@ -361,14 +361,15 @@ adjust_script_name() {
 run_script() {
 	[ -n "$1" ] || return 0
 	[ -s "$1" ] || return 0
+	_r=0
 	if [ -x "$1" ] ; then
-		"$@" \
-		|| log "run_script: '$*' returned $?"
+		"$@" || _r=$?
 	else
 		__BUILD_IMAGE_X=1 \
-		"$0" "$@" \
-		|| log "run_script: '$*' returned $?"
+		"$0" "$@" || _r=$?
 	fi
+	[ "${_r}" = 0 ] || log "run_script: '$*' returned ${_r}"
+	return ${_r}
 }
 
 handle_auto_images() {
@@ -407,7 +408,7 @@ esac
 
 if [ -z "${__BUILD_IMAGE_X}" ] ; then
 
-set -ef
+set -f
 
 usage() {
 	cat >&2 <<-EOF
@@ -558,9 +559,12 @@ fi
 
 # cleanup variables if "base image" is missing or somewhat "broken"
 if [ "${BUILD_IMAGE_BASE}" != 1 ] ; then
-	unset BUILD_IMAGE_BASE BUILD_IMAGE_BASE_SCRIPT \
-	BUILD_IMAGE_BASE_SCRIPT_CUSTOM BUILD_IMAGE_BASE_DEPS \
-	BUILD_IMAGE_BASE_NAME BUILD_IMAGE_BASE_REBUILD
+	unset BUILD_IMAGE_BASE \
+	BUILD_IMAGE_BASE_SCRIPT \
+	BUILD_IMAGE_BASE_SCRIPT_CUSTOM \
+	BUILD_IMAGE_BASE_DEPS \
+	BUILD_IMAGE_BASE_REBUILD \
+	BUILD_IMAGE_BASE_NAME
 fi
 
 # detect changes in "base image" (if any)
@@ -646,7 +650,10 @@ unset BUILD_IMAGE_LABEL_PREFIX
 if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
 	export BUILD_IMAGE_LABEL_PREFIX='base.'
 
-	run_script "${BUILD_IMAGE_SCRIPT_PRE}" pre base
+	run_script "${BUILD_IMAGE_SCRIPT_POST}" pre base || {
+		build_image_cleanup
+		exit 1
+	}
 
 	[ -z "${BUILD_IMAGE_BASE_TARGET}" ] || append --target "${BUILD_IMAGE_BASE_TARGET}"
 
@@ -675,10 +682,18 @@ if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
 	# since file is removed after build in build_image()/build_image_ex()
 	append --from "${BUILD_IMAGE_BASE_NAME}"
 
-	run_script "${BUILD_IMAGE_SCRIPT_POST}" post base
+	run_script "${BUILD_IMAGE_SCRIPT_POST}" post base || {
+		build_image_cleanup
+		handle_auto_images
+		exit 1
+	}
 fi
 
-run_script "${BUILD_IMAGE_SCRIPT_PRE}" pre main
+run_script "${BUILD_IMAGE_SCRIPT_PRE}" pre main || {
+	build_image_cleanup
+	handle_auto_images
+	exit 1
+}
 
 [ -z "${BUILD_IMAGE_TARGET}" ] || append --target "${BUILD_IMAGE_TARGET}"
 
@@ -708,7 +723,10 @@ if [ ${result} -ne 0 ] ; then
 	exit ${result}
 fi
 
-run_script "${BUILD_IMAGE_SCRIPT_POST}" post main
+run_script "${BUILD_IMAGE_SCRIPT_POST}" post main || {
+	handle_auto_images
+	exit 1
+}
 
 # implicit iteration over "$@""
 for _arg ; do
