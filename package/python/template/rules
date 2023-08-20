@@ -124,8 +124,7 @@ config_site = \
 export SSL_CERT_FILE = /etc/ssl/certs/ca-certificates.crt
 export REQUESTS_CA_BUNDLE = /etc/ssl/certs/ca-certificates.crt
 
-PIP_CONF = $(word 1,$(wildcard debian/pip.conf.build) debian/pip.conf)
-export PIP_CONFIG_FILE = $(CURDIR)/$(PIP_CONF)
+export PIP_CONFIG_FILE = $(word 1,$(wildcard /etc/pip.conf) $(CURDIR)/debian/pip.conf)
 
 # $1 = PYTHONHOME
 # $2 = path to binary

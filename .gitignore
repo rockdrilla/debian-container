@@ -4,6 +4,9 @@
 # ignore build-time artifacts and cache
 .ci/apt.list.*
 .ci/apt.sources.*
+.ci/pip.conf
+.ci/npmrc
+.ci/yarnrc
 artifacts/
 
 # ignore preseed

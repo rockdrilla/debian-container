@@ -50,6 +50,15 @@ ci_apt_volumes() {
 	if [ -s "${rootdir}/.ci/apt.sources.${SUITE}" ] ; then
 		echo "${rootdir}/.ci/apt.sources.${SUITE}:/etc/apt/sources.list.d/${DISTRO}:ro"
 	fi
+	if [ -s "${rootdir}/.ci/pip.conf" ] ; then
+		echo "${rootdir}/.ci/pip.conf:/etc/pip.conf:ro"
+	fi
+	if [ -s "${rootdir}/.ci/npmrc" ] ; then
+		echo "${rootdir}/.ci/npmrc:/etc/npmrc:ro"
+	fi
+	if [ -s "${rootdir}/.ci/yarnrc" ] ; then
+		echo "${rootdir}/.ci/yarnrc:/etc/yarnrc:ro"
+	fi
 }
 
 default_D_S_T='
