@@ -161,7 +161,9 @@ build_image() {
 		append_arg CI
 	fi
 
-	if [ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 1 ] ; then
+	while [ "${BUILD_IMAGE_AUTO_LABELS:-1}" = 1 ] ; do
+		[ "${BUILD_IMAGE_NAME_AUTO}" = 0 ] || break
+
 		append_label "git.file=$(git_ro rev-parse --show-prefix 2>/dev/null || :)${BUILD_IMAGE_SCRIPT}"
 
 		case "${BUILD_IMAGE_CI_KIND:-gitlab}" in
@@ -177,7 +179,8 @@ build_image() {
 			log "unhandled BUILD_IMAGE_CI_KIND='${BUILD_IMAGE_CI_KIND}' - no auto-labels"
 		;;
 		esac
-	fi
+		break
+	done
 
 	for _i in ${BUILD_IMAGE_ARGS} ; do
 		[ -n "${_i}" ] || continue
