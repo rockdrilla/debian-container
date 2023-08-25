@@ -48,7 +48,7 @@ ci_apt_volumes() {
 		echo "${rootdir}/.ci/apt.list.${SUITE}:/etc/apt/sources.list:ro"
 	fi
 	if [ -s "${rootdir}/.ci/apt.sources.${SUITE}" ] ; then
-		echo "${rootdir}/.ci/apt.sources.${SUITE}:/etc/apt/sources.list.d/${DISTRO}:ro"
+		echo "${rootdir}/.ci/apt.sources.${SUITE}:/etc/apt/sources.list.d/${DISTRO}.sources:ro"
 	fi
 	if [ -s "${rootdir}/.ci/pip.conf" ] ; then
 		echo "${rootdir}/.ci/pip.conf:/etc/pip.conf:ro"
