@@ -88,8 +88,6 @@ find /usr/local/bin/ -type f -exec chmod 0755 {} +
 renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/k2
 renmov /etc/dpkg/dpkg.cfg.d/99mmdebstrap /etc/dpkg/dpkg.cfg.d/k2
 
-apt-install openssl
-
 preseed='/usr/local/preseed'
 if [ -d "${preseed}" ] ; then
 	# CA certificates
@@ -149,8 +147,6 @@ mkdir -p /etc/k2/dpkg-filter/
 update-ca-certificates --fresh
 
 # adjust missing CAs with certifi
-apt-install curl
-
 certifi_uri="${MMDEBSTRAP_MIRROR_CERTIFI:-https://github.com/certifi/python-certifi/raw/master}/certifi/cacert.pem"
 {
 	w=$(mktemp -d) ; : "${w:?}"

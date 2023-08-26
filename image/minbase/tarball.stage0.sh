@@ -70,7 +70,7 @@ set +e
 mmdebstrap \
   --format=tar \
   --variant=apt \
-  --include='ca-certificates-java,default-jre-headless' \
+  --include='ca-certificates-java,curl,default-jre-headless,openssl' \
   --aptopt="${dir0}/setup/apt.conf" \
   --dpkgopt="${dir0}/setup/dpkg.cfg" \
   ${have_preseed:+ --customize-hook='chroot "$1" mkdir -p /usr/local/preseed' } \
