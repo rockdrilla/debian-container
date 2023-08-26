@@ -52,6 +52,7 @@ build_single() {
 
 	export BUILD_IMAGE_VOLUMES="
 		$(ci_apt_volumes)
+		$(ci_python_volumes)
 		$(build_artifacts_volumes "${stem}" "${DEB_SRC_BUILD_DIR}" "${_SRC_DIR}" "${_PKG_DIR}")
 	"
 

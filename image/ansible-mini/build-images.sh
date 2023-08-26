@@ -23,6 +23,7 @@ build_single() {
 
 	export BUILD_IMAGE_VOLUMES="
 		$(ci_apt_volumes)
+		$(ci_python_volumes)
 	"
 
 	image="${IMAGE_PATH}/ansible-mini:${ANSIBLE_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"

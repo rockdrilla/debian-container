@@ -50,9 +50,17 @@ ci_apt_volumes() {
 	if [ -s "${rootdir}/.ci/apt.sources.${SUITE}" ] ; then
 		echo "${rootdir}/.ci/apt.sources.${SUITE}:/etc/apt/sources.list.d/${DISTRO}.sources:ro"
 	fi
+}
+
+ci_python_volumes() {
+	: "${rootdir:?}" "${DISTRO:?}" "${SUITE:?}"
 	if [ -s "${rootdir}/.ci/pip.conf" ] ; then
 		echo "${rootdir}/.ci/pip.conf:/etc/pip.conf:ro"
 	fi
+}
+
+ci_nodejs_volumes() {
+	: "${rootdir:?}" "${DISTRO:?}" "${SUITE:?}"
 	if [ -s "${rootdir}/.ci/npmrc" ] ; then
 		echo "${rootdir}/.ci/npmrc:/etc/npmrc:ro"
 	fi
