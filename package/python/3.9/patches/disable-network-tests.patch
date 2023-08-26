@@ -148,7 +148,7 @@
          unittest.TestCase.__init__(self, methodName = methodName)
 --- a/Lib/test/test_ssl.py
 +++ b/Lib/test/test_ssl.py
-@@ -2308,7 +2308,7 @@ class SimpleBackgroundTests(unittest.Tes
+@@ -2311,7 +2311,7 @@ class SimpleBackgroundTests(unittest.Tes
          self.ssl_io_loop(sock, incoming, outgoing, sslobj.unwrap)
  
  

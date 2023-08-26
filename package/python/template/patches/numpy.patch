@@ -1,13 +1,13 @@
---- a/pip-numpy/benchmarks/benchmarks/bench_creation.py
-+++ b/pip-numpy/benchmarks/benchmarks/bench_creation.py
+--- a/py-numpy/benchmarks/benchmarks/bench_creation.py
++++ b/py-numpy/benchmarks/benchmarks/bench_creation.py
 @@ -1,4 +1,4 @@
 -from .common import Benchmark, TYPES1
 +from .common import Benchmark, TYPES1, get_squares_
  
  import numpy as np
  
---- a/pip-numpy/benchmarks/benchmarks/bench_linalg.py
-+++ b/pip-numpy/benchmarks/benchmarks/bench_linalg.py
+--- a/py-numpy/benchmarks/benchmarks/bench_linalg.py
++++ b/py-numpy/benchmarks/benchmarks/bench_linalg.py
 @@ -102,7 +102,7 @@ class LinalgSmallArrays(Benchmark):
      """ Test overhead of linalg methods for small arrays """
      def setup(self):
@@ -17,8 +17,8 @@
  
      def time_norm_small_array(self):
          np.linalg.norm(self.array_5)
---- a/pip-numpy/benchmarks/benchmarks/bench_ufunc.py
-+++ b/pip-numpy/benchmarks/benchmarks/bench_ufunc.py
+--- a/py-numpy/benchmarks/benchmarks/bench_ufunc.py
++++ b/py-numpy/benchmarks/benchmarks/bench_ufunc.py
 @@ -138,7 +138,7 @@ def time_ndarray_meth(self, methname, npdtypes):
  class Methods0D(Benchmark):
      """Zero dimension array methods

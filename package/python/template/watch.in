@@ -4,7 +4,7 @@ opts=\
 dversionmangle=s/.*\+// \
   https://www.python.org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
 
-opts=component=pip-pyperformance,\
+opts=component=py-pyperformance,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
 downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
@@ -12,7 +12,7 @@ downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
-opts=component=pip-numpy,\
+opts=component=py-numpy,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
 downloadurlmangle=s/(.+)\.zip$/$1.tar.gz/ \
@@ -20,7 +20,7 @@ downloadurlmangle=s/(.+)\.zip$/$1.tar.gz/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
-opts=component=pip-pandas,\
+opts=component=py-pandas,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
 downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
@@ -28,7 +28,7 @@ downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
-opts=component=pip-dask-benchmarks,\
+opts=component=py-dask-bench,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
 downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
@@ -36,7 +36,7 @@ downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
   .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
-opts=component=pip-django-asv,\
+opts=component=py-django-asv,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
 downloadurlmangle=s/^(.+)\.zip$/$1.tar.gz/ \
@@ -50,7 +50,7 @@ ignore
 # dversionmangle=s/.*\+// \
 #   http://127.0.0.1:8081/repository/proxy_raw_python_org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
 
-# opts=component=pip-pyperformance,\
+# opts=component=py-pyperformance,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_pyperformance\/archive\/$1.tar.gz/ \
@@ -58,7 +58,7 @@ ignore
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
 
-# opts=component=pip-numpy,\
+# opts=component=py-numpy,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_numpy\/archive\/$1.tar.gz/ \
@@ -66,7 +66,7 @@ ignore
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
 
-# opts=component=pip-pandas,\
+# opts=component=py-pandas,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_pandas\/archive\/$1.tar.gz/ \
@@ -74,7 +74,7 @@ ignore
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
 
-# opts=component=pip-dask-benchmarks,\
+# opts=component=py-dask-bench,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_dask_benchmarks\/archive\/$1.tar.gz/ \
@@ -82,7 +82,7 @@ ignore
 #   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
 
-# opts=component=pip-django-asv,\
+# opts=component=py-django-asv,\
 # repack,pgpmode=none,\
 # filenamemangle=s/\.zip$/.tar.gz/,\
 # downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_django_asv\/archive\/$1.tar.gz/ \

@@ -1,5 +1,5 @@
---- a/pip-dask-benchmarks/dask/benchmarks/tokenize.py
-+++ b/pip-dask-benchmarks/dask/benchmarks/tokenize.py
+--- a/py-dask-bench/dask/benchmarks/tokenize.py
++++ b/py-dask-bench/dask/benchmarks/tokenize.py
 @@ -39,8 +39,10 @@ class TokenizePandas(DaskSuite):
          N = 10000
          if dtype == "period":

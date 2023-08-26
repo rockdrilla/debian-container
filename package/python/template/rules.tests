@@ -32,7 +32,9 @@ TEST_EXCLUDES += test_devpoll test_ioctl test_kqueue test_launcher test_msilib t
 TEST_EXCLUDES += test_idle test_tcl test_tix test_tk test_ttk_guionly test_turtle
 
 # require network
-TEST_EXCLUDES += test_smtpnet test_urllibnet test_urllib2net
+ifeq ($(with_network_tests),no)
+  TEST_EXCLUDES += test_smtpnet test_urllibnet test_urllib2net
+endif
 
 # require enough disk space and a lot of time
 TEST_EXCLUDES += test_zipfile64

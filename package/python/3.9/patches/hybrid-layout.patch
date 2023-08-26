@@ -4,14 +4,14 @@
          'scripts': '$base/bin',
          'data'   : '$base',
          },
-+    'unix_system': {
++    'posix_system': {
 +        'purelib': '$base/lib/python$py_version_short/site-packages',
 +        'platlib': '$platbase/$platlibdir/python$py_version_short/site-packages',
 +        'headers': '$base/include/python$py_version_short$abiflags/$dist_name',
 +        'scripts': '/usr/local/bin',
 +        'data'   : '$base',
 +        },
-+    'unix_dist': {
++    'posix_dist': {
 +        'purelib': '$platbase/$platlibdir/python$py_version_short/dist-packages',
 +        'platlib': '$base/lib/python$py_version_short/dist-packages',
 +        'headers': '$base/include/python$py_version_short$abiflags/$dist_name',
@@ -30,11 +30,11 @@
 +                # virtual environment
 +                self.select_scheme('unix_prefix')
 +            elif os.getenv('K2_PYTHON_DISTINSTALL', '') == '1':
-+                self.select_scheme('unix_dist')
++                self.select_scheme('posix_dist')
 +            elif os.getenv('K2_PYTHON_HIDEBIN', '') == '1':
 +                self.select_scheme('unix_prefix')
 +            else:
-+                self.select_scheme('unix_system')
++                self.select_scheme('posix_system')
  
      def finalize_other(self):
          """Finalizes options for non-posix platforms"""

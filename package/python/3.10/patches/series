@@ -1,4 +1,4 @@
-# git-branch.patch
+git-branch.patch
 
 # these patches are borrowed from Debian
 # I'd like to say many thanks to the maintainers for their work :)
@@ -37,4 +37,4 @@ quirks/ensurepip.patch
 # shared patches
 pyperformance.patch
 numpy.patch
-dask-benchmarks.patch
+dask-bench.patch

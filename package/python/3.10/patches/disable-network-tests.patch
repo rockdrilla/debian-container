@@ -148,7 +148,7 @@
          unittest.TestCase.__init__(self, methodName = methodName)
 --- a/Lib/test/test_ssl.py
 +++ b/Lib/test/test_ssl.py
-@@ -2375,7 +2375,7 @@ class SimpleBackgroundTests(unittest.Tes
+@@ -2378,7 +2378,7 @@ class SimpleBackgroundTests(unittest.Tes
              self.assertRaises(ssl.SSLEOFError, sslobj.read)
  
  

@@ -74,7 +74,7 @@ do_pip_install() {
 
 ## pyperformance
 
-do_pip_install "${DEB_SRC_TOPDIR}/pip-pyperformance"
+do_pip_install "${DEB_SRC_TOPDIR}/py-pyperformance"
 
 do_pyperformance() {
 	flush_pycache
@@ -88,7 +88,8 @@ end_if_level 2
 
 ## asv-based 3rd party tests/benchmarks
 
-do_pip_install 'asv' 'packaging'
+do_pip_install 'asv~=0.5.0' \
+  'packaging~=23.1' \
 
 do_asv() { "${python_wrap}" -m asv "$@" ; }
 # TODO: fix all asv-based tests and stop ignoring errors :)
@@ -112,14 +113,14 @@ do_pip_install 'django~=4.2.4' \
 
 
 for i in 1 2 ; do
-do_asv_at "${DEB_SRC_TOPDIR}/pip-django-asv"
+do_asv_at "${DEB_SRC_TOPDIR}/py-django-asv"
 done
 end_if_level 3
 
 ## asv: dask/distributed
 
 do_pip_install "dask==${DASK_VERSION}" \
-  'cython' \
+  'cython~=0.29.36' \
   'numpy~=1.24.0' \
   'pandas~=2.0.3' \
   'pyarrow~=12.0.1' \
@@ -128,23 +129,23 @@ do_pip_install "dask==${DASK_VERSION}" \
 
 
 for i in 1 2 ; do
-do_asv_at "${DEB_SRC_TOPDIR}/pip-dask-benchmarks/dask"
+do_asv_at "${DEB_SRC_TOPDIR}/py-dask-bench/dask"
 done
 end_if_level 4
 
 ## asv: numpy
 
 do_pip_install "numpy==${NUMPY_VERSION}" \
-  'cython' \
+  'cython~=0.29.36' \
 
 
-do_asv_at "${DEB_SRC_TOPDIR}/pip-numpy/benchmarks"
+do_asv_at "${DEB_SRC_TOPDIR}/py-numpy/benchmarks"
 end_if_level 5
 
 ## asv: pandas
 
 do_pip_install "pandas==${PANDAS_VERSION}" \
-  'cython' \
+  'cython~=0.29.36' \
   'jinja2~=3.1.2' \
   'matplotlib~=3.7.2' \
   'numba~=0.57.1' \
@@ -158,7 +159,7 @@ do_pip_install "pandas==${PANDAS_VERSION}" \
   'xlsxwriter~=3.1.2' \
 
 
-do_asv_at "${DEB_SRC_TOPDIR}/pip-pandas/asv_bench"
+do_asv_at "${DEB_SRC_TOPDIR}/py-pandas/asv_bench"
 end_if_level 6
 
 end_script

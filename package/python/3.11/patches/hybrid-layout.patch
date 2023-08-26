@@ -4,14 +4,14 @@
  # of this information should switch to using sysconfig directly.
  INSTALL_SCHEMES = {"unix_prefix": {}, "unix_home": {}, "nt": {}}
  
-+INSTALL_SCHEMES["unix_system"] = {}
-+INSTALL_SCHEMES["unix_dist"] = {}
++INSTALL_SCHEMES["posix_system"] = {}
++INSTALL_SCHEMES["posix_dist"] = {}
 +
  # Copy from sysconfig._INSTALL_SCHEMES
  for key in SCHEME_KEYS:
      for distutils_scheme_name, sys_scheme_name in (
              ("unix_prefix", "posix_prefix"), ("unix_home", "posix_home"),
-+            ("unix_system", "posix_system"), ("unix_dist", "posix_dist"),
++            ("posix_system", "posix_system"), ("posix_dist", "posix_dist"),
              ("nt", "nt")):
          sys_key = key
          sys_scheme = sysconfig._INSTALL_SCHEMES[sys_scheme_name]
@@ -24,11 +24,11 @@
 +                # virtual environment
 +                self.select_scheme('unix_prefix')
 +            elif os.getenv('K2_PYTHON_DISTINSTALL', '') == '1':
-+                self.select_scheme('unix_dist')
++                self.select_scheme('posix_dist')
 +            elif os.getenv('K2_PYTHON_HIDEBIN', '') == '1':
 +                self.select_scheme('unix_prefix')
 +            else:
-+                self.select_scheme('unix_system')
++                self.select_scheme('posix_system')
  
      def finalize_other(self):
          """Finalizes options for non-posix platforms"""

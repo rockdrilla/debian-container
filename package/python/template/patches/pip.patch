@@ -1,0 +1,204 @@
+--- a/src/pip/_internal/cli/cmdoptions.py
++++ b/src/pip/_internal/cli/cmdoptions.py
+@@ -892,7 +892,7 @@ disable_pip_version_check: Callable[..., Option] = partial(
+     "--disable-pip-version-check",
+     dest="disable_pip_version_check",
+     action="store_true",
+-    default=False,
++    default=True,
+     help="Don't periodically check PyPI to determine whether a new version "
+     "of pip is available for download. Implied with --no-index.",
+ )
+@@ -901,7 +901,7 @@ root_user_action: Callable[..., Option] = partial(
+     Option,
+     "--root-user-action",
+     dest="root_user_action",
+-    default="warn",
++    default="ignore",
+     choices=["warn", "ignore"],
+     help="Action if pip is run as a root user. By default, a warning message is shown.",
+ )
+--- a/src/pip/_internal/operations/freeze.py
++++ b/src/pip/_internal/operations/freeze.py
+@@ -1,6 +1,7 @@
+ import collections
+ import logging
+ import os
++import sysconfig
+ from typing import Container, Dict, Generator, Iterable, List, NamedTuple, Optional, Set
+ 
+ from pip._vendor.packaging.utils import canonicalize_name
+@@ -39,7 +40,22 @@ def freeze(
+         skip=(),
+         user_only=user_only,
+     )
++
++    # filter out locations managed by system
++    dist_scheme = 'posix_dist'
++    skip_dirs: List[str] = []
++
++    if dist_scheme in sysconfig.get_scheme_names():
++        skip_dirs.append(sysconfig.get_paths(dist_scheme)['purelib'])
++
+     for dist in dists:
++        dist_location = '/nonexistent'
++        if '_installed_location' in dist.__dict__:
++            dist_location = str(dist._installed_location)
++        elif '_dist' in dist.__dict__:
++            dist_location = str(dist._dist.location)
++        if dist_location in skip_dirs:
++            continue
+         req = FrozenRequirement.from_dist(dist)
+         if exclude_editable and req.editable:
+             continue
+--- a/src/pip/_internal/utils/misc.py
++++ b/src/pip/_internal/utils/misc.py
+@@ -331,9 +331,27 @@ def is_local(path: str) -> bool:
+     Caution: this function assumes the head of path has been normalized
+     with normalize_path.
+     """
+-    if not running_under_virtualenv():
+-        return True
+-    return path.startswith(normalize_path(sys.prefix))
++    path = normalize_path(path)
++    if running_under_virtualenv():
++        return path.startswith(normalize_path(sys.prefix))
++
++    from pip._internal.locations import get_scheme
++    from pip._internal.models.scheme import SCHEME_KEYS
++
++    schemes = ('posix_dist', '')
++    known_schemes = sysconfig.get_scheme_names()
++
++    for scheme in schemes:
++        if scheme not in known_schemes:
++            continue
++
++        scheme_info = get_scheme(scheme)
++        for key in SCHEME_KEYS:
++            local_path = normalize_path(getattr(scheme_info, key))
++            if path.startswith(local_path):
++                return True
++
++        return False
+ 
+ 
+ def write_output(msg: Any, *args: Any) -> None:
+--- a/src/pip/_vendor/certifi/core.py
++++ b/src/pip/_vendor/certifi/core.py
+@@ -4,105 +4,16 @@ certifi.py
+ 
+ This module returns the installation location of cacert.pem or its contents.
+ """
+-import sys
++import os
++from pathlib import Path
+ 
++_SSL_CERT_FILE = None
+ 
+-if sys.version_info >= (3, 11):
++def where() -> str:
++    global _SSL_CERT_FILE
++    if _SSL_CERT_FILE is None:
++        _SSL_CERT_FILE = os.getenv('SSL_CERT_FILE', '/etc/ssl/certs/ca-certificates.crt')
++    return _SSL_CERT_FILE
+ 
+-    from importlib.resources import as_file, files
+-
+-    _CACERT_CTX = None
+-    _CACERT_PATH = None
+-
+-    def where() -> str:
+-        # This is slightly terrible, but we want to delay extracting the file
+-        # in cases where we're inside of a zipimport situation until someone
+-        # actually calls where(), but we don't want to re-extract the file
+-        # on every call of where(), so we'll do it once then store it in a
+-        # global variable.
+-        global _CACERT_CTX
+-        global _CACERT_PATH
+-        if _CACERT_PATH is None:
+-            # This is slightly janky, the importlib.resources API wants you to
+-            # manage the cleanup of this file, so it doesn't actually return a
+-            # path, it returns a context manager that will give you the path
+-            # when you enter it and will do any cleanup when you leave it. In
+-            # the common case of not needing a temporary file, it will just
+-            # return the file system location and the __exit__() is a no-op.
+-            #
+-            # We also have to hold onto the actual context manager, because
+-            # it will do the cleanup whenever it gets garbage collected, so
+-            # we will also store that at the global level as well.
+-            _CACERT_CTX = as_file(files("pip._vendor.certifi").joinpath("cacert.pem"))
+-            _CACERT_PATH = str(_CACERT_CTX.__enter__())
+-
+-        return _CACERT_PATH
+-
+-    def contents() -> str:
+-        return files("pip._vendor.certifi").joinpath("cacert.pem").read_text(encoding="ascii")
+-
+-elif sys.version_info >= (3, 7):
+-
+-    from importlib.resources import path as get_path, read_text
+-
+-    _CACERT_CTX = None
+-    _CACERT_PATH = None
+-
+-    def where() -> str:
+-        # This is slightly terrible, but we want to delay extracting the
+-        # file in cases where we're inside of a zipimport situation until
+-        # someone actually calls where(), but we don't want to re-extract
+-        # the file on every call of where(), so we'll do it once then store
+-        # it in a global variable.
+-        global _CACERT_CTX
+-        global _CACERT_PATH
+-        if _CACERT_PATH is None:
+-            # This is slightly janky, the importlib.resources API wants you
+-            # to manage the cleanup of this file, so it doesn't actually
+-            # return a path, it returns a context manager that will give
+-            # you the path when you enter it and will do any cleanup when
+-            # you leave it. In the common case of not needing a temporary
+-            # file, it will just return the file system location and the
+-            # __exit__() is a no-op.
+-            #
+-            # We also have to hold onto the actual context manager, because
+-            # it will do the cleanup whenever it gets garbage collected, so
+-            # we will also store that at the global level as well.
+-            _CACERT_CTX = get_path("pip._vendor.certifi", "cacert.pem")
+-            _CACERT_PATH = str(_CACERT_CTX.__enter__())
+-
+-        return _CACERT_PATH
+-
+-    def contents() -> str:
+-        return read_text("pip._vendor.certifi", "cacert.pem", encoding="ascii")
+-
+-else:
+-    import os
+-    import types
+-    from typing import Union
+-
+-    Package = Union[types.ModuleType, str]
+-    Resource = Union[str, "os.PathLike"]
+-
+-    # This fallback will work for Python versions prior to 3.7 that lack the
+-    # importlib.resources module but relies on the existing `where` function
+-    # so won't address issues with environments like PyOxidizer that don't set
+-    # __file__ on modules.
+-    def read_text(
+-        package: Package,
+-        resource: Resource,
+-        encoding: str = 'utf-8',
+-        errors: str = 'strict'
+-    ) -> str:
+-        with open(where(), encoding=encoding) as data:
+-            return data.read()
+-
+-    # If we don't have importlib.resources, then we will just do the old logic
+-    # of assuming we're on the filesystem and munge the path directly.
+-    def where() -> str:
+-        f = os.path.dirname(__file__)
+-
+-        return os.path.join(f, "cacert.pem")
+-
+-    def contents() -> str:
+-        return read_text("pip._vendor.certifi", "cacert.pem", encoding="ascii")
++def contents() -> str:
++    return Path(where()).read_text(encoding="ascii")

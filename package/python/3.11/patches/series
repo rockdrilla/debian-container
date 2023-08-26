@@ -36,4 +36,4 @@ quirks/ensurepip.patch
 # shared patches
 pyperformance.patch
 numpy.patch
-dask-benchmarks.patch
+dask-bench.patch

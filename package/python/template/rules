@@ -134,6 +134,8 @@ x_python = env \
 	PATH=$(dir $(strip $(1))/$(strip $(2))):$(PATH) \
 	$(strip $(3)) $(strip $(1))/$(strip $(2))
 
+with_network_tests := $(if $(filter check_with_network,$(DEB_BUILD_OPTIONS)),yes,no)
+
 # TEST_OPTS and TEST_EXCLUDES are defined here
 include debian/rules.tests
 
@@ -155,10 +157,10 @@ ifeq ($(with_pgo)$(pgo_reuse),yesno)
 endif
 
 override_dh_autoreconf:
-	rm -rf pip-django-asv/results pip-numpy/numpy pip-numpy/doc pip-pandas/pandas pip-pandas/doc
+	rm -rf py-django-asv/results py-numpy/numpy py-numpy/doc py-pandas/pandas py-pandas/doc
 	dh_autoreconf autoreconf -- -fiv -Werror
 
-execute_before_dh_auto_configure:
+override_dh_auto_configure:
 	: # verify that we' having "right" gcc version
 	@echo '# CC = $(CC)' >&2
 	@$(CC) --version 2>&1 | head -n 1 >&2
@@ -171,7 +173,12 @@ execute_before_dh_auto_configure:
 
 	mkdir -p $(HOME)
 
-override_dh_auto_configure:
+ifeq ($(with_network_tests),yes)
+	p=debian/patches/disable-network-tests.patch ; \
+	[ -s "$$p" ] || exit 0 ; \
+	patch -p1 -R < "$$p"
+endif
+
 
 define deb_python_preconf
 
@@ -375,6 +382,7 @@ define deb_python_install
 
 	: # unset *FLAGS to avoid duplication
 	unset ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
+	K2_PYTHON_DISTINSTALL=1 \
 	DEB_PYTHON_BUILD_DIR=$(strip $(1)) \
 	dh_auto_install --sourcedir=$(strip $(1)) --builddir=$(strip $(1))
 
@@ -438,13 +446,15 @@ endef
 
 limb_python = $(strip $(call x_python, $(CURDIR)/debian/tmp/$(PYTHON_PREFIX) , bin/python$(PYTHON_BASE_VERSION) , fakeroot ))
 
+strip_binary = strip --strip-debug --strip-unneeded
+
 define deb_python_postinstall_1st_stage
 
 	: # enlighten installation for 1st stage
 	find debian/tmp/ -name '*.a' -delete
 	find debian/tmp/ -name '*.o' -delete
-	find debian/tmp/ -name '*.so' -exec strip --strip-debug {} +
-	strip --strip-debug debian/tmp/$(PYTHON_PREFIX)/bin/python$(PYTHON_BASE_VERSION)
+	find debian/tmp/ -name '*.so*' -exec $(strip_binary) {} +
+	$(strip_binary) debian/tmp/$(PYTHON_PREFIX)/bin/python$(PYTHON_BASE_VERSION)
 
 	$(call buildrepro_backup, $(sysconfig_file) )
 
@@ -561,13 +571,15 @@ define deb_python_postinstall_1st_stage
 	find $${tmpdir}/ -iname '*.exe' -exec ls -l {} + ; \
 	find $${tmpdir}/ -iname '*.exe' -delete
 
-	: # replace bundled cacert.pem (if any)
-	[ -s '$(SSL_CERT_FILE)' ] || exit 0 ; \
+	: # remove bundled cacert.pem (if any)
 	tmpdir=debian/tmp.wheels ; \
-	find $${tmpdir}/ -path '*/cacert.pem' -exec ls -l {} + ; \
-	find $${tmpdir}/ -path '*/cacert.pem' -exec cp -f '$(SSL_CERT_FILE)' {} ';' ; \
-	echo ; \
-	find $${tmpdir}/ -path '*/cacert.pem' -exec ls -l {} +
+	find $${tmpdir}/ -path '*/cacert.pem' -type f -exec rm -v {} +
+
+	: # pip: customize own version
+	tmpdir=debian/tmp.wheels ; \
+	pip_dir=$$(ls -1d $${tmpdir}/pip-*) ; \
+	cd $${pip_dir} ; \
+	patch -p2 --fuzz=0 < $(CURDIR)/debian/patches/pip.patch
 
 	: # virtualenv: adjust bundled wheels versions and provide empty stub files
 	wheel_dir=$(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \

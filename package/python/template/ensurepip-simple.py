@@ -27,7 +27,7 @@ for k in [k for k in os.environ if k.startswith("PIP_")]:
     del os.environ[k]
 os.environ['PIP_CONFIG_FILE'] = os.devnull
 
-args = ["install", "--no-cache-dir", "--no-index", "--no-warn-script-location", *filenames ]
+args = ["install", "--no-cache-dir", "--no-index", "--no-warn-script-location", "--no-compile", *filenames ]
 
 code = f"""
 import runpy

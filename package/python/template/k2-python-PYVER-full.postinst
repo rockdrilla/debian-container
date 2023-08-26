@@ -20,16 +20,6 @@ configure )
 	# remove versioned scripts
 	env -C ${python_bin} rm -f pip@{PYTHON_MAJOR_VERSION} pip@{PYTHON_BASE_VERSION}
 
-	# adjust bundled certificates
-	: "${SSL_CERT_FILE:=/etc/ssl/certs/ca-certificates.crt}"
-	if [ -s "${SSL_CERT_FILE}" ] ; then
-		find /@{PYTHON_MODULES}/dist-packages/ -name cacert.pem -type f \
-		| while read -r f ; do
-			rm -f "$f"
-			ln -s "${SSL_CERT_FILE}" "$f"
-		done
-	fi
-
 	# adjust bundled wheels
 	find /@{PYTHON_MODULES}/ -name '*.whl' -type f \
 	| while read -r f ; do
