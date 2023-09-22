@@ -51,13 +51,13 @@ Versions:
 - 3.11.5
 
 Images on Docker.io:
+[raw .deb](https://hub.docker.com/r/rockdrilla/python-pkg/tags)
+|
 [minimal](https://hub.docker.com/r/rockdrilla/python-min/tags)
 |
-[standard](https://hub.docker.com/r/rockdrilla/python/tags)
+[+ package manager](https://hub.docker.com/r/rockdrilla/python/tags)
 |
-[development](https://hub.docker.com/r/rockdrilla/python-dev/tags)
-|
-[raw .deb](https://hub.docker.com/r/rockdrilla/python-pkg/tags)
+[+ development files](https://hub.docker.com/r/rockdrilla/python-dev/tags)
 
 ### golang - minimal/standard
 
@@ -69,11 +69,11 @@ Versions:
 - 1.21.1
 
 Images on Docker.io:
+[raw .deb](https://hub.docker.com/r/rockdrilla/golang-pkg/tags)
+|
 [minimal (no CGO)](https://hub.docker.com/r/rockdrilla/golang-min/tags)
 |
-[standard (with CGO)](https://hub.docker.com/r/rockdrilla/golang/tags)
-|
-[raw .deb](https://hub.docker.com/r/rockdrilla/golang-pkg/tags)
+[+ GCC (with CGO)](https://hub.docker.com/r/rockdrilla/golang/tags)
 
 ### nodejs - minimal/standard
 
@@ -89,13 +89,13 @@ Versions:
 *NB*: Node.js versions below 18.x are OBSOLETE and provided for backward compatibility.
 
 Images on Docker.io:
+[raw .deb](https://hub.docker.com/r/rockdrilla/nodejs-pkg/tags)
+|
 [minimal](https://hub.docker.com/r/rockdrilla/nodejs-min/tags)
 |
-[standard](https://hub.docker.com/r/rockdrilla/nodejs/tags)
+[+ package manager](https://hub.docker.com/r/rockdrilla/nodejs/tags)
 |
-[development](https://hub.docker.com/r/rockdrilla/nodejs-dev/tags)
-|
-[raw .deb](https://hub.docker.com/r/rockdrilla/nodejs-pkg/tags)
+[+ development files](https://hub.docker.com/r/rockdrilla/nodejs-dev/tags)
 
 ### ansible-mini
 
