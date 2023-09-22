@@ -17,6 +17,10 @@ configure )
 	K2_PYTHON_DISTINSTALL=1 \
 	"${python_bin}/python" /@{PYTHON_PREFIX}/share/ensurepip-simple.py /@{PYTHON_PREFIX}/share/wheels
 
+	# remove package information except for pip, virtualenv and wheel
+	find /@{PYTHON_MODULES}/dist-packages/ -mindepth 1 -maxdepth 1 -name '*.dist-info' -print0 \
+	| grep -zEv '/(pip|virtualenv|wheel)-' | xargs -0r rm -rf {} +
+
 	# remove versioned scripts
 	env -C ${python_bin} rm -f pip@{PYTHON_MAJOR_VERSION} pip@{PYTHON_BASE_VERSION}
 

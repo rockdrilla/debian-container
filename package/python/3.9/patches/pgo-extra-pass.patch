@@ -9,3 +9,12 @@
  
  build_all_merge_profile:
  	$(LLVM_PROF_MERGER)
+@@ -1184,7 +1184,7 @@ $(LIBRARY_OBJS) $(MODOBJS) Programs/pyth
+ TESTOPTS=	$(EXTRATESTOPTS)
+ TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) $(TESTPYTHONOPTS)
+ TESTRUNNER=	$(TESTPYTHON) $(srcdir)/Tools/scripts/run_tests.py
+-TESTTIMEOUT=	1200
++TESTTIMEOUT=	2400
+ 
+ .PHONY: test testall testuniversal buildbottest pythoninfo
+ 

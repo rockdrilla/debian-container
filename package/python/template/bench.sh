@@ -52,7 +52,7 @@ python_bin=$(readlink -f "$1")
 do_python_tests() {
 	flush_pycache
 	# run in subshell
-	( export K2_PYTHON_COMPAT=1 ; set -xv ; "$@" ; ) || end_script 1
+	( export K2_PYTHON_COMPAT=1 ; set -xv ; "$@" ; )
 }
 
 if [ "${DEB_PGO_LEVEL}" = 0 ] ; then
@@ -60,7 +60,8 @@ if [ "${DEB_PGO_LEVEL}" = 0 ] ; then
 	end_script
 fi
 
-do_python_tests "$@" --pgo-extended --use=${TEST_RESOURCES} --exclude ${TEST_EXCLUDE}
+TEST_OPT_MEMLIMIT=$("${DEB_SRC_TOPDIR}/debian/test-opt-memlimit.sh" | awk '{print $1}')
+do_python_tests "$@" ${TEST_OPT_MEMLIMIT} --pgo-extended --use=${TEST_RESOURCES} --exclude ${PROFILE_TEST_EXCLUDE}
 end_if_level 1
 
 ## 3rd party tests/benchmarks
@@ -78,12 +79,12 @@ do_pip_install "${DEB_SRC_TOPDIR}/py-pyperformance"
 
 do_pyperformance() {
 	flush_pycache
+	for i in 1 2 ; do
 	"${python_wrap}" -m pyperformance "$@" || end_script 1
+	done
 }
 
-for i in 1 2 ; do
 do_pyperformance run --debug-single-value --python "${python_bin}"
-done
 end_if_level 2
 
 ## asv-based 3rd party tests/benchmarks
@@ -99,8 +100,10 @@ do_asv_at() {
 	echo >&2
 	date -R >&2
 	echo >&2
+	for i in 1 2 ; do
 	flush_pycache
 	do_asv run --quick --parallel 1 --no-pull --dry-run --show-stderr --environment "existing:${python_bin}"
+	done
 	echo >&2
 	date -R >&2
 	echo >&2
@@ -112,9 +115,7 @@ do_asv_at() {
 do_pip_install 'django~=4.2.4' \
 
 
-for i in 1 2 ; do
 do_asv_at "${DEB_SRC_TOPDIR}/py-django-asv"
-done
 end_if_level 3
 
 ## asv: dask/distributed
@@ -128,9 +129,7 @@ do_pip_install "dask==${DASK_VERSION}" \
   'tables~=3.8.0' \
 
 
-for i in 1 2 ; do
 do_asv_at "${DEB_SRC_TOPDIR}/py-dask-bench/dask"
-done
 end_if_level 4
 
 ## asv: numpy

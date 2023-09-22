@@ -1,0 +1,307 @@
+--- a/Lib/test/libregrtest/main.py
++++ b/Lib/test/libregrtest/main.py
+@@ -602,20 +602,7 @@ class Regrtest:
+             self.tmp_dir = self.ns.tempdir
+ 
+         if not self.tmp_dir:
+-            # When tests are run from the Python build directory, it is best practice
+-            # to keep the test files in a subfolder.  This eases the cleanup of leftover
+-            # files using the "make distclean" command.
+-            if sysconfig.is_python_build():
+-                self.tmp_dir = sysconfig.get_config_var('abs_builddir')
+-                if self.tmp_dir is None:
+-                    # bpo-30284: On Windows, only srcdir is available. Using
+-                    # abs_builddir mostly matters on UNIX when building Python
+-                    # out of the source tree, especially when the source tree
+-                    # is read only.
+-                    self.tmp_dir = sysconfig.get_config_var('srcdir')
+-                self.tmp_dir = os.path.join(self.tmp_dir, 'build')
+-            else:
+-                self.tmp_dir = tempfile.gettempdir()
++            self.tmp_dir = tempfile.gettempdir()
+ 
+         self.tmp_dir = os.path.abspath(self.tmp_dir)
+ 
+--- a/Lib/test/pickletester.py
++++ b/Lib/test/pickletester.py
+@@ -2531,7 +2531,6 @@ class AbstractPickleTests:
+         elif frameless_start is not None:
+             self.assertLess(pos - frameless_start, self.FRAME_SIZE_MIN)
+ 
+-    @support.skip_if_pgo_task
+     def test_framing_many_objects(self):
+         obj = list(range(10**5))
+         for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
+@@ -2621,7 +2620,6 @@ class AbstractPickleTests:
+                                 count_opcode(pickle.FRAME, pickled))
+                 self.assertEqual(obj, self.loads(some_frames_pickle))
+ 
+-    @support.skip_if_pgo_task
+     def test_framed_write_sizes_with_delayed_writer(self):
+         class ChunkAccumulator:
+             """Accumulate pickler output in a list of raw chunks."""
+--- a/Lib/test/test_asyncore.py
++++ b/Lib/test/test_asyncore.py
+@@ -13,9 +13,6 @@ from test import support
+ from test.support import socket_helper
+ from io import BytesIO
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ 
+ HAS_UNIX_SOCKETS = hasattr(socket, 'AF_UNIX')
+ 
+--- a/Lib/test/test_concurrent_futures.py
++++ b/Lib/test/test_concurrent_futures.py
+@@ -361,10 +361,6 @@ class ExecutorShutdownTest:
+         self.assertGreater(len(others), 0)
+ 
+     def test_hang_gh83386(self):
+-        """shutdown(wait=False) doesn't hang at exit with running futures.
+-
+-        See https://github.com/python/cpython/issues/83386.
+-        """
+         if self.executor_type == futures.ProcessPoolExecutor:
+             raise unittest.SkipTest(
+                 "Hangs, see https://github.com/python/cpython/issues/83386")
+--- a/Lib/test/test_itertools.py
++++ b/Lib/test/test_itertools.py
+@@ -2159,7 +2159,6 @@ class RegressionTests(unittest.TestCase)
+         self.assertRaises(AssertionError, list, cycle(gen1()))
+         self.assertEqual(hist, [0,1])
+ 
+-    @support.skip_if_pgo_task
+     def test_long_chain_of_empty_iterables(self):
+         # Make sure itertools.chain doesn't run into recursion limits when
+         # dealing with long chains of empty iterables. Even with a high
+--- a/Lib/test/test_multiprocessing_fork.py
++++ b/Lib/test/test_multiprocessing_fork.py
+@@ -4,9 +4,6 @@ import test._test_multiprocessing
+ import sys
+ from test import support
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ if sys.platform == "win32":
+     raise unittest.SkipTest("fork is not available on Windows")
+ 
+--- a/Lib/test/test_multiprocessing_forkserver.py
++++ b/Lib/test/test_multiprocessing_forkserver.py
+@@ -4,9 +4,6 @@ import test._test_multiprocessing
+ import sys
+ from test import support
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ if sys.platform == "win32":
+     raise unittest.SkipTest("forkserver is not available on Windows")
+ 
+--- a/Lib/test/test_multiprocessing_main_handling.py
++++ b/Lib/test/test_multiprocessing_main_handling.py
+@@ -15,9 +15,6 @@ from test.support.script_helper import (
+     make_pkg, make_script, make_zip_pkg, make_zip_script,
+     assert_python_ok)
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ # Look up which start methods are available to test
+ import multiprocessing
+ AVAILABLE_START_METHODS = set(multiprocessing.get_all_start_methods())
+--- a/Lib/test/test_multiprocessing_spawn.py
++++ b/Lib/test/test_multiprocessing_spawn.py
+@@ -3,9 +3,6 @@ import test._test_multiprocessing
+ 
+ from test import support
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ test._test_multiprocessing.install_tests_in_module_dict(globals(), 'spawn')
+ 
+ if __name__ == '__main__':
+--- a/Lib/test/test_nntplib.py
++++ b/Lib/test/test_nntplib.py
+@@ -139,8 +139,6 @@ class NetworkedNNTPTestsMixin:
+         self.assertLessEqual(art_num, last)
+         self._check_art_dict(art_dict)
+ 
+-    @unittest.skipIf(True, 'temporarily skipped until a permanent solution'
+-                           ' is found for issue #28971')
+     def test_over(self):
+         resp, count, first, last, name = self.server.group(self.GROUP_NAME)
+         start = last - 10
+@@ -336,7 +334,7 @@ class NetworkedNNTPTests(NetworkedNNTPTe
+         if cls.server is not None:
+             cls.server.quit()
+ 
+-@unittest.skipUnless(ssl, 'requires SSL support')
++@unittest.skip('skip tests for aioe.org')
+ class NetworkedNNTP_SSLTests(NetworkedNNTPTests):
+ 
+     # Technical limits for this public NNTP server (see http://www.aioe.org):
+--- a/Lib/test/test_os.py
++++ b/Lib/test/test_os.py
+@@ -3071,7 +3071,6 @@ class SpawnTests(unittest.TestCase):
+ 
+ # The introduction of this TestCase caused at least two different errors on
+ # *nix buildbots. Temporarily skip this to let the buildbots move along.
+-@unittest.skip("Skip due to platform/environment differences on *NIX buildbots")
+ @unittest.skipUnless(hasattr(os, 'getlogin'), "test needs os.getlogin")
+ class LoginTests(unittest.TestCase):
+     def test_getlogin(self):
+--- a/Lib/test/test_pydoc.py
++++ b/Lib/test/test_pydoc.py
+@@ -1007,7 +1007,6 @@ class PydocImportTest(PydocBaseTest):
+             finally:
+                 sys.path[:] = saved_paths
+ 
+-    @unittest.skip('causes undesirable side-effects (#20128)')
+     def test_modules(self):
+         # See Helper.listmodules().
+         num_header_lines = 2
+@@ -1023,7 +1022,6 @@ class PydocImportTest(PydocBaseTest):
+ 
+         self.assertGreaterEqual(num_lines, expected)
+ 
+-    @unittest.skip('causes undesirable side-effects (#20128)')
+     def test_modules_search(self):
+         # See Helper.listmodules().
+         expected = 'pydoc - '
+@@ -1036,7 +1034,6 @@ class PydocImportTest(PydocBaseTest):
+ 
+         self.assertIn(expected, result)
+ 
+-    @unittest.skip('some buildbots are not cooperating (#20128)')
+     def test_modules_search_builtin(self):
+         expected = 'gc - '
+ 
+--- a/Lib/test/test_socket.py
++++ b/Lib/test/test_socket.py
+@@ -62,6 +62,7 @@ def get_cid():
+ 
+ def _have_socket_can():
+     """Check whether CAN sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
+     except (AttributeError, OSError):
+@@ -72,6 +73,7 @@ def _have_socket_can():
+ 
+ def _have_socket_can_isotp():
+     """Check whether CAN ISOTP sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_CAN, socket.SOCK_DGRAM, socket.CAN_ISOTP)
+     except (AttributeError, OSError):
+@@ -82,6 +84,7 @@ def _have_socket_can_isotp():
+ 
+ def _have_socket_can_j1939():
+     """Check whether CAN J1939 sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_CAN, socket.SOCK_DGRAM, socket.CAN_J1939)
+     except (AttributeError, OSError):
+@@ -92,6 +95,7 @@ def _have_socket_can_j1939():
+ 
+ def _have_socket_rds():
+     """Check whether RDS sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_RDS, socket.SOCK_SEQPACKET, 0)
+     except (AttributeError, OSError):
+@@ -112,6 +116,7 @@ def _have_socket_alg():
+ 
+ def _have_socket_qipcrtr():
+     """Check whether AF_QIPCRTR sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.AF_QIPCRTR, socket.SOCK_DGRAM, 0)
+     except (AttributeError, OSError):
+@@ -122,12 +127,14 @@ def _have_socket_qipcrtr():
+ 
+ def _have_socket_vsock():
+     """Check whether AF_VSOCK sockets are supported on this host."""
++    return False
+     ret = get_cid() is not None
+     return ret
+ 
+ 
+ def _have_socket_bluetooth():
+     """Check whether AF_BLUETOOTH sockets are supported on this host."""
++    return False
+     try:
+         # RFCOMM is supported by all platforms with bluetooth support. Windows
+         # does not support omitting the protocol.
+@@ -1030,6 +1037,7 @@ class GeneralModuleTests(unittest.TestCa
+             with self.assertRaises(OSError, msg=explanation):
+                 socket.gethostbyaddr(addr)
+ 
++    @unittest.skip('avoid sethostname()')
+     @unittest.skipUnless(hasattr(socket, 'sethostname'), "test needs socket.sethostname()")
+     @unittest.skipUnless(hasattr(socket, 'gethostname'), "test needs socket.gethostname()")
+     def test_sethostname(self):
+--- a/Lib/test/test_statistics.py
++++ b/Lib/test/test_statistics.py
+@@ -2533,7 +2533,6 @@ class TestNormalDist:
+         self.assertEqual(X.cdf(float('Inf')), 1.0)
+         self.assertTrue(math.isnan(X.cdf(float('NaN'))))
+ 
+-    @support.skip_if_pgo_task
+     def test_inv_cdf(self):
+         NormalDist = self.module.NormalDist
+ 
+--- a/Lib/test/test_subprocess.py
++++ b/Lib/test/test_subprocess.py
+@@ -37,9 +37,6 @@ try:
+ except ImportError:
+     grp = None
+ 
+-if support.PGO:
+-    raise unittest.SkipTest("test is not helpful for PGO")
+-
+ mswindows = (sys.platform == "win32")
+ 
+ #
+--- a/Lib/test/test_support.py
++++ b/Lib/test/test_support.py
+@@ -61,7 +61,6 @@ class TestSupport(unittest.TestCase):
+                         self.test_get_attribute)
+         self.assertRaises(unittest.SkipTest, support.get_attribute, self, "foo")
+ 
+-    @unittest.skip("failing buildbots")
+     def test_get_original_stdout(self):
+         self.assertEqual(support.get_original_stdout(), sys.stdout)
+ 
+--- a/Lib/test/test_time.py
++++ b/Lib/test/test_time.py
+@@ -130,6 +130,7 @@ class TimeTestCase(unittest.TestCase):
+         self.assertGreater(res, 0.0)
+         self.assertLessEqual(res, 1.0)
+ 
++    @unittest.skip("avoid clock_settime()")
+     @unittest.skipUnless(hasattr(time, 'clock_settime'),
+                          'need time.clock_settime()')
+     def test_clock_settime(self):
+@@ -431,10 +432,6 @@ class TimeTestCase(unittest.TestCase):
+             else:
+                 self.assertEqual(time.mktime(tt), t)
+ 
+-    # Issue #13309: passing extreme values to mktime() or localtime()
+-    # borks the glibc's internal timezone data.
+-    @unittest.skipUnless(platform.libc_ver()[0] != 'glibc',
+-                         "disabled because of a bug in glibc. Issue #13309")
+     def test_mktime_error(self):
+         # It may not be possible to reliably make mktime return an error
+         # on all platforms.  This will make sure that no other exception
+@@ -507,6 +504,7 @@ class TimeTestCase(unittest.TestCase):
+         self.assertTrue(info.monotonic)
+         self.assertFalse(info.adjustable)
+ 
++    @unittest.skip("avoid clock_settime()")
+     @unittest.skipUnless(hasattr(time, 'clock_settime'),
+                          'need time.clock_settime')
+     def test_monotonic_settime(self):

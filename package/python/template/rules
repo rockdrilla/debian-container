@@ -60,7 +60,7 @@ include debian/rules.gcc-latest-ver
 include debian/rules.gcc-flags
 include debian/rules.gcc-lto
 
-DEB_PGO_LEVEL_DEFAULT = 4
+DEB_PGO_LEVEL_DEFAULT = 6
 DEB_PGO_PACKAGE = k2-python-$(PYTHON_VERSION)-pgo
 include debian/rules.gcc-pgo
 
@@ -73,15 +73,7 @@ export DEB_PGO_REUSE = $(pgo_reuse)
 export DEB_PGO_FROM_BUILD = $(CURDIR)/debian/pgo
 export DEB_PGO_FROM_PKG = $(PYTHON_PREFIX)/pgo-$(PYTHON_VERSION)
 
-builtin_ext = \
-  _abc _ast _asyncio _bisect _blake2 _collections _contextvars _csv _ctypes \
-  _datetime _decimal _elementtree _functools _heapq _json _locale _md5 \
-  _multibytecodec _multiprocessing _opcode _operator _pickle _posixshmem \
-  _posixsubprocess _queue _random _sha1 _sha256 _sha3 _sha512 _socket _stat \
-  _statistics _stringio _struct _tracemalloc _typing _zoneinfo array atexit \
-  binascii cmath fcntl grp itertools math mmap pyexpat select spwd syslog \
-  time unicodedata zlib
-
+builtin_ext = $(strip $(shell cat debian/builtin.lst || true))
 builtin_ext__list =$(strip $(foreach ext,$(sort $(strip $(builtin_ext))),$(ext)$(space)))
 builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
 
@@ -162,7 +154,6 @@ ifeq ($(with_pgo)$(pgo_reuse),yesno)
 endif
 
 override_dh_autoreconf:
-	rm -rf py-django-asv/results py-numpy/numpy py-numpy/doc py-pandas/pandas py-pandas/doc
 	dh_autoreconf autoreconf -- -fiv -Werror
 
 override_dh_auto_configure:
@@ -178,6 +169,8 @@ override_dh_auto_configure:
 
 	mkdir -p $(HOME)
 
+	: # prepare tests
+	tar -C py-email -cf - moredata | tar -C Lib/test -xf -
 ifeq ($(with_network_tests),yes)
 	p=debian/patches/disable-network-tests.patch ; \
 	[ -s "$$p" ] || exit 0 ; \
@@ -187,6 +180,7 @@ endif
 
 define deb_python_preconf
 
+	[ -n '$(builtin_ext)' ] || exit 0 ; \
 	sed -En '/^#($(builtin_ext__re))\s/p' Modules/Setup \
 	| sed -E 's/^#//;s/-Wl,-Bdynamic//;s/-Wl,-Bstatic//' \
 	>> $(strip $(1))/Modules/Setup.local
@@ -206,8 +200,8 @@ define deb_python_configure
 
 	$(call deb_python_preconf, $(1) )
 
+	unset LD_LIBRARY_PATH LD_PRELOAD ; \
 	env -C $(strip $(1)) \
-	  -u LD_LIBRARY_PATH -u LD_PRELOAD \
 	  OPT=' ' \
 	  $(strip $(config_site)) \
 	./configure $(strip $(CONFIGURE_FLAGS) $(2))
@@ -263,12 +257,12 @@ define deb_python_test
 	$(call remove_pycache, $(1) )
 
 	: # unset *FLAGS to avoid duplication
-	unset ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
+	unset LD_LIBRARY_PATH LD_PRELOAD SOURCE_DATE_EPOCH ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
+	TEST_OPT_MEMLIMIT=$$( debian/test-opt-memlimit.sh $(NPROC_TEST) | awk '{print $$2}' ) ; \
 	env -C $(strip $(1)) \
 	  K2_PYTHON_COMPAT=1 \
 	  DEB_PYTHON_BUILD_DIR=$(strip $(1)) \
-	  NPROC=$(NPROC_MAKE) \
-	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)' $(if $(strip $(2)),|| $(strip $(2)))
+	make test TESTOPTS='-j $(NPROC_TEST) '"$${TEST_OPT_MEMLIMIT}"' $(TEST_OPTS)' $(if $(strip $(2)),|| $(strip $(2)))
 
 	$(call remove_pycache, $(1) )
 
@@ -457,7 +451,7 @@ define deb_python_postinstall_1st_stage
 	K2_PYTHON_DISTINSTALL=1 \
 	$(limb_python) -m pip install wheel virtualenv
 
-	$(call fix_hashbangs_r, debian/tmp , $(PYTHON_HASHBANG_RX) , $(PYTHON_HASHBANG) )
+	$(call fix_hashbangs_r, debian/tmp , $(PYTHON_HASHBANG_RX) , $(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/bin/python$(PYTHON_BASE_VERSION) )
 
 	: # list installed packages (refreshing version info)
 	$(limb_python) -m pip list --format json > debian/pip.list.json
@@ -570,6 +564,8 @@ define deb_python_postinstall_1st_stage
 	    done ; \
 	done
 
+	$(call fix_hashbangs_r, debian/tmp.wheels , $(PYTHON_HASHBANG_RX) , $(PYTHON_HASHBANG) )
+
 	: # repack wheels
 	wheel_dir=$(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
 	tmpdir=debian/tmp.wheels ; \
@@ -605,10 +601,13 @@ bstrap_python = $(strip $(call x_python, $(INSTALL_BSTRAP)/$(PYTHON_PREFIX) , bi
 
 define deb_python_postinstall_2nd_stage
 
-	$(call remove_pycache, debian/tmp )
-
-	: remove unused data
-	rm -rf debian/tmp/$(PYTHON_PREFIX)/lib
+	: # remove unused data except binary modules
+	f=debian/binary.tar ; \
+	rm -f $$f ; \
+	tar -cvf $$f debian/tmp/$(PYTHON_MODULES)/lib-dynload ; \
+	rm -rf debian/tmp/$(PYTHON_PREFIX)/lib ; \
+	tar -xf $$f ; \
+	rm -f $$f
 
 endef
 
@@ -635,33 +634,33 @@ define deb_python_postinstall_3rd_stage
 
 	$(call remove_pycache, debian/tmp )
 
-	: # borrow python binary
-	cp -ft debian/tmp/$(PYTHON_PREFIX)/bin $(INSTALL_BINARY)/$(PYTHON_PREFIX)/bin/python
+	: # borrow python binary and modules
+	cd debian/tmp ; \
+	cp -f $(INSTALL_BINARY)/$(PYTHON_PREFIX)/bin/python $(PYTHON_PREFIX)/bin/ ; \
+	rm -rf $(PYTHON_MODULES)/lib-dynload ; \
+	tar -C $(INSTALL_BINARY)/$(PYTHON_MODULES) -cf - lib-dynload \
+	| tar -C $(PYTHON_MODULES) -xf -
 
 	: # borrow some modules
-	s=$(INSTALL_BSTRAP)/$(PYTHON_MODULES)/dist-packages ; \
-	d=debian/tmp/$(PYTHON_MODULES)/dist-packages ; \
-	mkdir -p "$$d" ; touch "$$d/.keep" ; \
+	cd debian/tmp ; \
 	for n in pkg_resources ; do \
-	    [ -d "$$s/$$n" ] || continue ; \
-	    tar -C $$s -cf - $$n | tar -C $$d -xf - ; \
+	    tar -C $(INSTALL_BSTRAP)/$(PYTHON_MODULES) -cf - "dist-packages/$$n" \
+	    | tar -C $(PYTHON_MODULES) -xf - ; \
 	done
 
 	: # copy wheels from stage 1
-	s=$(INSTALL_BSTRAP)/$(PYTHON_PREFIX)/share/wheels ; \
-	d=debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
-	mkdir -p $$d ; \
-	find $$s/ -name '*.whl' -exec cp -t $$d {} +
+	tar -C $(INSTALL_BSTRAP)/$(PYTHON_PREFIX) -cf - share/wheels \
+	| tar -C debian/tmp/$(PYTHON_PREFIX) -xf -
 
 	: # truncate ensurepip wheels
 	find debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled/ -name '*.whl' -type f -exec truncate -s 0 {} +
 
 	: # fix RPATH
-	d=debian/tmp/$(PYTHON_PREFIX) ; \
+	cd debian/tmp/$(PYTHON_PREFIX) ; \
 	for f in lib/libpython.so lib/libpython$(PYTHON_MAJOR_VERSION).so ; do \
-	    [ -s "$$d/$$f" ] || continue ; \
-	    objdump -p "$$d/$$f" | grep -F NEEDED | grep -Fq libpython || continue ; \
-	    patchelf --set-rpath /$(PYTHON_PREFIX)/lib "$$d/$$f" ; \
+	    [ -s "$$f" ] || continue ; \
+	    objdump -p "$$f" | grep -F NEEDED | grep -Fq libpython || continue ; \
+	    patchelf --set-rpath /$(PYTHON_PREFIX)/lib "$$f" ; \
 	done
 
 	$(call fix_hashbangs_r, debian/tmp , $(PYTHON_HASHBANG_RX) , $(PYTHON_HASHBANG) )
@@ -671,6 +670,8 @@ endef
 override_dh_auto_build:
 	$(call deb_python_configure, $(DEB_BUILD_PATH) , )
 	$(call deb_python_build, $(DEB_BUILD_PATH) , )
+	$(call deb_python_test, $(DEB_BUILD_PATH) , )
+
 	$(call deb_python_install, $(DEB_BUILD_PATH) )
 	$(call deb_python_postinstall_1st_stage)
 
@@ -680,6 +681,8 @@ override_dh_auto_build:
 
 	$(call deb_python_configure, $(DEB_BUILD_PATH) , $(CONFIGURE_FLAGS_BINARY) )
 	$(call deb_python_build, $(DEB_BUILD_PATH) , )
+	$(call deb_python_test, $(DEB_BUILD_PATH) , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
+
 	$(call deb_python_install, $(DEB_BUILD_PATH) )
 	$(call deb_python_postinstall_2nd_stage)
 
@@ -693,7 +696,6 @@ ifeq ($(with_pgo)$(pgo_reuse),yesno)
 else
 	$(call deb_python_build, $(DEB_BUILD_PATH) , )
 endif
-	$(call deb_python_test, $(DEB_BUILD_PATH) , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
 
 override_dh_auto_test:
 
@@ -747,7 +749,7 @@ override_dh_strip:
 	dh_strip $(addprefix --exclude=,.exe .gcda)
 
 override_dh_shlibdeps:
-	env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+	unset LD_LIBRARY_PATH LD_PRELOAD ; \
 	dh_shlibdeps -l$(CURDIR)/debian/k2-python-$(PYTHON_BASE_VERSION)/$(PYTHON_PREFIX)/lib
 
 DH_GENCTRL_COMMON = -Tdebian/pip.substvars -Tdebian/substvars

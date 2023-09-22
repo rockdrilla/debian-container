@@ -5,7 +5,7 @@
            ;;
          *)
 -          LTOFLAGS="-flto -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
-+          LTOFLAGS="-g -O3 -fwrapv -flto=1 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
++          LTOFLAGS="-g -O3 -fwrapv -flto=2 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
            ;;
        esac
        ;;
@@ -20,3 +20,23 @@
          LLVM_PROF_MERGER="true"
          LLVM_PROF_FILE=""
          ;;
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -722,7 +722,7 @@ Makefile Modules/config.c: Makefile.pre
+ 
+ 
+ Programs/_testembed: Programs/_testembed.o $(LIBRARY_DEPS)
+-	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS)
++	$(LINKCC) -fno-lto $(filter-out -flto% -ffat-lto-objects,$(PY_CORE_LDFLAGS) $(LINKFORSHARED)) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS)
+ 
+ ############################################################################
+ # Importlib
+@@ -730,7 +730,7 @@ Programs/_testembed: Programs/_testembed
+ Programs/_freeze_importlib.o: Programs/_freeze_importlib.c Makefile
+ 
+ Programs/_freeze_importlib: Programs/_freeze_importlib.o $(LIBRARY_OBJS_OMIT_FROZEN)
+-	$(LINKCC) $(PY_CORE_LDFLAGS) -o $@ Programs/_freeze_importlib.o $(LIBRARY_OBJS_OMIT_FROZEN) $(LIBS) $(MODLIBS) $(SYSLIBS)
++	$(LINKCC) -fno-lto $(filter-out -flto% -ffat-lto-objects,$(PY_CORE_LDFLAGS)) -o $@ Programs/_freeze_importlib.o $(LIBRARY_OBJS_OMIT_FROZEN) $(LIBS) $(MODLIBS) $(SYSLIBS)
+ 
+ .PHONY: regen-importlib
+ regen-importlib: Programs/_freeze_importlib

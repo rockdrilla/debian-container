@@ -1,6 +1,6 @@
 --- a/Lib/test/test_bz2.py
 +++ b/Lib/test/test_bz2.py
-@@ -720,10 +720,10 @@ def testEOFError(self):
+@@ -720,10 +720,10 @@ class BZ2DecompressorTest(BaseTest):
      @bigmemtest(size=_4G + 100, memuse=3.3)
      def testDecompress4G(self, size):
          # "Test BZ2Decompressor.decompress() with >4GiB input"
@@ -15,7 +15,7 @@
              decompressed = bz2d.decompress(compressed)
 --- a/Lib/test/test_lzma.py
 +++ b/Lib/test/test_lzma.py
-@@ -352,10 +352,10 @@ def test_compressor_bigmem(self, size):
+@@ -352,10 +352,10 @@ class CompressorDecompressorTestCase(uni
      @bigmemtest(size=_4G + 100, memuse=3)
      def test_decompressor_bigmem(self, size):
          lzd = LZMADecompressor()

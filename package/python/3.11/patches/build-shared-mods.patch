@@ -1,6 +1,6 @@
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -729,19 +729,9 @@ $(srcdir)/Modules/_blake2/blake2s_impl.c
+@@ -730,19 +730,9 @@ $(srcdir)/Modules/_blake2/blake2s_impl.c
  	$(PYTHON_FOR_REGEN) $(srcdir)/Tools/clinic/clinic.py -f $@
  
  # Build the shared modules
@@ -21,14 +21,13 @@
  
  
  # Build static library
---- a/setup.py
-+++ b/setup.py
-@@ -1473,7 +1473,7 @@ class PyBuildExt(build_ext):
-                 '_decimal',
-                 ['_decimal/_decimal.c'],
-                 # Uncomment for extra functionality:
--                # define_macros=[('EXTRA_FUNCTIONALITY', 1)]
-+                define_macros=[('EXTRA_FUNCTIONALITY', 1)]
-             )
-         )
+--- a/Modules/_decimal/docstrings.h
++++ b/Modules/_decimal/docstrings.h
+@@ -10,6 +10,7 @@
  
+ #include "pymacro.h"
+ 
++#define EXTRA_FUNCTIONALITY
+ 
+ /******************************************************************************/
+ /*                                Module                                      */

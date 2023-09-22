@@ -23,3 +23,13 @@
  
  
  # Build static library
+--- a/Modules/_decimal/docstrings.h
++++ b/Modules/_decimal/docstrings.h
+@@ -10,6 +10,7 @@
+ 
+ #include "pymacro.h"
+ 
++#define EXTRA_FUNCTIONALITY
+ 
+ /******************************************************************************/
+ /*                                Module                                      */

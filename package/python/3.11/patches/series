@@ -1,4 +1,5 @@
 git-branch.patch
+after-git.patch
 
 # these patches are borrowed from Debian
 # I'd like to say many thanks to the maintainers for their work :)
@@ -25,10 +26,11 @@ pgo-extra-pass.patch
 sort-build-objects.patch
 build-shared-mods.patch
 install-no-pycache.patch
-disable-network-tests.patch
 python-compat-switch.patch
 hybrid-layout.patch
 python-config.patch
+mangle-tests.patch
+disable-network-tests.patch
 
 quirks/distutils-build.patch
 quirks/ensurepip.patch

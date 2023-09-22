@@ -17,7 +17,6 @@ cd "${rootdir:?}" || exit
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	PYTHON_MIN_IMAGE
 	PYTHON_IMAGE
-	PYTHON_DEV_IMAGE
 "
 
 build_single() {

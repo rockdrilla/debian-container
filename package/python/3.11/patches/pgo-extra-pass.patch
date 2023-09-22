@@ -1,6 +1,6 @@
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -637,7 +637,7 @@ build_all_generate_profile:
+@@ -638,7 +638,7 @@ build_all_generate_profile:
  
  run_profile_task:
  	@ # FIXME: can't run for a cross build
@@ -9,3 +9,12 @@
  
  build_all_merge_profile:
  	$(LLVM_PROF_MERGER)
+@@ -1670,7 +1670,7 @@ $(LIBRARY_OBJS) $(MODOBJS) Programs/pyth
+ TESTOPTS=	$(EXTRATESTOPTS)
+ TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) $(TESTPYTHONOPTS)
+ TESTRUNNER=	$(TESTPYTHON) $(srcdir)/Tools/scripts/run_tests.py
+-TESTTIMEOUT=	1200
++TESTTIMEOUT=	2400
+ 
+ .PHONY: test testall testuniversal buildbottest pythoninfo
+ 

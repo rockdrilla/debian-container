@@ -1,0 +1,36 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Python
+Upstream-Contact: https://github.com/python/cpython/issues
+Source: https://www.python.org/
+ https://pypi.org/project/email/
+ https://github.com/python/pyperformance/tree/@{PYPERFORMANCE_GIT_REF}/
+ https://github.com/numpy/numpy/tree/v@{NUMPY_VERSION}/
+ https://github.com/pandas-dev/pandas/tree/v@{PANDAS_VERSION}/
+ https://github.com/dask/dask-benchmarks/tree/@{DASK_BENCH_GIT_REF}/
+ https://github.com/django/django-asv/tree/@{DJANGO_ASV_GIT_REF}/
+Files-Excluded:
+ aclocal.m4
+ config.guess
+ config.sub
+ configure
+ pyconfig.h.in
+ Doc/whatsnew/*.rst
+ Lib/distutils/command/*.exe
+ Mac/*
+ Misc/svnmap.txt
+ PC/icons/*
+ PCbuild/*
+ Tools/msi/*
+Files-Excluded-py-django-asv:
+ results/*
+Files-Excluded-py-email:
+ docs/*
+ email/*
+ manual/*
+Files-Excluded-py-numpy:
+ doc/*
+ numpy/*
+Files-Excluded-py-pandas:
+ doc/*
+ pandas/*
+ web/*

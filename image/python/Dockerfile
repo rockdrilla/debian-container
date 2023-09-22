@@ -128,7 +128,7 @@ COPY --from=packages [ "*.deb", "/deb/" ]
 
 # ---
 
-FROM ${IMAGE_PATH}/${BASE_IMAGE} as python-layout
+FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
 ENV SITE_PACKAGES=/opt/python-${PYTHON_BASE_VERSION}/lib/python${PYTHON_BASE_VERSION}/site-packages
@@ -136,11 +136,6 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 CMD [ "python" ]
-
-# ---
-
-FROM python-layout as minimal
-SHELL [ "/bin/sh", "-ec" ]
 
 COPY --from=packages [ \
   "k2-python-${PYTHON_BASE_VERSION}_${PYTHON_VERSION}-*.deb", \
@@ -186,8 +181,14 @@ RUN apt-install /tmp/*.deb ; \
 
 # ---
 
-FROM python-layout as minimal-ci
+FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal-ci
 SHELL [ "/bin/sh", "-ec" ]
+
+ENV SITE_PACKAGES=/opt/python-${PYTHON_BASE_VERSION}/lib/python${PYTHON_BASE_VERSION}/site-packages
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+CMD [ "python" ]
 
 RUN apt-install k2-python-shim-${PYTHON_BASE_VERSION} ; \
     cleanup ; \

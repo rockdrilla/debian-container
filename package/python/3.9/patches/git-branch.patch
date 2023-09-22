@@ -15,7 +15,7 @@
              decompressed = bz2d.decompress(compressed)
 --- a/Lib/test/test_lzma.py
 +++ b/Lib/test/test_lzma.py
-@@ -350,10 +350,10 @@ class CompressorDecompressorTestCase(unittest.TestCase):
+@@ -350,10 +350,10 @@ class CompressorDecompressorTestCase(uni
      @bigmemtest(size=_4G + 100, memuse=3)
      def test_decompressor_bigmem(self, size):
          lzd = LZMADecompressor()

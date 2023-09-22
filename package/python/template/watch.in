@@ -4,6 +4,12 @@ opts=\
 dversionmangle=s/.*\+// \
   https://www.python.org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
 
+opts=component=py-email,\
+repack,pgpmode=none,searchmode=plain \
+  https://pypi.org/simple/email/ \
+  [^"]+/email-(@{EMAIL_VERSION})@ARCHIVE_EXT@ \
+ignore
+
 opts=component=py-pyperformance,\
 repack,pgpmode=none,\
 filenamemangle=s/\.zip$/.tar.gz/,\
@@ -49,6 +55,12 @@ ignore
 # opts=\
 # dversionmangle=s/.*\+// \
 #   http://127.0.0.1:8081/repository/proxy_raw_python_org/ftp/python/(@{PYTHON_BASE_VERSION}\.[.\d]+)?/Python-(@{PYTHON_BASE_VERSION}\.[.\d]+)?.tar.xz
+
+# opts=component=py-email,\
+# repack,pgpmode=none,searchmode=plain \
+#   http://127.0.0.1:8081/repository/proxy_pypi/simple/email/ \
+#   [^"]+/email-(@{EMAIL_VERSION})@ARCHIVE_EXT@ \
+# ignore
 
 # opts=component=py-pyperformance,\
 # repack,pgpmode=none,\
