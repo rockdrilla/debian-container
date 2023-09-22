@@ -88,6 +88,12 @@ RUN [ -e /tmp/dsc ] || exit 0 ; \
 
 # ---
 
+FROM scratch as pkg
+
+COPY --from=packages [ "*.deb", "/deb/" ]
+
+# ---
+
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
