@@ -58,19 +58,15 @@ build_single() {
 	BUILD_IMAGE_ENV="NODEJS_VERSION NODEJS_MAJOR_VERSION" \
 	build-image.sh image/nodejs/ "${IMAGE_PATH}/${NODEJS_MIN_IMAGE}" ${extra_tags}
 
-	# wait for image registry
-	sleep 10
-
 	# "nodejs" derives env from "nodejs-min"
 
+	BUILD_IMAGE_PULL=0 \
 	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
 	build-image.sh image/nodejs/ "${IMAGE_PATH}/${NODEJS_IMAGE}" ${extra_tags}
 
-	# wait for image registry
-	sleep 10
-
 	# "nodejs-dev" derives env from "nodejs"
 
+	BUILD_IMAGE_PULL=0 \
 	BUILD_IMAGE_TARGET="dev${CI:+-ci}" \
 	build-image.sh image/nodejs/ "${IMAGE_PATH}/${NODEJS_DEV_IMAGE}" ${extra_tags}
 

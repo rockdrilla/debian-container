@@ -58,19 +58,15 @@ build_single() {
 	BUILD_IMAGE_ENV="PYTHON_VERSION PYTHON_BASE_VERSION" \
 	build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ${extra_tags}
 
-	# wait for image registry
-	sleep 10
-
 	# "python" derives env from "python-min"
 
+	BUILD_IMAGE_PULL=0 \
 	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
 	build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_IMAGE}" ${extra_tags}
 
-	# wait for image registry
-	sleep 10
-
 	# "python-dev" derives env from "python"
 
+	BUILD_IMAGE_PULL=0 \
 	BUILD_IMAGE_TARGET="dev${CI:+-ci}" \
 	build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_DEV_IMAGE}" ${extra_tags}
 

@@ -63,6 +63,7 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 			"
 		fi
 
+		BUILD_IMAGE_PULL=0 \
 		build-image.sh image/minbase/Dockerfile.stage1
 	) || exit 1
 

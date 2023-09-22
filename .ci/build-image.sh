@@ -142,6 +142,16 @@ build_image_cleanup() {
 	fi
 }
 build_image() {
+
+	case "${BUILD_IMAGE_PULL}" in
+	0 )
+		append --pull=false
+	;;
+	always | missing | never | true | false )
+		append "--pull=${BUILD_IMAGE_PULL}"
+	;;
+	esac
+
 	if [ -n "${BUILD_IMAGE_PLATFORM}" ] ; then
 		append --platform "${BUILD_IMAGE_PLATFORM}"
 	else
