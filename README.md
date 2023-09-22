@@ -72,6 +72,8 @@ Images on Docker.io:
 [minimal (no CGO)](https://hub.docker.com/r/rockdrilla/golang-min/tags)
 |
 [standard (with CGO)](https://hub.docker.com/r/rockdrilla/golang/tags)
+|
+[raw .deb](https://hub.docker.com/r/rockdrilla/golang-pkg/tags)
 
 ### nodejs - minimal/standard
 
@@ -90,6 +92,10 @@ Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/nodejs-min/tags)
 |
 [standard](https://hub.docker.com/r/rockdrilla/nodejs/tags)
+|
+[development](https://hub.docker.com/r/rockdrilla/nodejs-dev/tags)
+|
+[raw .deb](https://hub.docker.com/r/rockdrilla/nodejs-pkg/tags)
 
 ### ansible-mini
 
