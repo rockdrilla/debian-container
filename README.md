@@ -97,7 +97,7 @@ Based on `python:3.11-bookworm`.
 
 Versions:
 
-- 8.1.x
+- 8.4.x
 
 Images on Docker.io:
 [ansible-mini](https://hub.docker.com/r/rockdrilla/ansible-mini/tags)

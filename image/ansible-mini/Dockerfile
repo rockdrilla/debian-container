@@ -3,7 +3,7 @@ ARG DISTRO=debian
 ARG SUITE=stable
 
 ARG PYTHON_VERSION=3.11
-ARG BASE_IMAGE=python-min:${PYTHON_VERSION}-${SUITE}
+ARG BASE_IMAGE=python:${PYTHON_VERSION}-${SUITE}
 ARG STAGE_IMAGE=python-dev:${PYTHON_VERSION}-${SUITE}
 
 # ---
@@ -15,7 +15,6 @@ COPY /ansible-filter.xglob.txt /etc/k2/cleanup/python-site-packages
 
 RUN apt-wrap-python \
       pip install \
-        --no-binary 'cffi' \
         "ansible~=${ANSIBLE_VERSION}.0" \
         ansible-lint \
         netaddr \
@@ -31,7 +30,7 @@ RUN apt-wrap-python \
     | while read -r f ; do \
         [ -n "$f" ] || continue ; \
         rm -f "$f" ; \
-        ln -s /etc/ssl/certs/ca-certificates.crt "$f" ; \
+        ln -fvs /etc/ssl/certs/ca-certificates.crt "$f" ; \
     done ; \
     ## strip debug info
     quiet apt-install binutils ; \
@@ -57,6 +56,7 @@ RUN apt-install \
       openssh-client \
       openssh-client-ssh1 \
       patch \
+      rsync \
       sshpass \
     ; \
     cleanup
