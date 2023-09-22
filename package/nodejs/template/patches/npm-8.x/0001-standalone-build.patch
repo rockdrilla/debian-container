@@ -1,0 +1,317 @@
+From 327f320de7a7e6b1a908a5e09d42ad9f43cd4c40 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:41:07 +0300
+Subject: standalone build
+
+---
+ package-lock.json                    | 49 ----------------------------
+ package.json                         | 11 ++-----
+ scripts/bundle-and-gitignore-deps.js | 34 +------------------
+ scripts/publish.js                   | 23 ++-----------
+ scripts/resetdeps.js                 | 15 +--------
+ standalone-build.sh                  | 27 +++++++++++++++
+ 6 files changed, 33 insertions(+), 126 deletions(-)
+ create mode 100644 standalone-build.sh
+
+diff --git a/package-lock.json b/package-lock.json
+index 412e8dbf..8f435c2a 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -84,8 +84,6 @@
+       ],
+       "license": "Artistic-2.0",
+       "workspaces": [
+-        "docs",
+-        "smoke-tests",
+         "workspaces/*"
+       ],
+       "dependencies": {
+@@ -168,7 +166,6 @@
+         "npx": "bin/npx-cli.js"
+       },
+       "devDependencies": {
+-        "@npmcli/docs": "^1.0.0",
+         "@npmcli/eslint-config": "^3.1.0",
+         "@npmcli/git": "^3.0.2",
+         "@npmcli/promise-spawn": "^3.0.0",
+@@ -186,28 +183,6 @@
+         "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+       }
+     },
+-    "docs": {
+-      "name": "@npmcli/docs",
+-      "version": "1.0.0",
+-      "license": "ISC",
+-      "devDependencies": {
+-        "@isaacs/string-locale-compare": "^1.1.0",
+-        "@npmcli/eslint-config": "^3.1.0",
+-        "@npmcli/fs": "^2.1.0",
+-        "@npmcli/template-oss": "4.11.4",
+-        "cmark-gfm": "^0.9.0",
+-        "front-matter": "^4.0.2",
+-        "ignore-walk": "^5.0.1",
+-        "jsdom": "^18.1.0",
+-        "marked-man": "^0.7.0",
+-        "mkdirp": "^1.0.4",
+-        "tap": "^16.0.1",
+-        "yaml": "^1.10.2"
+-      },
+-      "engines": {
+-        "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+-      }
+-    },
+     "node_modules/@actions/core": {
+       "version": "1.9.1",
+       "resolved": "https://registry.npmjs.org/@actions/core/-/core-1.9.1.tgz",
+@@ -2046,10 +2021,6 @@
+         "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+       }
+     },
+-    "node_modules/@npmcli/docs": {
+-      "resolved": "docs",
+-      "link": true
+-    },
+     "node_modules/@npmcli/eslint-config": {
+       "version": "3.1.0",
+       "resolved": "https://registry.npmjs.org/@npmcli/eslint-config/-/eslint-config-3.1.0.tgz",
+@@ -11131,10 +11102,6 @@
+         "npm": ">= 3.0.0"
+       }
+     },
+-    "node_modules/smoke-tests": {
+-      "resolved": "smoke-tests",
+-      "link": true
+-    },
+     "node_modules/socks": {
+       "version": "2.7.0",
+       "resolved": "https://registry.npmjs.org/socks/-/socks-2.7.0.tgz",
+@@ -14812,22 +14779,6 @@
+         "url": "https://github.com/sponsors/wooorm"
+       }
+     },
+-    "smoke-tests": {
+-      "version": "1.0.0",
+-      "license": "ISC",
+-      "devDependencies": {
+-        "@npmcli/eslint-config": "^3.1.0",
+-        "@npmcli/promise-spawn": "^3.0.0",
+-        "@npmcli/template-oss": "4.11.4",
+-        "minify-registry-metadata": "^2.2.0",
+-        "rimraf": "^3.0.2",
+-        "tap": "^16.0.1",
+-        "which": "^2.0.2"
+-      },
+-      "engines": {
+-        "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+-      }
+-    },
+     "workspaces/arborist": {
+       "name": "@npmcli/arborist",
+       "version": "5.6.3",
+diff --git a/package.json b/package.json
+index fb1b1a0a..60d1af38 100644
+--- a/package.json
++++ b/package.json
+@@ -3,17 +3,12 @@
+   "name": "npm",
+   "description": "a package manager for JavaScript",
+   "workspaces": [
+-    "docs",
+-    "smoke-tests",
+     "workspaces/*"
+   ],
+   "files": [
+     "bin/",
+     "lib/",
+-    "index.js",
+-    "docs/content/",
+-    "docs/output/",
+-    "man/"
++    "index.js"
+   ],
+   "keywords": [
+     "install",
+@@ -205,7 +200,6 @@
+     "write-file-atomic"
+   ],
+   "devDependencies": {
+-    "@npmcli/docs": "^1.0.0",
+     "@npmcli/eslint-config": "^3.1.0",
+     "@npmcli/git": "^3.0.2",
+     "@npmcli/promise-spawn": "^3.0.0",
+@@ -220,14 +214,13 @@
+     "tap": "^16.0.1"
+   },
+   "scripts": {
+-    "dependencies": "node scripts/bundle-and-gitignore-deps.js && node scripts/dependency-graph.js",
++    "dependencies": "node scripts/bundle-and-gitignore-deps.js",
+     "dumpconf": "env | grep npm | sort | uniq",
+     "licenses": "licensee --production --errors-only",
+     "pretest": "node scripts/rebuild.js cmark-gfm",
+     "test": "tap",
+     "test-all": "node . run test -ws -iwr --if-present",
+     "snap": "tap",
+-    "prepack": "node . run build -w docs",
+     "test:nocleanup": "NO_TEST_CLEANUP=1 node . run test --",
+     "sudotest": "sudo node . run run test --",
+     "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 node . run test --",
+diff --git a/scripts/bundle-and-gitignore-deps.js b/scripts/bundle-and-gitignore-deps.js
+index 6dd1b93f..eab2b54e 100644
+--- a/scripts/bundle-and-gitignore-deps.js
++++ b/scripts/bundle-and-gitignore-deps.js
+@@ -210,39 +210,7 @@ also have to ignore other things in those directories.
+ const main = async () => {
+   await setBundleDeps()
+ 
+-  const arb = new Arborist({ path: CWD })
+-  const files = await arb.loadActual().then(packlist)
+-
+-  const ignoreFile = [
+-    '# Automatically generated to ignore everything except bundled deps',
+-    '# Ignore everything by default except this file',
+-    '/*',
+-    '!/.gitignore',
+-    '# Allow all bundled deps',
+-    ...getAllowedPaths(files),
+-    '# Always ignore some specific patterns within any allowed package',
+-    ...ALWAYS_IGNORE.trim().split('\n'),
+-  ]
+-
+-  const NODE_MODULES = join(CWD, 'node_modules')
+-  const res = await fs.writeFile(join(NODE_MODULES, '.gitignore'), ignoreFile.join('\n'))
+-
+-  // After we write the file we have to check if any of the paths already checked in
+-  // inside node_modules are now going to be ignored. If we find any then fail with
+-  // a list of the paths remaining. We already attempted to `git rm` them so just
+-  // explain what happened and leave the repo in a state to debug.
+-  const trackedAndIgnored = await lsAndRmIgnored(NODE_MODULES)
+-
+-  if (trackedAndIgnored.length) {
+-    const message = [
+-      'The following files are checked in to git but will now be ignored.',
+-      `They could not be removed automatically and will need to be removed manually.`,
+-      ...trackedAndIgnored.map(p => relative(NODE_MODULES, p)),
+-    ].join('\n')
+-    throw new Error(message)
+-  }
+-
+-  return res
++  return true
+ }
+ 
+ run(main)
+diff --git a/scripts/publish.js b/scripts/publish.js
+index eb195f58..d9518b3c 100644
+--- a/scripts/publish.js
++++ b/scripts/publish.js
+@@ -21,14 +21,7 @@ const getLatest = async (s) => {
+ const TAG = {
+   cli: ({ version }) => `next-${semver.major(version)}`,
+   workspace: async ({ name, version }) => {
+-    const { prerelease, major } = semver.parse(version)
+-    if (prerelease.length) {
+-      return 'prerelease'
+-    }
+-    if (major === await getLatest(name).then(v => semver.major(v))) {
+-      return 'latest'
+-    }
+-    return 'backport'
++    return 'latest'
+   },
+ }
+ 
+@@ -37,7 +30,7 @@ const needsPublish = async ({ private, name, version }, { force, getTag }) => {
+     return
+   }
+ 
+-  if (force || await missingVersion({ name, version })) {
++  if (force) {
+     return getTag({ name, version })
+   }
+ }
+@@ -72,22 +65,10 @@ const main = async (opts) => {
+ 
+   log.info('publish', '\n' + publishes.map(JSON.stringify).join('\n'))
+ 
+-  await git('clean', '-fd')
+   await resetdeps()
+   await npm('ls', '--omit=dev', { quiet: true })
+-  await npm('rm', '--global', '--force', 'npm')
+   await npm('link', '--force', '--ignore-scripts')
+ 
+-  if (opts.test) {
+-    await npm('run', 'lint-all', '--ignore-scripts')
+-    await npm('run', 'postlint', '--ignore-scripts')
+-    await npm('run', 'test-all', '--ignore-scripts')
+-  }
+-
+-  await npm('prune', '--omit=dev', '--no-save', '--no-audit', '--no-fund')
+-  await npm('install', '-w', 'docs', '--ignore-scripts', '--no-audit', '--no-fund')
+-  await git.dirty()
+-
+   for (const p of publishes) {
+     const workspace = p.workspace && `--workspace=${p.workspace}`
+     if (packOnly) {
+diff --git a/scripts/resetdeps.js b/scripts/resetdeps.js
+index f0aad975..ae246cfe 100644
+--- a/scripts/resetdeps.js
++++ b/scripts/resetdeps.js
+@@ -5,21 +5,8 @@ const { CWD, run, pkg, fs, spawn, git, npm } = require('./util.js')
+ const checkout = () => git('checkout', 'node_modules/')
+ 
+ const main = async ({ packageLock }) => {
+-  await fs.rimraf(join(CWD, 'node_modules'))
+-  for (const { path } of await pkg.mapWorkspaces()) {
+-    await fs.rimraf(join(path, 'node_modules'))
+-  }
+-
+-  await checkout()
+-  await npm('i', '--ignore-scripts', '--no-audit', '--no-fund', packageLock && '--package-lock')
+   await npm('rebuild', '--ignore-scripts')
+   await npm('run', 'dependencies', '--ignore-scripts')
+-  if (process.env.CI) {
+-    // this script can take awhile to rebuild the cmark-gfm bindings
+-    // so we only run it in CI. locally this is handled by pretest and
+-    // prebuild scripts, which don't run in CI due to --ignore-scripts
+-    await spawn('node', join('scripts', 'rebuild.js'), 'cmark-gfm')
+-  }
+ }
+ 
+-run(main).catch(checkout)
++run(main)
+diff --git a/standalone-build.sh b/standalone-build.sh
+new file mode 100644
+index 00000000..c103e8d5
+--- /dev/null
++++ b/standalone-build.sh
+@@ -0,0 +1,27 @@
++#!/bin/sh
++
++set -e
++
++cd "$(dirname "$0")"
++
++rm -rf artifacts dist node_modules
++mkdir artifacts dist
++
++version=$(node -p "require('./package.json').version")
++
++npm install --ignore-scripts --no-audit --no-fund --package-lock
++
++rm -rf \
++  node_modules/node-gyp/test \
++  node_modules/node-gyp/gyp/tools/emacs/testdata \
++;
++
++node scripts/publish.js --pack-destination="${PWD}/artifacts"
++node bin/npm-cli.js version
++
++tar --strip-components=1 -C dist -xf "${PWD}/artifacts/npm-${version}.tgz"
++
++xz -9vvk package-lock.json
++mv package-lock.json.xz dist/
++
++rm -rf artifacts node_modules
+-- 
+2.40.1
+

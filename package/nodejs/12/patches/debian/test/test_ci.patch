@@ -22,7 +22,7 @@ Last-Update: 2020-02-09
 
 --- a/Makefile
 +++ b/Makefile
-@@ -520,7 +520,7 @@ test-ci-native: | benchmark/napi/.builds
+@@ -516,7 +516,7 @@ test-ci-native: | benchmark/napi/.builds
  # This target should not use a native compiler at all
  # Related CI job: node-test-commit-arm-fanned
  test-ci-js: | clear-stalled

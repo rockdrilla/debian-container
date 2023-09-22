@@ -1,4 +1,0 @@
-/tmp         @{NODEJS_PREFIX}/var/.cache
-/tmp         @{NODEJS_PREFIX}/var/cache
-/etc/yarnrc  @{NODEJS_PREFIX}/var/.yarnrc
-/etc/yarnrc  @{NODEJS_PREFIX}/var/yarnrc

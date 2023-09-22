@@ -1,0 +1,56 @@
+From bb2c69d5be615a794039ec151771ecdbbbd4c0a9 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:39:02 +0300
+Subject: tweaks
+
+---
+ src/config.js     | 1 +
+ src/constants.js  | 4 ++--
+ src/util/child.js | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/config.js b/src/config.js
+index 6ca6cd65..b0070757 100644
+--- a/src/config.js
++++ b/src/config.js
+@@ -325,6 +325,7 @@ export default class Config {
+       opts.childConcurrency ||
+       Number(this.getOption('child-concurrency')) ||
+       Number(process.env.CHILD_CONCURRENCY) ||
++      Number(process.env.NPROC) ||
+       constants.CHILD_CONCURRENCY;
+ 
+     this.networkTimeout = opts.networkTimeout || Number(this.getOption('network-timeout')) || constants.NETWORK_TIMEOUT;
+diff --git a/src/constants.js b/src/constants.js
+index 75ea0ee2..ca55c99c 100644
+--- a/src/constants.js
++++ b/src/constants.js
+@@ -29,10 +29,10 @@ export const LOCKFILE_VERSION = 1;
+ export const NETWORK_CONCURRENCY = 8;
+ 
+ // HTTP timeout used when downloading packages
+-export const NETWORK_TIMEOUT = 30 * 1000; // in milliseconds
++export const NETWORK_TIMEOUT = 15 * 1000; // in milliseconds
+ 
+ // max amount of child processes to execute concurrently
+-export const CHILD_CONCURRENCY = 5;
++export const CHILD_CONCURRENCY = 1;
+ 
+ export const REQUIRED_PACKAGE_KEYS = ['name', 'version', '_uid'];
+ 
+diff --git a/src/util/child.js b/src/util/child.js
+index 08209019..293d6dd1 100644
+--- a/src/util/child.js
++++ b/src/util/child.js
+@@ -8,7 +8,7 @@ import {promisify} from './promise.js';
+ 
+ const child = require('child_process');
+ 
+-export const queue = new BlockingQueue('child', constants.CHILD_CONCURRENCY);
++export const queue = new BlockingQueue('child', Number(process.env.NPROC) || constants.CHILD_CONCURRENCY);
+ 
+ // TODO: this uid check is kinda whack
+ let uid = 0;
+-- 
+2.40.1
+

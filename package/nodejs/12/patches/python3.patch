@@ -1,0 +1,94 @@
+--- a/deps/v8/third_party/jinja2/runtime.py
++++ b/deps/v8/third_party/jinja2/runtime.py
+@@ -313,12 +313,8 @@ class Context(with_metaclass(ContextMeta
+         )
+ 
+ 
+-# register the context as mapping if possible
+-try:
+-    from collections import Mapping
+-    Mapping.register(Context)
+-except ImportError:
+-    pass
++from collections.abc import Mapping
++Mapping.register(Context)
+ 
+ 
+ class BlockReference(object):
+--- a/deps/v8/third_party/jinja2/sandbox.py
++++ b/deps/v8/third_party/jinja2/sandbox.py
+@@ -14,7 +14,7 @@
+ """
+ import types
+ import operator
+-from collections import Mapping
++from collections.abc import Mapping
+ from jinja2.environment import Environment
+ from jinja2.exceptions import SecurityError
+ from jinja2._compat import string_types, PY2
+--- a/deps/v8/third_party/jinja2/tests.py
++++ b/deps/v8/third_party/jinja2/tests.py
+@@ -10,7 +10,7 @@
+ """
+ import operator
+ import re
+-from collections import Mapping
++from collections.abc import Mapping
+ from jinja2.runtime import Undefined
+ from jinja2._compat import text_type, string_types, integer_types
+ import decimal
+--- a/tools/gyp/pylib/gyp/input.py
++++ b/tools/gyp/pylib/gyp/input.py
+@@ -226,12 +226,7 @@ def LoadOneBuildFile(build_file_path, da
+     # Open the build file for read ('r') with universal-newlines mode ('U')
+     # to make sure platform specific newlines ('\r\n' or '\r') are converted to '\n'
+     # which otherwise will fail eval()
+-    if sys.platform == 'zos':
+-      # On z/OS, universal-newlines mode treats the file as an ascii file. But since
+-      # node-gyp produces ebcdic files, do not use that mode.
+-      build_file_contents = open(build_file_path, 'r').read()
+-    else:
+-      build_file_contents = open(build_file_path, 'rU').read()
++    build_file_contents = open(build_file_path, 'r').read()
+   else:
+     raise GypError("%s not found (cwd: %s)" % (build_file_path, os.getcwd()))
+ 
+--- a/tools/inspector_protocol/jinja2/runtime.py
++++ b/tools/inspector_protocol/jinja2/runtime.py
+@@ -313,12 +313,8 @@ class Context(with_metaclass(ContextMeta
+         )
+ 
+ 
+-# register the context as mapping if possible
+-try:
+-    from collections import Mapping
+-    Mapping.register(Context)
+-except ImportError:
+-    pass
++from collections.abc import Mapping
++Mapping.register(Context)
+ 
+ 
+ class BlockReference(object):
+--- a/tools/inspector_protocol/jinja2/sandbox.py
++++ b/tools/inspector_protocol/jinja2/sandbox.py
+@@ -14,7 +14,7 @@
+ """
+ import types
+ import operator
+-from collections import Mapping
++from collections.abc import Mapping
+ from jinja2.environment import Environment
+ from jinja2.exceptions import SecurityError
+ from jinja2._compat import string_types, PY2
+--- a/tools/inspector_protocol/jinja2/tests.py
++++ b/tools/inspector_protocol/jinja2/tests.py
+@@ -10,7 +10,7 @@
+ """
+ import operator
+ import re
+-from collections import Mapping
++from collections.abc import Mapping
+ from jinja2.runtime import Undefined
+ from jinja2._compat import text_type, string_types, integer_types
+ import decimal

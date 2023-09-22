@@ -1,0 +1,624 @@
+From c10337cbe5aa7b84a830a40fcc633990356f630b Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:36:40 +0300
+Subject: remove non-linux support
+
+---
+ package.json                              |  1 -
+ src/cli/commands/global.js                | 12 +---------
+ src/cli/commands/link.js                  |  7 +-----
+ src/cli/commands/unlink.js                |  3 ---
+ src/cli/index.js                          |  4 ----
+ src/config.js                             | 13 ----------
+ src/constants.js                          | 16 -------------
+ src/fetchers/base-fetcher.js              | 13 +---------
+ src/package-linker.js                     | 17 +++----------
+ src/registries/npm-registry.js            |  3 ---
+ src/reporters/console/console-reporter.js |  5 ----
+ src/util/child.js                         | 14 -----------
+ src/util/execute-lifecycle-script.js      | 14 ++++-------
+ src/util/fs-normalized.js                 | 23 ------------------
+ src/util/fs.js                            | 19 +++++----------
+ src/util/generate-pnp-map-api.tpl.js      |  7 ------
+ src/util/generate-pnp-map.js              |  4 +---
+ src/util/path.js                          |  2 +-
+ src/util/portable-script.js               | 17 ++++---------
+ src/util/rc.js                            |  9 +++----
+ src/util/root-user.js                     |  2 +-
+ src/util/user-dirs.js                     | 29 +++--------------------
+ 22 files changed, 30 insertions(+), 204 deletions(-)
+
+diff --git a/package.json b/package.json
+index 0cfc0b11..88c381a5 100644
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,6 @@
+   "preferGlobal": true,
+   "description": "📦🐈 Fast, reliable, and secure dependency management.",
+   "dependencies": {
+-    "@zkochan/cmd-shim": "^3.1.0",
+     "babel-runtime": "^6.26.0",
+     "bytes": "^3.0.0",
+     "camelcase": "^4.0.0",
+diff --git a/src/cli/commands/global.js b/src/cli/commands/global.js
+index a502cc66..d028c3da 100644
+--- a/src/cli/commands/global.js
++++ b/src/cli/commands/global.js
+@@ -91,14 +91,7 @@ async function getGlobalPrefix(config: Config, flags: Object): Promise<string> {
+   }
+ 
+   const potentialPrefixFolders = [FALLBACK_GLOBAL_PREFIX];
+-  if (process.platform === 'win32') {
+-    // %LOCALAPPDATA%\Yarn --> C:\Users\Alice\AppData\Local\Yarn
+-    if (process.env.LOCALAPPDATA) {
+-      potentialPrefixFolders.unshift(path.join(process.env.LOCALAPPDATA, 'Yarn'));
+-    }
+-  } else {
+-    potentialPrefixFolders.unshift(POSIX_GLOBAL_PREFIX);
+-  }
++  potentialPrefixFolders.unshift(POSIX_GLOBAL_PREFIX);
+ 
+   const binFolders = potentialPrefixFolders.map(prefix => path.join(prefix, 'bin'));
+   const prefixFolderQueryResult = await fs.getFirstSuitableFolder(binFolders);
+@@ -167,9 +160,6 @@ async function initUpdateBins(config: Config, reporter: Reporter, flags: Object)
+       try {
+         await fs.unlink(dest);
+         await linkBin(src, dest);
+-        if (process.platform === 'win32' && dest.indexOf('.cmd') !== -1) {
+-          await fs.rename(dest + '.cmd', dest);
+-        }
+       } catch (err) {
+         throwPermError(err, dest);
+       }
+diff --git a/src/cli/commands/link.js b/src/cli/commands/link.js
+index 9c7595e8..3fa4d78b 100644
+--- a/src/cli/commands/link.js
++++ b/src/cli/commands/link.js
+@@ -7,7 +7,6 @@ import * as fs from '../../util/fs.js';
+ import {getBinFolder as getGlobalBinFolder} from './global';
+ 
+ const invariant = require('invariant');
+-const cmdShim = require('@zkochan/cmd-shim');
+ const path = require('path');
+ 
+ export async function getRegistryFolder(config: Config, name: string): Promise<string> {
+@@ -74,11 +73,7 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+           if (await fs.exists(binDestLoc)) {
+             reporter.warn(reporter.lang('binLinkCollision', binName));
+           } else {
+-            if (process.platform === 'win32') {
+-              await cmdShim(binSrcLoc, binDestLoc, {createPwshFile: false});
+-            } else {
+-              await fs.symlink(binSrcLoc, binDestLoc);
+-            }
++            await fs.symlink(binSrcLoc, binDestLoc);
+           }
+         }
+       }
+diff --git a/src/cli/commands/unlink.js b/src/cli/commands/unlink.js
+index 66fdbfe6..8e6e3fa9 100644
+--- a/src/cli/commands/unlink.js
++++ b/src/cli/commands/unlink.js
+@@ -47,9 +47,6 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+           const binDestLoc = path.join(globalBinFolder, binName);
+           if (await fs.exists(binDestLoc)) {
+             await fs.unlink(binDestLoc);
+-            if (process.platform === 'win32') {
+-              await fs.unlink(binDestLoc + '.cmd');
+-            }
+           }
+         }
+       }
+diff --git a/src/cli/index.js b/src/cli/index.js
+index 4348adbb..01a5a953 100644
+--- a/src/cli/index.js
++++ b/src/cli/index.js
+@@ -113,10 +113,6 @@ export async function main({
+     '--emoji [bool]',
+     'enable emoji in output',
+     boolify,
+-    process.platform === 'darwin' ||
+-      process.env.TERM_PROGRAM === 'Hyper' ||
+-      process.env.TERM_PROGRAM === 'HyperTerm' ||
+-      process.env.TERM_PROGRAM === 'Terminus',
+   );
+   commander.option('-s, --silent', 'skip Yarn console logs, other types of logs (script output) will be printed');
+   commander.option('--cwd <cwd>', 'working directory to use', process.cwd());
+diff --git a/src/config.js b/src/config.js
+index caf3d247..6ca6cd65 100644
+--- a/src/config.js
++++ b/src/config.js
+@@ -396,19 +396,6 @@ export default class Config {
+       this.plugnplayPersist = false;
+     }
+ 
+-    if (process.platform === 'win32') {
+-      const cacheRootFolderDrive = path.parse(this._cacheRootFolder).root.toLowerCase();
+-      const lockfileFolderDrive = path.parse(this.lockfileFolder).root.toLowerCase();
+-
+-      if (cacheRootFolderDrive !== lockfileFolderDrive) {
+-        if (this.plugnplayEnabled) {
+-          this.reporter.warn(this.reporter.lang('plugnplayWindowsSupport'));
+-        }
+-        this.plugnplayEnabled = false;
+-        this.plugnplayPersist = false;
+-      }
+-    }
+-
+     this.plugnplayShebang = String(this.getOption('plugnplay-shebang') || '') || '/usr/bin/env node';
+     this.plugnplayBlacklist = String(this.getOption('plugnplay-blacklist') || '') || null;
+ 
+diff --git a/src/constants.js b/src/constants.js
+index 0cceb4a0..75ea0ee2 100644
+--- a/src/constants.js
++++ b/src/constants.js
+@@ -6,10 +6,6 @@ const userHome = require('./util/user-home-dir').default;
+ const {getCacheDir, getConfigDir, getDataDir} = require('./util/user-dirs');
+ const isWebpackBundle = require('is-webpack-bundle');
+ 
+-type Env = {
+-  [key: string]: ?string,
+-};
+-
+ export const DEPENDENCY_TYPES = ['devDependencies', 'dependencies', 'optionalDependencies', 'peerDependencies'];
+ export const OWNED_DEPENDENCY_TYPES = ['devDependencies', 'dependencies', 'optionalDependencies'];
+ 
+@@ -97,18 +93,6 @@ export const ENV_PATH_KEY = getPathKey(process.platform, process.env);
+ 
+ export function getPathKey(platform: string, env: Env): string {
+   let pathKey = 'PATH';
+-
+-  // windows calls its path "Path" usually, but this is not guaranteed.
+-  if (platform === 'win32') {
+-    pathKey = 'Path';
+-
+-    for (const key in env) {
+-      if (key.toLowerCase() === 'path') {
+-        pathKey = key;
+-      }
+-    }
+-  }
+-
+   return pathKey;
+ }
+ 
+diff --git a/src/fetchers/base-fetcher.js b/src/fetchers/base-fetcher.js
+index 25ddee18..c14b2be8 100644
+--- a/src/fetchers/base-fetcher.js
++++ b/src/fetchers/base-fetcher.js
+@@ -8,9 +8,7 @@ import type Config from '../config.js';
+ import normalizeManifest from '../util/normalize-manifest/index.js';
+ import * as constants from '../constants.js';
+ import * as fs from '../util/fs.js';
+-import lockMutex from '../util/mutex.js';
+ 
+-const cmdShim = require('@zkochan/cmd-shim');
+ const path = require('path');
+ 
+ export default class BaseFetcher {
+@@ -78,16 +76,7 @@ export default class BaseFetcher {
+           }
+ 
+           await fs.mkdirp(binDest);
+-          if (process.platform === 'win32') {
+-            const unlockMutex = await lockMutex(src);
+-            try {
+-              await cmdShim.ifExists(src, `${binDest}/${binName}`, {createPwshFile: false});
+-            } finally {
+-              unlockMutex();
+-            }
+-          } else {
+-            await fs.symlink(src, `${binDest}/${binName}`);
+-          }
++          await fs.symlink(src, `${binDest}/${binName}`);
+         }
+       }
+ 
+diff --git a/src/package-linker.js b/src/package-linker.js
+index 59ca3e82..60bbd352 100644
+--- a/src/package-linker.js
++++ b/src/package-linker.js
+@@ -14,12 +14,10 @@ import * as promise from './util/promise.js';
+ import {normalizePattern} from './util/normalize-pattern.js';
+ import {entries} from './util/misc.js';
+ import * as fs from './util/fs.js';
+-import lockMutex from './util/mutex.js';
+ import {satisfiesWithPrereleases} from './util/semver.js';
+ import WorkspaceLayout from './workspace-layout.js';
+ 
+ const invariant = require('invariant');
+-const cmdShim = require('@zkochan/cmd-shim');
+ const path = require('path');
+ const semver = require('semver');
+ // Concurrency for creating bin links disabled because of the issue #1961
+@@ -31,18 +29,9 @@ type DependencyPairs = Array<{
+ }>;
+ 
+ export async function linkBin(src: string, dest: string): Promise<void> {
+-  if (process.platform === 'win32') {
+-    const unlockMutex = await lockMutex(src);
+-    try {
+-      await cmdShim(src, dest, {createPwshFile: false});
+-    } finally {
+-      unlockMutex();
+-    }
+-  } else {
+-    await fs.mkdirp(path.dirname(dest));
+-    await fs.symlink(src, dest);
+-    await fs.chmod(dest, '755');
+-  }
++  await fs.mkdirp(path.dirname(dest));
++  await fs.symlink(src, dest);
++  await fs.chmod(dest, '755');
+ }
+ 
+ export default class PackageLinker {
+diff --git a/src/registries/npm-registry.js b/src/registries/npm-registry.js
+index de54a6ff..05f0beff 100644
+--- a/src/registries/npm-registry.js
++++ b/src/registries/npm-registry.js
+@@ -41,9 +41,6 @@ const SCOPED_PKG_REGEXP = /(?:^|\/)(@[^\/?]+?)(?=%2f|\/)/;
+ function getGlobalPrefix(): string {
+   if (process.env.PREFIX) {
+     return process.env.PREFIX;
+-  } else if (process.platform === 'win32') {
+-    // c:\node\node.exe --> prefix=c:\node\
+-    return path.dirname(process.execPath);
+   } else {
+     // /usr/local/bin/node --> prefix=/usr/local
+     let prefix = path.dirname(path.dirname(process.execPath));
+diff --git a/src/reporters/console/console-reporter.js b/src/reporters/console/console-reporter.js
+index 0e1aa38a..fd456eeb 100644
+--- a/src/reporters/console/console-reporter.js
++++ b/src/reporters/console/console-reporter.js
+@@ -42,11 +42,6 @@ const auditSeverityColors = {
+ type Row = Array<string>;
+ type InquirerResponses<K, T> = {[key: K]: Array<T>};
+ 
+-// fixes bold on windows
+-if (process.platform === 'win32' && !(process.env.TERM && /^xterm/i.test(process.env.TERM))) {
+-  chalk.bold._styles[0].close += '\u001b[m';
+-}
+-
+ export default class ConsoleReporter extends BaseReporter {
+   constructor(opts: Object) {
+     super(opts);
+diff --git a/src/util/child.js b/src/util/child.js
+index 7356f3cc..08209019 100644
+--- a/src/util/child.js
++++ b/src/util/child.js
+@@ -7,8 +7,6 @@ import {ProcessSpawnError, ProcessTermError} from '../errors.js';
+ import {promisify} from './promise.js';
+ 
+ const child = require('child_process');
+-const fs = require('fs');
+-const path = require('path');
+ 
+ export const queue = new BlockingQueue('child', constants.CHILD_CONCURRENCY);
+ 
+@@ -21,18 +19,6 @@ function validate(program: string, opts?: Object = {}) {
+   if (program.match(/[\\\/]/)) {
+     return;
+   }
+-
+-  if (process.platform === 'win32' && process.env.PATHEXT) {
+-    const cwd = opts.cwd || process.cwd();
+-    const pathext = process.env.PATHEXT;
+-
+-    for (const ext of pathext.split(';')) {
+-      const candidate = path.join(cwd, `${program}${ext}`);
+-      if (fs.existsSync(candidate)) {
+-        throw new Error(`Potentially dangerous call to "${program}" in ${cwd}`);
+-      }
+-    }
+-  }
+ }
+ 
+ export function forkp(program: string, args: Array<string>, opts?: Object): Promise<number> {
+diff --git a/src/util/execute-lifecycle-script.js b/src/util/execute-lifecycle-script.js
+index f5db0821..8c526f67 100644
+--- a/src/util/execute-lifecycle-script.js
++++ b/src/util/execute-lifecycle-script.js
+@@ -7,7 +7,6 @@ import * as child from './child.js';
+ import * as fs from './fs.js';
+ import {dynamicRequire} from './dynamic-require.js';
+ import {makePortableProxyScript} from './portable-script.js';
+-import {fixCmdWinSlashes} from './fix-cmd-win-slashes.js';
+ import {getBinFolder as getGlobalBinFolder, run as globalRun} from '../cli/commands/global.js';
+ 
+ const path = require('path');
+@@ -167,7 +166,7 @@ export async function makeEnv(
+   }
+ 
+   // split up the path
+-  const envPath = env[constants.ENV_PATH_KEY];
++  const envPath = env.PATH;
+   const pathParts = envPath ? envPath.split(path.delimiter) : [];
+ 
+   // Include node-gyp version that was bundled with the current Node.js version,
+@@ -237,7 +236,7 @@ export async function makeEnv(
+   pathParts.unshift(await getWrappersFolder(config));
+ 
+   // join path back together
+-  env[constants.ENV_PATH_KEY] = pathParts.join(path.delimiter);
++  env.PATH = pathParts.join(path.delimiter);
+ 
+   return env;
+ }
+@@ -261,17 +260,12 @@ export async function executeLifecycleScript({
+ }): LifecycleReturn {
+   const env = await makeEnv(stage, cwd, config);
+ 
+-  await checkForGypIfNeeded(config, cmd, env[constants.ENV_PATH_KEY].split(path.delimiter));
+-
+-  if (process.platform === 'win32' && (!customShell || customShell === 'cmd')) {
+-    // handle windows run scripts starting with a relative path
+-    cmd = fixCmdWinSlashes(cmd);
+-  }
++  await checkForGypIfNeeded(config, cmd, env.PATH.split(path.delimiter));
+ 
+   // By default (non-interactive), pipe everything to the terminal and run child process detached
+   // as long as it's not Windows (since windows does not have /dev/tty)
+   let stdio = ['ignore', 'pipe', 'pipe'];
+-  let detached = process.platform !== 'win32';
++  let detached = true;
+ 
+   if (isInteractive) {
+     stdio = 'inherit';
+diff --git a/src/util/fs-normalized.js b/src/util/fs-normalized.js
+index abb2325d..e961d1b9 100644
+--- a/src/util/fs-normalized.js
++++ b/src/util/fs-normalized.js
+@@ -147,28 +147,5 @@ export const fileDatesEqual = (a: Date, b: Date) => {
+   const aTime = a.getTime();
+   const bTime = b.getTime();
+ 
+-  if (process.platform !== 'win32') {
+-    return aTime === bTime;
+-  }
+-
+-  // See https://github.com/nodejs/node/pull/12607
+-  // Submillisecond times from stat and utimes are truncated on Windows,
+-  // causing a file with mtime 8.0079998 and 8.0081144 to become 8.007 and 8.008
+-  // and making it impossible to update these files to their correct timestamps.
+-  if (Math.abs(aTime - bTime) <= 1) {
+-    return true;
+-  }
+-
+-  const aTimeSec = Math.floor(aTime / 1000);
+-  const bTimeSec = Math.floor(bTime / 1000);
+-
+-  // See https://github.com/nodejs/node/issues/2069
+-  // Some versions of Node on windows zero the milliseconds when utime is used
+-  // So if any of the time has a milliseconds part of zero we suspect that the
+-  // bug is present and compare only seconds.
+-  if (aTime - aTimeSec * 1000 === 0 || bTime - bTimeSec * 1000 === 0) {
+-    return aTimeSec === bTimeSec;
+-  }
+-
+   return aTime === bTime;
+ };
+diff --git a/src/util/fs.js b/src/util/fs.js
+index 498b9707..2ddfcadf 100644
+--- a/src/util/fs.js
++++ b/src/util/fs.js
+@@ -677,13 +677,11 @@ export async function find(filename: string, dir: string): Promise<string | fals
+ }
+ 
+ export async function symlink(src: string, dest: string): Promise<void> {
+-  if (process.platform !== 'win32') {
+-    // use relative paths otherwise which will be retained if the directory is moved
+-    src = path.relative(path.dirname(dest), src);
+-    // When path.relative returns an empty string for the current directory, we should instead use
+-    // '.', which is a valid fs.symlink target.
+-    src = src || '.';
+-  }
++  // use relative paths otherwise which will be retained if the directory is moved
++  src = path.relative(path.dirname(dest), src);
++  // When path.relative returns an empty string for the current directory, we should instead use
++  // '.', which is a valid fs.symlink target.
++  src = src || '.';
+ 
+   try {
+     const stats = await lstat(dest);
+@@ -702,12 +700,7 @@ export async function symlink(src: string, dest: string): Promise<void> {
+   // We use rimraf for unlink which never throws an ENOENT on missing target
+   await unlink(dest);
+ 
+-  if (process.platform === 'win32') {
+-    // use directory junctions if possible on win32, this requires absolute paths
+-    await fsSymlink(src, dest, 'junction');
+-  } else {
+-    await fsSymlink(src, dest);
+-  }
++  await fsSymlink(src, dest);
+ }
+ 
+ export type WalkFiles = Array<{
+diff --git a/src/util/generate-pnp-map-api.tpl.js b/src/util/generate-pnp-map-api.tpl.js
+index c44db360..ef893087 100644
+--- a/src/util/generate-pnp-map-api.tpl.js
++++ b/src/util/generate-pnp-map-api.tpl.js
+@@ -23,9 +23,6 @@ const blacklistedLocator = {name: NaN, reference: NaN};
+ const patchedModules = [];
+ const fallbackLocators = [topLevelLocator];
+ 
+-// Matches backslashes of Windows paths
+-const backwardSlashRegExp = /\\/g;
+-
+ // Matches if the path must point to a directory (ie ends with /)
+ const isDirRegExp = /\/$/;
+ 
+@@ -243,10 +240,6 @@ function makeFakeModule(path) {
+ function normalizePath(fsPath) {
+   fsPath = path.normalize(fsPath);
+ 
+-  if (process.platform === 'win32') {
+-    fsPath = fsPath.replace(backwardSlashRegExp, '/');
+-  }
+-
+   return fsPath;
+ }
+ 
+diff --git a/src/util/generate-pnp-map.js b/src/util/generate-pnp-map.js
+index 437aed73..47595775 100644
+--- a/src/util/generate-pnp-map.js
++++ b/src/util/generate-pnp-map.js
+@@ -11,8 +11,6 @@ const crypto = require('crypto');
+ const invariant = require('invariant');
+ const path = require('path');
+ 
+-const backwardSlashRegExp = /\\/g;
+-
+ const OFFLINE_CACHE_EXTENSION = `.zip`;
+ 
+ type PackageInformation = {|
+@@ -167,7 +165,7 @@ async function getPackageInformationStores(
+   };
+ 
+   const normalizePath = (fsPath: string) => {
+-    return process.platform === 'win32' ? fsPath.replace(backwardSlashRegExp, '/') : fsPath;
++    return fsPath;
+   };
+ 
+   const normalizeDirectoryPath = (fsPath: string) => {
+diff --git a/src/util/path.js b/src/util/path.js
+index 277835e3..15d73a1d 100644
+--- a/src/util/path.js
++++ b/src/util/path.js
+@@ -9,7 +9,7 @@ export function getPosixPath(path: string): string {
+ }
+ 
+ export function resolveWithHome(path: string): string {
+-  const homePattern = process.platform === 'win32' ? /^~(\/|\\)/ : /^~\//;
++  const homePattern = /^~\//;
+   if (homePattern.test(path)) {
+     return resolve(userHome, path.substr(2));
+   }
+diff --git a/src/util/portable-script.js b/src/util/portable-script.js
+index fdecf17c..d2eb20ca 100644
+--- a/src/util/portable-script.js
++++ b/src/util/portable-script.js
+@@ -37,18 +37,11 @@ async function makePortableProxyScriptUnix(
+ 
+   await fs.mkdirp(destination);
+ 
+-  if (process.platform === 'win32') {
+-    await fs.writeFile(
+-      filePath + '.cmd',
+-      `@${environment}"${sourcePath}" ${prependedArguments} ${appendedArguments} %*\r\n`,
+-    );
+-  } else {
+-    await fs.writeFile(
+-      filePath,
+-      `#!/bin/sh\n\n${environment}exec "${sourcePath}"${prependedArguments} "$@"${appendedArguments}\n`,
+-    );
+-    await fs.chmod(filePath, 0o755);
+-  }
++  await fs.writeFile(
++    filePath,
++    `#!/bin/sh\n${environment}exec "${sourcePath}"${prependedArguments} "$@"${appendedArguments}\n`,
++  );
++  await fs.chmod(filePath, 0o755);
+ }
+ 
+ export function makePortableProxyScript(
+diff --git a/src/util/rc.js b/src/util/rc.js
+index 2e167ca2..9ff3bb42 100644
+--- a/src/util/rc.js
++++ b/src/util/rc.js
+@@ -5,8 +5,7 @@ import * as path from 'path';
+ import {CONFIG_DIRECTORY} from '../constants';
+ 
+ const etc = '/etc';
+-const isWin = process.platform === 'win32';
+-const home = isWin ? process.env.USERPROFILE : process.env.HOME;
++const home = process.env.HOME;
+ 
+ function getRcPaths(name: string, cwd: string): Array<string> {
+   const configPaths = [];
+@@ -25,10 +24,8 @@ function getRcPaths(name: string, cwd: string): Array<string> {
+     configPaths.unshift(path.join(...segments));
+   }
+ 
+-  if (!isWin) {
+-    pushConfigPath(etc, name, 'config');
+-    pushConfigPath(etc, `${name}rc`);
+-  }
++  pushConfigPath(etc, name, 'config');
++  pushConfigPath(etc, `${name}rc`);
+ 
+   if (home) {
+     pushConfigPath(CONFIG_DIRECTORY);
+diff --git a/src/util/root-user.js b/src/util/root-user.js
+index 3bc938e0..f70cea2e 100644
+--- a/src/util/root-user.js
++++ b/src/util/root-user.js
+@@ -1,7 +1,7 @@
+ /* @flow */
+ 
+ function getUid(): ?number {
+-  if (process.platform !== 'win32' && process.getuid) {
++  if (process.getuid) {
+     return process.getuid();
+   }
+   return null;
+diff --git a/src/util/user-dirs.js b/src/util/user-dirs.js
+index 243df1a1..4751624b 100644
+--- a/src/util/user-dirs.js
++++ b/src/util/user-dirs.js
+@@ -7,48 +7,25 @@ const FALLBACK_CONFIG_DIR = path.join(userHome, '.config', 'yarn');
+ const FALLBACK_CACHE_DIR = path.join(userHome, '.cache', 'yarn');
+ 
+ export function getDataDir(): string {
+-  if (process.platform === 'win32') {
+-    const WIN32_APPDATA_DIR = getLocalAppDataDir();
+-    return WIN32_APPDATA_DIR == null ? FALLBACK_CONFIG_DIR : path.join(WIN32_APPDATA_DIR, 'Data');
+-  } else if (process.env.XDG_DATA_HOME) {
++if (process.env.XDG_DATA_HOME) {
+     return path.join(process.env.XDG_DATA_HOME, 'yarn');
+   } else {
+-    // This could arguably be ~/Library/Application Support/Yarn on Macs,
+-    // but that feels unintuitive for a cli tool
+-
+-    // Instead, use our prior fallback. Some day this could be
+-    // path.join(userHome, '.local', 'share', 'yarn')
+-    // or return path.join(WIN32_APPDATA_DIR, 'Data') on win32
+     return FALLBACK_CONFIG_DIR;
+   }
+ }
+ 
+ export function getCacheDir(): string {
+-  if (process.platform === 'win32') {
+-    // process.env.TEMP also exists, but most apps put caches here
+-    return path.join(getLocalAppDataDir() || path.join(userHome, 'AppData', 'Local', 'Yarn'), 'Cache');
+-  } else if (process.env.XDG_CACHE_HOME) {
++  if (process.env.XDG_CACHE_HOME) {
+     return path.join(process.env.XDG_CACHE_HOME, 'yarn');
+-  } else if (process.platform === 'darwin') {
+-    return path.join(userHome, 'Library', 'Caches', 'Yarn');
+   } else {
+     return FALLBACK_CACHE_DIR;
+   }
+ }
+ 
+ export function getConfigDir(): string {
+-  if (process.platform === 'win32') {
+-    // Use our prior fallback. Some day this could be
+-    // return path.join(WIN32_APPDATA_DIR, 'Config')
+-    const WIN32_APPDATA_DIR = getLocalAppDataDir();
+-    return WIN32_APPDATA_DIR == null ? FALLBACK_CONFIG_DIR : path.join(WIN32_APPDATA_DIR, 'Config');
+-  } else if (process.env.XDG_CONFIG_HOME) {
++  if (process.env.XDG_CONFIG_HOME) {
+     return path.join(process.env.XDG_CONFIG_HOME, 'yarn');
+   } else {
+     return FALLBACK_CONFIG_DIR;
+   }
+ }
+-
+-function getLocalAppDataDir(): ?string {
+-  return process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Yarn') : null;
+-}
+-- 
+2.40.1
+

@@ -1,0 +1,136 @@
+--- a/Makefile
++++ b/Makefile
+@@ -157,7 +157,7 @@ config.gypi: configure configure.py src/
+ 	fi
+ 
+ .PHONY: install
+-install: all ## Installs node into $PREFIX (default=/usr/local).
++install: ## Installs node into $PREFIX (default=/usr/local).
+ 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+ 
+ .PHONY: uninstall
+--- a/node.gyp
++++ b/node.gyp
+@@ -1142,6 +1142,10 @@
+         [ 'OS!="linux" or ossfuzz!="true"', {
+           'type': 'none',
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # fuzz_url
+     { # fuzz_env
+@@ -1185,6 +1189,10 @@
+         [ 'OS!="linux" or ossfuzz!="true"', {
+           'type': 'none',
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # fuzz_env
+     {
+@@ -1282,6 +1290,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # cctest
+ 
+@@ -1338,6 +1350,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # embedtest
+ 
+@@ -1400,6 +1416,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # mkcodecache
+     {
+@@ -1453,6 +1473,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # node_mksnapshot
+   ], # end targets
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -1259,6 +1259,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'defines!': [
+         'BUILDING_V8_SHARED=1',
+@@ -1295,6 +1299,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     },  # mksnapshot
+     {
+@@ -1308,6 +1316,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'defines!': [
+         '_HAS_EXCEPTIONS=0',
+@@ -1342,6 +1354,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'dependencies': [
+         'torque_base',
+@@ -1374,6 +1390,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'sources': [
+         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",

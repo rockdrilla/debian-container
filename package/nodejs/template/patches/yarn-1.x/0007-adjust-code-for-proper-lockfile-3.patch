@@ -1,0 +1,50 @@
+From d3ebdbb80387260446f96d52713a7cac1cd89574 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:39:02 +0300
+Subject: adjust code for proper-lockfile 3+
+
+---
+ src/cli/index.js | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cli/index.js b/src/cli/index.js
+index 1ebbc2dd..c84012c4 100644
+--- a/src/cli/index.js
++++ b/src/cli/index.js
+@@ -311,20 +311,20 @@ export async function main({
+   const runEventuallyWithFile = (mutexFilename: ?string, isFirstTime?: boolean): Promise<void> => {
+     return new Promise(resolve => {
+       const lockFilename = mutexFilename || path.join(config.cwd, constants.SINGLE_INSTANCE_FILENAME);
+-      lockfile.lock(lockFilename, {realpath: false}, (err: mixed, release: (() => void) => void) => {
+-        if (err) {
+-          if (isFirstTime) {
+-            reporter.warn(reporter.lang('waitingInstance'));
+-          }
+-          setTimeout(() => {
+-            resolve(runEventuallyWithFile(mutexFilename, false));
+-          }, 200); // do not starve the CPU
+-        } else {
+-          onDeath(() => {
+-            process.exitCode = 1;
+-          });
+-          resolve(run().then(() => new Promise(resolve => release(resolve))));
++      lockfile.lock(lockFilename, {realpath: false})
++      .then((release: (() => void) => void) => {
++        onDeath(() => {
++          process.exitCode = 1;
++        });
++        resolve(run().then(() => new Promise(resolve => release(resolve))));
++      })
++      .catch((err: mixed) => {
++        if (isFirstTime) {
++          reporter.warn(reporter.lang('waitingInstance'));
+         }
++        setTimeout(() => {
++          resolve(runEventuallyWithFile(mutexFilename, false));
++        }, 200); // do not starve the CPU
+       });
+     });
+   };
+-- 
+2.40.1
+

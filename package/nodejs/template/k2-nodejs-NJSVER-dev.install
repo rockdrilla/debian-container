@@ -1,0 +1,2 @@
+@{NODEJS_PREFIX}/bin/node-gyp
+@{NODEJS_PREFIX}/include

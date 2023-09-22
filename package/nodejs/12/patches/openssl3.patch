@@ -1,0 +1,105 @@
+--- a/src/node_crypto.cc
++++ b/src/node_crypto.cc
+@@ -41,6 +41,9 @@
+ 
+ #include <openssl/ec.h>
+ #include <openssl/ecdh.h>
++#if OPENSSL_VERSION_MAJOR >= 3
++#include <openssl/provider.h>
++#endif
+ #ifndef OPENSSL_NO_ENGINE
+ # include <openssl/engine.h>
+ #endif  // !OPENSSL_NO_ENGINE
+@@ -630,6 +633,9 @@ void SecureContext::Init(const FunctionC
+   // SSLv3 is disabled because it's susceptible to downgrade attacks (POODLE.)
+   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv2);
+   SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_NO_SSLv3);
++#if OPENSSL_VERSION_MAJOR >= 3
++  SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
++#endif
+ 
+   // Enable automatic cert chaining. This is enabled by default in OpenSSL, but
+   // disabled by default in BoringSSL. Enable it explicitly to make the
+@@ -3596,6 +3602,9 @@ void CipherBase::Init(const char* cipher
+   MarkPopErrorOnReturn mark_pop_error_on_return;
+ 
+ #ifdef NODE_FIPS_MODE
++  #if OPENSSL_VERSION_MAJOR >= 3
++    #error this release does not fully support recent OpenSSL with FIPS
++  #endif
+   if (FIPS_mode()) {
+     return env()->ThrowError(
+         "crypto.createCipher() is not supported in FIPS mode.");
+@@ -4604,11 +4613,11 @@ static unsigned int GetBytesOfRS(const M
+   int bits, base_id = EVP_PKEY_base_id(pkey.get());
+ 
+   if (base_id == EVP_PKEY_DSA) {
+-    DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
++    const DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
+     // Both r and s are computed mod q, so their width is limited by that of q.
+     bits = BN_num_bits(DSA_get0_q(dsa_key));
+   } else if (base_id == EVP_PKEY_EC) {
+-    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
++    const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
+     const EC_GROUP* ec_group = EC_KEY_get0_group(ec_key);
+     bits = EC_GROUP_order_bits(ec_group);
+   } else {
+@@ -6880,8 +6889,23 @@ void InitCryptoOnce() {
+ 
+   // --openssl-config=...
+   if (!per_process::cli_options->openssl_config.empty()) {
++#if OPENSSL_VERSION_MAJOR < 3
+     const char* conf = per_process::cli_options->openssl_config.c_str();
+     OPENSSL_INIT_set_config_filename(settings, conf);
++#else
++    fprintf(stderr, "Node.js: --openssl-config is NOT supported with OpenSSL 3.x\n");
++#endif
++  }
++  // --openssl-legacy-provider
++  if (per_process::cli_options->openssl_legacy_provider) {
++#if OPENSSL_VERSION_MAJOR >= 3
++    OSSL_PROVIDER* legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
++    if (legacy_provider == nullptr) {
++      fprintf(stderr, "Unable to load legacy provider.\n");
++    }
++#else
++    fprintf(stderr, "Node.js: --openssl-legacy-provider is NOT supported with OpenSSL 1.x\n");
++#endif
+   }
+ 
+   OPENSSL_init_ssl(0, settings);
+--- a/src/node_crypto_common.cc
++++ b/src/node_crypto_common.cc
+@@ -12,6 +12,9 @@
+ 
+ #include <openssl/ec.h>
+ #include <openssl/ecdh.h>
++#if OPENSSL_VERSION_MAJOR >= 3
++#include <openssl/provider.h>
++#endif
+ #include <openssl/evp.h>
+ #include <openssl/pem.h>
+ #include <openssl/x509v3.h>
+--- a/src/node_options.cc
++++ b/src/node_options.cc
+@@ -739,6 +739,10 @@ PerProcessOptionsParser::PerProcessOptio
+             &PerProcessOptions::force_fips_crypto,
+             kAllowedInEnvironment);
+ #endif
++  AddOption("--openssl-legacy-provider",
++            "enable OpenSSL 3.0 legacy provider",
++            &PerProcessOptions::openssl_legacy_provider,
++            kAllowedInEnvironment);
+ #endif
+   AddOption("--use-largepages",
+             "Map the Node.js static code to large pages. Options are "
+--- a/src/node_options.h
++++ b/src/node_options.h
+@@ -240,6 +240,7 @@ class PerProcessOptions : public Options
+   bool enable_fips_crypto = false;
+   bool force_fips_crypto = false;
+ #endif
++  bool openssl_legacy_provider = false;
+ #endif
+ 
+   // Per-process because reports can be triggered outside a known V8 context.

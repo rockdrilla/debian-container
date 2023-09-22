@@ -1,12 +1,8 @@
-update-notifier=false
 send-metrics=false
-
-cache="/tmp/npm"
-devdir="/tmp/node-gyp"
-
-# for use with proxy
+update-notifier=false
+cache=/tmp/npm
+## for use with proxy
 # registry=http://127.0.0.1:8081/repository/proxy_npm
-# disturl=http://127.0.0.1:8081/repository/proxy_raw_nodejs_org/download/release
-
-# should proxy https://github.com/sass/node-sass/releases/download/
+## node-sass:
+## should proxy https://github.com/sass/node-sass/releases/download/
 # sass_binary_site=http://127.0.0.1:8081/repository/proxy_raw_node-sass

@@ -1,0 +1,259 @@
+From de42de67148a9ddca99c5c9d2256bb1e1a0eb724 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:39:02 +0300
+Subject: rework global paths
+
+---
+ src/cli/commands/global.js     | 25 +++----------------------
+ src/config.js                  |  2 +-
+ src/constants.js               | 26 ++++++++++----------------
+ src/registries/npm-registry.js | 14 ++------------
+ src/util/rc.js                 |  2 --
+ src/util/user-dirs.js          | 20 ++------------------
+ src/util/user-home-dir.js      |  6 ++----
+ 7 files changed, 20 insertions(+), 75 deletions(-)
+
+diff --git a/src/cli/commands/global.js b/src/cli/commands/global.js
+index 1bd333e5..6a5e84be 100644
+--- a/src/cli/commands/global.js
++++ b/src/cli/commands/global.js
+@@ -14,7 +14,7 @@ import {run as runRemove} from './remove.js';
+ import {run as runUpgrade} from './upgrade.js';
+ import {run as runUpgradeInteractive} from './upgrade-interactive.js';
+ import {linkBin} from '../../package-linker.js';
+-import {POSIX_GLOBAL_PREFIX, FALLBACK_GLOBAL_PREFIX} from '../../constants.js';
++import {FALLBACK_GLOBAL_PREFIX} from '../../constants.js';
+ import * as fs from '../../util/fs.js';
+ 
+ class GlobalAdd extends Add {
+@@ -89,31 +89,12 @@ async function getGlobalPrefix(config: Config, flags: Object): Promise<string> {
+   } else if (process.env.PREFIX) {
+     return process.env.PREFIX;
+   }
+-
+-  const potentialPrefixFolders = [FALLBACK_GLOBAL_PREFIX];
+-  potentialPrefixFolders.unshift(POSIX_GLOBAL_PREFIX);
+-
+-  const binFolders = potentialPrefixFolders.map(prefix => path.join(prefix, 'bin'));
+-  const prefixFolderQueryResult = await fs.getFirstSuitableFolder(binFolders);
+-  const prefix = prefixFolderQueryResult.folder && path.dirname(prefixFolderQueryResult.folder);
+-
+-  if (!prefix) {
+-    config.reporter.warn(
+-      config.reporter.lang(
+-        'noGlobalFolder',
+-        prefixFolderQueryResult.skipped.map(item => path.dirname(item.folder)).join(', '),
+-      ),
+-    );
+-
+-    return FALLBACK_GLOBAL_PREFIX;
+-  }
+-
+-  return prefix;
++  return FALLBACK_GLOBAL_PREFIX;
+ }
+ 
+ export async function getBinFolder(config: Config, flags: Object): Promise<string> {
+   const prefix = await getGlobalPrefix(config, flags);
+-  return path.resolve(prefix, 'bin');
++  return (process.env.K2_NODEJS_HIDEBIN === '1') ? path.resolve(prefix, 'bin') : '/usr/local/bin';
+ }
+ 
+ async function initUpdateBins(config: Config, reporter: Reporter, flags: Object): Promise<() => Promise<void>> {
+diff --git a/src/config.js b/src/config.js
+index b0070757..5d2e13d3 100644
+--- a/src/config.js
++++ b/src/config.js
+@@ -397,7 +397,7 @@ export default class Config {
+       this.plugnplayPersist = false;
+     }
+ 
+-    this.plugnplayShebang = String(this.getOption('plugnplay-shebang') || '') || '/usr/bin/env node';
++    this.plugnplayShebang = String(this.getOption('plugnplay-shebang') || '') || process.config.variables.shebang || '/usr/bin/env node';
+     this.plugnplayBlacklist = String(this.getOption('plugnplay-blacklist') || '') || null;
+ 
+     this.ignoreScripts = opts.ignoreScripts || Boolean(this.getOption('ignore-scripts', false));
+diff --git a/src/constants.js b/src/constants.js
+index ca55c99c..b1fbdd16 100644
+--- a/src/constants.js
++++ b/src/constants.js
+@@ -3,7 +3,8 @@
+ const os = require('os');
+ const path = require('path');
+ const userHome = require('./util/user-home-dir').default;
+-const {getCacheDir, getConfigDir, getDataDir} = require('./util/user-dirs');
++const {getDataDir} = require('./util/user-dirs');
++const ROOT_USER = require('./util/root-user.js').default;
+ const isWebpackBundle = require('is-webpack-bundle');
+ 
+ export const DEPENDENCY_TYPES = ['devDependencies', 'dependencies', 'optionalDependencies', 'peerDependencies'];
+@@ -37,25 +38,26 @@ export const CHILD_CONCURRENCY = 1;
+ export const REQUIRED_PACKAGE_KEYS = ['name', 'version', '_uid'];
+ 
+ function getPreferredCacheDirectories(): Array<string> {
+-  const preferredCacheDirectories = [getCacheDir()];
++  const preferredCacheDirectories = [];
+ 
+   if (process.getuid) {
+     // $FlowFixMe: process.getuid exists, dammit
+-    preferredCacheDirectories.push(path.join(os.tmpdir(), `.yarn-cache-${process.getuid()}`));
++    preferredCacheDirectories.push(path.join(os.tmpdir(), `yarn-cache-${process.getuid()}`));
+   }
+ 
+-  preferredCacheDirectories.push(path.join(os.tmpdir(), `.yarn-cache`));
++  preferredCacheDirectories.push(path.join(os.tmpdir(), `yarn-cache`));
+ 
+   return preferredCacheDirectories;
+ }
+ 
++export const NODE_BIN_PATH = process.execPath;
++export const POSIX_GLOBAL_PREFIX = path.resolve(NODE_BIN_PATH, '..', '..');
++
+ export const PREFERRED_MODULE_CACHE_DIRECTORIES = getPreferredCacheDirectories();
+-export const CONFIG_DIRECTORY = getConfigDir();
+-export const DATA_DIRECTORY = getDataDir();
++export const DATA_DIRECTORY = ROOT_USER ? path.join(POSIX_GLOBAL_PREFIX, 'lib', 'yarn_modules') : getDataDir();
+ export const LINK_REGISTRY_DIRECTORY = path.join(DATA_DIRECTORY, 'link');
+ export const GLOBAL_MODULE_DIRECTORY = path.join(DATA_DIRECTORY, 'global');
+ 
+-export const NODE_BIN_PATH = process.execPath;
+ export const YARN_BIN_PATH = getYarnBinPath();
+ 
+ // Webpack needs to be configured with node.__dirname/__filename = false
+@@ -72,8 +74,7 @@ export const NODE_PACKAGE_JSON = 'package.json';
+ 
+ export const PNP_FILENAME = '.pnp.js';
+ 
+-export const POSIX_GLOBAL_PREFIX = `${process.env.DESTDIR || ''}/usr/local`;
+-export const FALLBACK_GLOBAL_PREFIX = path.join(userHome, '.yarn');
++export const FALLBACK_GLOBAL_PREFIX = ROOT_USER ? POSIX_GLOBAL_PREFIX : path.join(userHome, '.yarn');
+ 
+ export const META_FOLDER = '.yarn-meta';
+ export const INTEGRITY_FILENAME = '.yarn-integrity';
+@@ -89,13 +90,6 @@ export const DEFAULT_INDENT = '  ';
+ export const SINGLE_INSTANCE_PORT = 31997;
+ export const SINGLE_INSTANCE_FILENAME = '.yarn-single-instance';
+ 
+-export const ENV_PATH_KEY = getPathKey(process.platform, process.env);
+-
+-export function getPathKey(platform: string, env: Env): string {
+-  let pathKey = 'PATH';
+-  return pathKey;
+-}
+-
+ export const VERSION_COLOR_SCHEME: {[key: string]: VersionColor} = {
+   major: 'red',
+   premajor: 'red',
+diff --git a/src/registries/npm-registry.js b/src/registries/npm-registry.js
+index 05f0beff..2c01d275 100644
+--- a/src/registries/npm-registry.js
++++ b/src/registries/npm-registry.js
+@@ -6,7 +6,7 @@ import type {RegistryRequestOptions, CheckOutdatedReturn} from './base-registry.
+ import type Config from '../config.js';
+ import type {ConfigRegistries} from './index.js';
+ import type {Env} from '../util/env-replace.js';
+-import {YARN_REGISTRY} from '../constants.js';
++import {YARN_REGISTRY, FALLBACK_GLOBAL_PREFIX} from '../constants.js';
+ import * as fs from '../util/fs.js';
+ import NpmResolver from '../resolvers/registries/npm-resolver.js';
+ import envReplace from '../util/env-replace.js';
+@@ -37,21 +37,11 @@ export const SCOPE_SEPARATOR = '%2f';
+ // about the package, it is escaped.
+ const SCOPED_PKG_REGEXP = /(?:^|\/)(@[^\/?]+?)(?=%2f|\/)/;
+ 
+-// TODO: Use the method from src/cli/commands/global.js for this instead
+ function getGlobalPrefix(): string {
+   if (process.env.PREFIX) {
+     return process.env.PREFIX;
+-  } else {
+-    // /usr/local/bin/node --> prefix=/usr/local
+-    let prefix = path.dirname(path.dirname(process.execPath));
+-
+-    // destdir only is respected on Unix
+-    if (process.env.DESTDIR) {
+-      prefix = path.join(process.env.DESTDIR, prefix);
+-    }
+-
+-    return prefix;
+   }
++  return FALLBACK_GLOBAL_PREFIX;
+ }
+ 
+ const PATH_CONFIG_OPTIONS = new Set(['cache', 'cafile', 'prefix', 'userconfig']);
+diff --git a/src/util/rc.js b/src/util/rc.js
+index 9ff3bb42..8d21191c 100644
+--- a/src/util/rc.js
++++ b/src/util/rc.js
+@@ -2,7 +2,6 @@
+ 
+ import {readFileSync} from 'fs';
+ import * as path from 'path';
+-import {CONFIG_DIRECTORY} from '../constants';
+ 
+ const etc = '/etc';
+ const home = process.env.HOME;
+@@ -28,7 +27,6 @@ function getRcPaths(name: string, cwd: string): Array<string> {
+   pushConfigPath(etc, `${name}rc`);
+ 
+   if (home) {
+-    pushConfigPath(CONFIG_DIRECTORY);
+     pushConfigPath(home, '.config', name, 'config');
+     pushConfigPath(home, '.config', name);
+     pushConfigPath(home, `.${name}`, 'config');
+diff --git a/src/util/user-dirs.js b/src/util/user-dirs.js
+index 4751624b..586e2751 100644
+--- a/src/util/user-dirs.js
++++ b/src/util/user-dirs.js
+@@ -2,9 +2,9 @@
+ 
+ const path = require('path');
+ const userHome = require('./user-home-dir').default;
++const ROOT_USER = require('./root-user.js').default;
+ 
+-const FALLBACK_CONFIG_DIR = path.join(userHome, '.config', 'yarn');
+-const FALLBACK_CACHE_DIR = path.join(userHome, '.cache', 'yarn');
++const FALLBACK_CONFIG_DIR = ROOT_USER ? userHome : path.join(userHome, '.config', 'yarn');
+ 
+ export function getDataDir(): string {
+ if (process.env.XDG_DATA_HOME) {
+@@ -13,19 +13,3 @@ if (process.env.XDG_DATA_HOME) {
+     return FALLBACK_CONFIG_DIR;
+   }
+ }
+-
+-export function getCacheDir(): string {
+-  if (process.env.XDG_CACHE_HOME) {
+-    return path.join(process.env.XDG_CACHE_HOME, 'yarn');
+-  } else {
+-    return FALLBACK_CACHE_DIR;
+-  }
+-}
+-
+-export function getConfigDir(): string {
+-  if (process.env.XDG_CONFIG_HOME) {
+-    return path.join(process.env.XDG_CONFIG_HOME, 'yarn');
+-  } else {
+-    return FALLBACK_CONFIG_DIR;
+-  }
+-}
+diff --git a/src/util/user-home-dir.js b/src/util/user-home-dir.js
+index 7bb704d3..a16ec9c6 100644
+--- a/src/util/user-home-dir.js
++++ b/src/util/user-home-dir.js
+@@ -1,11 +1,9 @@
+ /* @flow */
+ 
+-import ROOT_USER from './root-user.js';
+-
+-const path = require('path');
++const ROOT_USER = require('./root-user.js').default;
+ 
+ export const home = require('os').homedir();
+ 
+-const userHomeDir = ROOT_USER ? path.resolve('/usr/local/share') : home;
++const userHomeDir = ROOT_USER ? process.config.variables.node_prefix : home;
+ 
+ export default userHomeDir;
+-- 
+2.40.1
+

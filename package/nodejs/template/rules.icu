@@ -1,10 +1,13 @@
 #!/usr/bin/make -f
 
-DEPS_ICU_VERSION = $(shell awk '/^#define U_ICU_VERSION / {print $$3}' deps/icu-small/source/common/unicode/uvernum.h | tr -c -d '.0-9')
-DEBIAN_ICU_VERSION = $(dpkg-query -f '$${Version}' -W libicu-dev)
-
-ifneq (,$(DEBIAN_ICU_VERSION))
+DEPS_ICU_FILE = deps/icu-small/source/common/unicode/uvernum.h
+system_icu :=
+ifneq (,$(wildcard $(DEPS_ICU_FILE)))
+  DEPS_ICU_VERSION = $(shell awk '/^#define U_ICU_VERSION / {print $$3}' $(DEPS_ICU_FILE) | tr -c -d '.0-9')
   ifneq (,$(DEPS_ICU_VERSION))
-    system_icu := $(shell dpkg --compare-versions $(DEBIAN_ICU_VERSION) ge $(DEPS_ICU_VERSION) && echo yes)
+    DEBIAN_ICU_VERSION = $(shell dpkg-query -f '$${Version}' -W libicu-dev)
+    ifneq (,$(DEBIAN_ICU_VERSION))
+      system_icu := $(shell dpkg --compare-versions '$(DEBIAN_ICU_VERSION)' ge $(DEPS_ICU_VERSION) && echo yes || true)
+    endif
   endif
 endif

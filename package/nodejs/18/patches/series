@@ -2,18 +2,13 @@
 # I'd like to say many thanks to the maintainers for their work :)
 debian/deps/cares.patch
 debian/deps/localhost-no-addrconfig.patch
-debian/dfsg/multilib_modules.patch
-debian/build/cctest_disable.patch
-debian/build/flag_atomic.patch
-debian/build/simdutf_init.patch
 debian/test/test_ci.patch
 debian/test/skip-buffer-nan-internal-check.patch
 debian/test/openssl_related_test_issues.patch
 debian/test/openssl_config_explicit_lower.patch
 
-npm-9.6.patch
-yarn-1.22.patch
-
+build.patch
+disable-urlbase.patch
 module-paths.patch
-lto-pgo-flags.patch
+shebang.patch
 benchmark.patch

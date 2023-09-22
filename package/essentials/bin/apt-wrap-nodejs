@@ -66,7 +66,7 @@ case "$1" in
 	: > "${APT_WRAP_KEEP}"
 
 	if [ -z "${pathspec}" ] ; then
-		pathspec=$(nodejs-${nodeverspec} -e 'console.log(module.paths.concat(require("module").globalPaths).join(":"))')
+		pathspec=$(nodejs-${nodeverspec} -p 'module.paths.concat(require("module").globalPaths).join(":")')
 	fi
 
 	if [ -n "${pathspec}" ] ; then
@@ -221,7 +221,7 @@ apt-update
 
 nodepkg=
 if [ -n "${o_version}" ] ; then
-	nodepkg=$(_apt_search "container-nodejs-${o_version}-dev" 'container-nodejs-[0-9]+-dev')
+	nodepkg=$(_apt_search "k2-nodejs-${o_version}-dev" 'k2-nodejs-[0-9]+-dev')
 	if [ -z "${nodepkg}" ] ; then
 		msg 'error: unable to find suitable nodejs package'
 		exit 1
@@ -232,14 +232,14 @@ else
 		nodepkg=$(readlink -ne "$b" | xvp dpkg-which - )
 	fi
 	if [ -z "${nodepkg}" ] ; then
-		nodepkg=$(_apt_search container-nodejs 'container-nodejs-[0-9]+')
+		nodepkg=$(_apt_search k2-nodejs 'k2-nodejs-[0-9]+')
 	fi
 	if [ -z "${nodepkg}" ] ; then
 		msg 'error: unable to find suitable nodejs package'
 		exit 1
 	fi
 
-	o_version=$(printf '%s' "${nodepkg}" | grep -oE '[0-9]+')
+	o_version=$(printf '%s' "${nodepkg}" | grep -oE '[0-9]+$')
 fi
 
 if [ -z "${o_version}" ] ; then
@@ -247,7 +247,7 @@ if [ -z "${o_version}" ] ; then
 	exit 1
 fi
 
-nodepkg="container-nodejs-${o_version}-dev"
+nodepkg="k2-nodejs-${o_version}-dev"
 
 deps="${nodepkg} build-essential debhelper fakeroot"
 case "${APT_WRAP_INSTALL_METHOD}" in

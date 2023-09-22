@@ -1,0 +1,2 @@
+/etc/npmrc   @{NODEJS_PREFIX}/etc/npmrc
+/etc/yarnrc  @{NODEJS_PREFIX}/etc/yarnrc

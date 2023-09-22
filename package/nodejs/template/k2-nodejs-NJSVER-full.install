@@ -1,0 +1,8 @@
+@{NODEJS_PREFIX}/bin/npm
+@{NODEJS_PREFIX}/bin/npx
+@{NODEJS_PREFIX}/bin/yarn
+@{NODEJS_LIBDIR}/npm
+@{NODEJS_LIBDIR}/yarn
+
+debian/npmrc   @{NODEJS_PREFIX}/share/
+debian/yarnrc  @{NODEJS_PREFIX}/share/

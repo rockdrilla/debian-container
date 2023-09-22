@@ -1,0 +1,147 @@
+--- a/Makefile
++++ b/Makefile
+@@ -164,7 +164,7 @@ config.gypi: configure configure.py src/
+ 	fi
+ 
+ .PHONY: install
+-install: all ## Installs node into $PREFIX (default=/usr/local).
++install: ## Installs node into $PREFIX (default=/usr/local).
+ 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+ 
+ .PHONY: uninstall
+--- a/node.gyp
++++ b/node.gyp
+@@ -1079,6 +1079,10 @@
+         [ 'OS!="linux" or ossfuzz!="true"', {
+           'type': 'none',
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # fuzz_url
+     { # fuzz_env
+@@ -1122,6 +1126,10 @@
+         [ 'OS!="linux" or ossfuzz!="true"', {
+           'type': 'none',
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # fuzz_env
+     {
+@@ -1225,6 +1233,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # cctest
+ 
+@@ -1281,6 +1293,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # embedtest
+ 
+@@ -1299,6 +1315,10 @@
+             'test/overlapped-checker/main_unix.c'
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ]
+     }, # overlapped-checker
+ 
+@@ -1361,6 +1381,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # mkcodecache
+     {
+@@ -1412,6 +1436,10 @@
+             'Ws2_32.lib',
+           ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # node_mksnapshot
+   ], # end targets
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -1377,6 +1377,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'defines!': [
+         'BUILDING_V8_SHARED=1',
+@@ -1413,6 +1417,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     },  # mksnapshot
+     {
+@@ -1426,6 +1434,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'defines!': [
+         '_HAS_EXCEPTIONS=0',
+@@ -1460,6 +1472,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'dependencies': [
+         'torque_base',
+@@ -1492,6 +1508,10 @@
+         ['want_separate_host_toolset', {
+           'toolsets': ['host'],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'sources': [
+         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",

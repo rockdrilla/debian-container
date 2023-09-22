@@ -1,0 +1,49 @@
+From ba1a3b91e613d110a7bdbce24309d89e8de13da5 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:41:07 +0300
+Subject: rework global paths
+
+---
+ lib/npm.js                      | 2 +-
+ lib/utils/config/definitions.js | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/lib/npm.js b/lib/npm.js
+index a176560f..508426a0 100644
+--- a/lib/npm.js
++++ b/lib/npm.js
+@@ -412,7 +412,7 @@ class Npm extends EventEmitter {
+ 
+   get globalBin () {
+     const b = this.globalPrefix
+-    return resolve(b, 'bin')
++    return (process.env.K2_NODEJS_HIDEBIN === '1') ? resolve(b, 'bin') : resolve('/usr/local/bin')
+   }
+ 
+   get localBin () {
+diff --git a/lib/utils/config/definitions.js b/lib/utils/config/definitions.js
+index d8993018..641eb034 100644
+--- a/lib/utils/config/definitions.js
++++ b/lib/utils/config/definitions.js
+@@ -9,6 +9,7 @@ const ciDetect = require('@npmcli/ci-detect')
+ const ciName = ciDetect()
+ const querystring = require('querystring')
+ const { join } = require('path')
++const os = require('os');
+ 
+ // used by cafile flattening to flatOptions.ca
+ const fs = require('fs')
+@@ -81,8 +82,8 @@ const unicode = /UTF-?8$/i.test(
+   process.env.LANG
+ )
+ 
+-const cacheRoot = '~'
+-const cacheExtra = '.npm'
++const cacheRoot = os.tmpdir()
++const cacheExtra = (process.getuid) ? `npm-cache-${process.getuid()}` : `npm-cache`
+ const cache = `${cacheRoot}/${cacheExtra}`
+ 
+ const Config = require('@npmcli/config')
+-- 
+2.40.1
+

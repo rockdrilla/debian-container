@@ -1,0 +1,247 @@
+From 331924d2d963099bb99c59461ca585fb708355f2 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:36:40 +0300
+Subject: remove emoji
+
+---
+ package.json                              |  1 -
+ src/cli/commands/install.js               | 15 ++++++---------
+ src/cli/commands/remove.js                |  5 ++---
+ src/cli/commands/why.js                   |  9 ++++-----
+ src/cli/index.js                          |  2 +-
+ src/reporters/base-reporter.js            |  2 +-
+ src/reporters/console/console-reporter.js | 11 +----------
+ 7 files changed, 15 insertions(+), 30 deletions(-)
+
+diff --git a/package.json b/package.json
+index 88c381a5..71b7767d 100644
+--- a/package.json
++++ b/package.json
+@@ -32,7 +32,6 @@
+     "loud-rejection": "^1.2.0",
+     "micromatch": "^2.3.11",
+     "mkdirp": "^0.5.1",
+-    "node-emoji": "^1.6.1",
+     "normalize-url": "^2.0.0",
+     "npm-logical-tree": "^1.2.1",
+     "object-path": "^0.11.2",
+diff --git a/src/cli/commands/install.js b/src/cli/commands/install.js
+index cbd99521..5137050e 100644
+--- a/src/cli/commands/install.js
++++ b/src/cli/commands/install.js
+@@ -32,7 +32,6 @@ import guessName from '../../util/guess-name';
+ import Audit from './audit';
+ 
+ const deepEqual = require('deep-equal');
+-const emoji = require('node-emoji');
+ const invariant = require('invariant');
+ const path = require('path');
+ const uuid = require('uuid');
+@@ -528,7 +527,7 @@ export class Install {
+ 
+     if (compatibility.shouldCheck(manifest, this.flags)) {
+       steps.push(async (curr: number, total: number) => {
+-        this.reporter.step(curr, total, this.reporter.lang('checkingManifest'), emoji.get('mag'));
++        this.reporter.step(curr, total, this.reporter.lang('checkingManifest'));
+         await this.checkCompatibility();
+       });
+     }
+@@ -538,7 +537,7 @@ export class Install {
+ 
+     steps.push((curr: number, total: number) =>
+       callThroughHook('resolveStep', async () => {
+-        this.reporter.step(curr, total, this.reporter.lang('resolvingPackages'), emoji.get('mag'));
++        this.reporter.step(curr, total, this.reporter.lang('resolvingPackages'));
+         await this.resolver.init(this.prepareRequests(depRequests), {
+           isFlat: this.flags.flat,
+           isFrozen: this.flags.frozenLockfile,
+@@ -553,7 +552,7 @@ export class Install {
+     if (this.flags.audit) {
+       steps.push((curr: number, total: number) =>
+         callThroughHook('auditStep', async () => {
+-          this.reporter.step(curr, total, this.reporter.lang('auditRunning'), emoji.get('mag'));
++          this.reporter.step(curr, total, this.reporter.lang('auditRunning'));
+           if (this.flags.offline) {
+             this.reporter.warn(this.reporter.lang('auditOffline'));
+             return {bailout: false};
+@@ -582,7 +581,7 @@ export class Install {
+     steps.push((curr: number, total: number) =>
+       callThroughHook('fetchStep', async () => {
+         this.markIgnored(ignorePatterns);
+-        this.reporter.step(curr, total, this.reporter.lang('fetchingPackages'), emoji.get('truck'));
++        this.reporter.step(curr, total, this.reporter.lang('fetchingPackages'));
+         const manifests: Array<Manifest> = await fetcher.fetch(this.resolver.getManifests(), this.config);
+         this.resolver.updateManifests(manifests);
+         await compatibility.check(this.resolver.getManifests(), this.config, this.flags.ignoreEngines);
+@@ -593,7 +592,7 @@ export class Install {
+       callThroughHook('linkStep', async () => {
+         // remove integrity hash to make this operation atomic
+         await this.integrityChecker.removeIntegrityFile();
+-        this.reporter.step(curr, total, this.reporter.lang('linkingDependencies'), emoji.get('link'));
++        this.reporter.step(curr, total, this.reporter.lang('linkingDependencies'));
+         flattenedTopLevelPatterns = this.preparePatternsForLinking(
+           flattenedTopLevelPatterns,
+           manifest,
+@@ -637,7 +636,6 @@ export class Install {
+           curr,
+           total,
+           this.flags.force ? this.reporter.lang('rebuildingPackages') : this.reporter.lang('buildingFreshPackages'),
+-          emoji.get('hammer'),
+         );
+ 
+         if (this.config.ignoreScripts) {
+@@ -656,7 +654,6 @@ export class Install {
+           curr,
+           total,
+           this.reporter.lang('savingHar', filename),
+-          emoji.get('black_circle_for_record'),
+         );
+         await this.config.requestManager.saveHar(filename);
+       });
+@@ -664,7 +661,7 @@ export class Install {
+ 
+     if (await this.shouldClean()) {
+       steps.push(async (curr: number, total: number) => {
+-        this.reporter.step(curr, total, this.reporter.lang('cleaningModules'), emoji.get('recycle'));
++        this.reporter.step(curr, total, this.reporter.lang('cleaningModules'));
+         await clean(this.config, this.reporter);
+       });
+     }
+diff --git a/src/cli/commands/remove.js b/src/cli/commands/remove.js
+index bb71d32b..2a6a99c1 100644
+--- a/src/cli/commands/remove.js
++++ b/src/cli/commands/remove.js
+@@ -11,7 +11,6 @@ import * as fs from '../../util/fs.js';
+ import * as constants from '../../constants.js';
+ 
+ const path = require('path');
+-const emoji = require('node-emoji');
+ 
+ export const requireLockfile = true;
+ 
+@@ -46,7 +45,7 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+   const manifests = [];
+ 
+   for (const name of args) {
+-    reporter.step(++step, totalSteps, `Removing module ${name}`, emoji.get('wastebasket'));
++    reporter.step(++step, totalSteps, `Removing module ${name}`);
+ 
+     let found = false;
+ 
+@@ -87,7 +86,7 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+   }
+ 
+   // reinstall so we can get the updated lockfile
+-  reporter.step(++step, totalSteps, reporter.lang('uninstallRegenerate'), emoji.get('hammer'));
++  reporter.step(++step, totalSteps, reporter.lang('uninstallRegenerate'));
+   const installFlags = {force: true, workspaceRootIsCwd: true, ...flags};
+   const reinstall = new Install(installFlags, config, new NoopReporter(), lockfile);
+   await reinstall.init();
+diff --git a/src/cli/commands/why.js b/src/cli/commands/why.js
+index 9d43c440..94820209 100644
+--- a/src/cli/commands/why.js
++++ b/src/cli/commands/why.js
+@@ -14,7 +14,6 @@ export const requireLockfile = true;
+ 
+ const invariant = require('invariant');
+ const bytes = require('bytes');
+-const emoji = require('node-emoji');
+ const path = require('path');
+ 
+ async function cleanQuery(config: Config, query: string): Promise<string> {
+@@ -135,10 +134,10 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+ 
+   const query = await cleanQuery(config, args[0]);
+ 
+-  reporter.step(1, 4, reporter.lang('whyStart', args[0]), emoji.get('thinking_face'));
++  reporter.step(1, 4, reporter.lang('whyStart', args[0]));
+ 
+   // init
+-  reporter.step(2, 4, reporter.lang('whyInitGraph'), emoji.get('truck'));
++  reporter.step(2, 4, reporter.lang('whyInitGraph'));
+   const lockfile = await Lockfile.fromDirectory(config.lockfileFolder, reporter);
+   const install = new Install(flags, config, reporter, lockfile);
+   const {requests: depRequests, patterns, workspaceLayout} = await install.fetchRequestFromCwd();
+@@ -150,7 +149,7 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+   const hoisted = await install.linker.getFlatHoistedTree(patterns);
+ 
+   // finding
+-  reporter.step(3, 4, reporter.lang('whyFinding'), emoji.get('mag'));
++  reporter.step(3, 4, reporter.lang('whyFinding'));
+ 
+   const matches = queryWhy(query, hoisted);
+ 
+@@ -255,7 +254,7 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+     }
+   };
+ 
+-  reporter.step(4, 4, reporter.lang('whyCalculating'), emoji.get('aerial_tramway'));
++  reporter.step(4, 4, reporter.lang('whyCalculating'));
+   for (const match of matches) {
+     await processMatch(match);
+   }
+diff --git a/src/cli/index.js b/src/cli/index.js
+index 01a5a953..1ebbc2dd 100644
+--- a/src/cli/index.js
++++ b/src/cli/index.js
+@@ -244,7 +244,7 @@ export async function main({
+   //
+   const Reporter = commander.json ? JSONReporter : ConsoleReporter;
+   const reporter = new Reporter({
+-    emoji: process.stdout.isTTY && commander.emoji,
++    emoji: false,
+     verbose: commander.verbose,
+     noProgress: !commander.progress,
+     isSilent: boolifyWithDefault(process.env.YARN_SILENT, false) || commander.silent,
+diff --git a/src/reporters/base-reporter.js b/src/reporters/base-reporter.js
+index 44653602..6250f005 100644
+--- a/src/reporters/base-reporter.js
++++ b/src/reporters/base-reporter.js
+@@ -70,7 +70,7 @@ export default class BaseReporter {
+     this.stdout = opts.stdout || process.stdout;
+     this.stderr = opts.stderr || process.stderr;
+     this.stdin = opts.stdin || this._getStandardInput();
+-    this.emoji = !!opts.emoji;
++    this.emoji = false;
+     this.nonInteractive = !!opts.nonInteractive;
+     this.noProgress = !!opts.noProgress || isCI;
+     this.isVerbose = !!opts.verbose;
+diff --git a/src/reporters/console/console-reporter.js b/src/reporters/console/console-reporter.js
+index fd456eeb..8e89464f 100644
+--- a/src/reporters/console/console-reporter.js
++++ b/src/reporters/console/console-reporter.js
+@@ -57,13 +57,6 @@ export default class ConsoleReporter extends BaseReporter {
+   _progressBar: ?Progress;
+   _spinners: Set<Spinner>;
+ 
+-  _prependEmoji(msg: string, emoji: ?string): string {
+-    if (this.emoji && emoji && this.isTTY) {
+-      msg = `${emoji}  ${msg}`;
+-    }
+-    return msg;
+-  }
+-
+   _logCategory(category: string, color: FormatKeys, msg: string) {
+     this._lastCategorySize = category.length;
+     this._log(`${this.format[color](category)} ${msg}`);
+@@ -115,8 +108,6 @@ export default class ConsoleReporter extends BaseReporter {
+   }
+ 
+   step(current: number, total: number, msg: string, emoji?: string) {
+-    msg = this._prependEmoji(msg, emoji);
+-
+     if (msg.endsWith('?')) {
+       msg = `${removeSuffix(msg, '?')}...?`;
+     } else {
+@@ -167,7 +158,7 @@ export default class ConsoleReporter extends BaseReporter {
+       const peakMemory = (this.peakMemory / 1024 / 1024).toFixed(2);
+       msg += ` Peak memory usage ${peakMemory}MB.`;
+     }
+-    this.log(this._prependEmoji(msg, '✨'));
++    this.log(msg);
+   }
+ 
+   log(msg: string, {force = false}: {force?: boolean} = {}) {
+-- 
+2.40.1
+

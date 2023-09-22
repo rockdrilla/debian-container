@@ -1,0 +1,1312 @@
+From 507d6de1c9d150cb266720eb3c04ce9c0f64aee1 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:39:02 +0300
+Subject: adjust code for commander 8+
+
+---
+ src/cli/commands/_build-sub-commands.js |  4 +-
+ src/cli/commands/access.js              | 31 ++++----
+ src/cli/commands/add.js                 |  4 +-
+ src/cli/commands/audit.js               |  2 +-
+ src/cli/commands/autoclean.js           |  2 +-
+ src/cli/commands/bin.js                 |  2 +-
+ src/cli/commands/cache.js               |  8 +-
+ src/cli/commands/check.js               |  2 +-
+ src/cli/commands/config.js              | 27 ++++---
+ src/cli/commands/create.js              |  4 +-
+ src/cli/commands/exec.js                |  2 +-
+ src/cli/commands/generate-lock-entry.js |  2 +-
+ src/cli/commands/global.js              | 22 +++---
+ src/cli/commands/help.js                | 38 +++++-----
+ src/cli/commands/import.js              |  2 +-
+ src/cli/commands/info.js                |  2 +-
+ src/cli/commands/init.js                |  2 +-
+ src/cli/commands/install.js             |  4 +-
+ src/cli/commands/licenses.js            | 19 +++--
+ src/cli/commands/link.js                |  4 +-
+ src/cli/commands/list.js                |  6 +-
+ src/cli/commands/login.js               |  2 +-
+ src/cli/commands/logout.js              |  2 +-
+ src/cli/commands/node.js                |  2 +-
+ src/cli/commands/outdated.js            |  4 +-
+ src/cli/commands/owner.js               | 23 +++---
+ src/cli/commands/pack.js                |  1 +
+ src/cli/commands/policies.js            |  2 +-
+ src/cli/commands/publish.js             |  2 +-
+ src/cli/commands/remove.js              |  4 +-
+ src/cli/commands/run.js                 |  2 +-
+ src/cli/commands/tag.js                 | 23 +++---
+ src/cli/commands/team.js                | 17 +++--
+ src/cli/commands/unlink.js              |  4 +-
+ src/cli/commands/unplug.js              |  6 +-
+ src/cli/commands/upgrade-interactive.js |  2 +-
+ src/cli/commands/upgrade.js             |  2 +-
+ src/cli/commands/version.js             |  4 +-
+ src/cli/commands/versions.js            |  2 +-
+ src/cli/commands/why.js                 |  4 +-
+ src/cli/commands/workspace.js           |  2 +-
+ src/cli/commands/workspaces.js          |  4 +-
+ src/cli/index.js                        | 99 +++++++++++++------------
+ src/rc.js                               |  6 +-
+ src/util/execute-lifecycle-script.js    |  2 +-
+ 45 files changed, 218 insertions(+), 192 deletions(-)
+
+diff --git a/src/cli/commands/_build-sub-commands.js b/src/cli/commands/_build-sub-commands.js
+index 247c920c..f30a0802 100644
+--- a/src/cli/commands/_build-sub-commands.js
++++ b/src/cli/commands/_build-sub-commands.js
+@@ -26,11 +26,11 @@ export default function(rootCommandName: string, subCommands: SubCommands, usage
+     commander.usage(`${rootCommandName} [${subCommandNames.join('|')}] [flags]`);
+   }
+ 
+-  async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     const subName: ?string = camelCase(args.shift() || '');
+     if (subName && subCommands[subName]) {
+       const command: CLIFunction = subCommands[subName];
+-      const res = await command(config, reporter, flags, args);
++      const res = await command(config, reporter, commander, flags, args);
+       if (res !== false) {
+         return Promise.resolve();
+       }
+diff --git a/src/cli/commands/access.js b/src/cli/commands/access.js
+index 1a7e5eea..d2b7d213 100644
+--- a/src/cli/commands/access.js
++++ b/src/cli/commands/access.js
+@@ -2,25 +2,21 @@
+ 
+ import buildSubCommands from './_build-sub-commands.js';
+ 
+-const notYetImplemented = () => Promise.reject(new Error('This command is not implemented yet.'));
++const notImplemented = () => Promise.reject(new Error('This command is not implemented.'));
+ 
+-export function setFlags(commander: Object) {
+-  commander.description('Has not been implemented yet');
+-}
+-
+-export const {run, hasWrapper, examples} = buildSubCommands(
++const {run, setFlags: _setFlags, hasWrapper, examples} = buildSubCommands(
+   'access',
+   {
+-    public: notYetImplemented,
+-    restricted: notYetImplemented,
+-    grant: notYetImplemented,
+-    revoke: notYetImplemented,
+-    lsPackages: notYetImplemented,
+-    lsCollaborators: notYetImplemented,
+-    edit: notYetImplemented,
++    public: notImplemented,
++    restricted: notImplemented,
++    grant: notImplemented,
++    revoke: notImplemented,
++    lsPackages: notImplemented,
++    lsCollaborators: notImplemented,
++    edit: notImplemented,
+   },
+   [
+-    'WARNING: This command yet to be implemented.',
++    'WARNING: This command is not implemented.',
+     'public [<package>]',
+     'restricted [<package>]',
+     'grant <read-only|read-write> <scope:team> [<package>]',
+@@ -30,3 +26,10 @@ export const {run, hasWrapper, examples} = buildSubCommands(
+     'edit [<package>]',
+   ],
+ );
++
++export {run, hasWrapper, examples};
++
++export function setFlags(commander: Object) {
++  _setFlags(commander);
++  commander.description('Has not been implemented');
++}
+diff --git a/src/cli/commands/add.js b/src/cli/commands/add.js
+index 10bac318..588024f5 100644
+--- a/src/cli/commands/add.js
++++ b/src/cli/commands/add.js
+@@ -303,8 +303,8 @@ export function setFlags(commander: Object) {
+   commander.option('-A, --audit', 'Run vulnerability audit on installed packages');
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
+-  if (!args.length) {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
++  if (args.length < 1) {
+     throw new MessageError(reporter.lang('missingAddDependencies'));
+   }
+ 
+diff --git a/src/cli/commands/audit.js b/src/cli/commands/audit.js
+index 7f2d92eb..94e3f2e4 100644
+--- a/src/cli/commands/audit.js
++++ b/src/cli/commands/audit.js
+@@ -140,7 +140,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<number> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<number> {
+   const DEFAULT_LOG_LEVEL = 'info';
+   const audit = new Audit(config, reporter, {
+     groups: flags.groups || OWNED_DEPENDENCY_TYPES,
+diff --git a/src/cli/commands/autoclean.js b/src/cli/commands/autoclean.js
+index 805125e9..680719d2 100644
+--- a/src/cli/commands/autoclean.js
++++ b/src/cli/commands/autoclean.js
+@@ -147,7 +147,7 @@ async function checkForCleanFile(cwd: string): Promise<boolean> {
+   return exists;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const cleanFileExists = await checkForCleanFile(config.cwd);
+ 
+   if (flags.init && cleanFileExists) {
+diff --git a/src/cli/commands/bin.js b/src/cli/commands/bin.js
+index 1738c0b3..b3d1f075 100644
+--- a/src/cli/commands/bin.js
++++ b/src/cli/commands/bin.js
+@@ -14,7 +14,7 @@ export function setFlags(commander: Object) {
+   commander.description('Displays the location of the yarn bin folder.');
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const binFolder = path.join(config.cwd, config.registryFolders[0], '.bin');
+   if (args.length === 0) {
+     reporter.log(binFolder, {force: true});
+diff --git a/src/cli/commands/cache.js b/src/cli/commands/cache.js
+index 39945ab9..2019c2c6 100644
+--- a/src/cli/commands/cache.js
++++ b/src/cli/commands/cache.js
+@@ -76,7 +76,7 @@ async function getCachedPackages(config): Object {
+   );
+ }
+ 
+-async function list(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++async function list(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const filterOut = ({registry, package: manifest, remote} = {}) => {
+     if (flags.pattern && !micromatch.contains(manifest.name, flags.pattern)) {
+       return false;
+@@ -96,7 +96,7 @@ async function list(config: Config, reporter: Reporter, flags: Object, args: Arr
+   reporter.table(['Name', 'Version', 'Registry', 'Resolved'], body);
+ }
+ 
+-async function clean(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++async function clean(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   if (config.cacheFolder) {
+     const activity = reporter.activity();
+ 
+@@ -127,9 +127,9 @@ async function clean(config: Config, reporter: Reporter, flags: Object, args: Ar
+ }
+ 
+ const {run, setFlags: _setFlags, examples} = buildSubCommands('cache', {
+-  async ls(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async ls(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     reporter.warn(`\`yarn cache ls\` is deprecated. Please use \`yarn cache list\`.`);
+-    await list(config, reporter, flags, args);
++    await list(config, reporter, commander, flags, args);
+   },
+   list,
+   clean,
+diff --git a/src/cli/commands/check.js b/src/cli/commands/check.js
+index a8bf842c..2fc2abb3 100644
+--- a/src/cli/commands/check.js
++++ b/src/cli/commands/check.js
+@@ -193,7 +193,7 @@ async function integrityHashCheck(
+   }
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   if (flags.verifyTree) {
+     await verifyTreeCheck(config, reporter, flags, args);
+     return;
+diff --git a/src/cli/commands/config.js b/src/cli/commands/config.js
+index d884c2c3..15f1121d 100644
+--- a/src/cli/commands/config.js
++++ b/src/cli/commands/config.js
+@@ -44,12 +44,8 @@ export function hasWrapper(flags: Object, args: Array<string>): boolean {
+   return args[0] !== 'get';
+ }
+ 
+-export function setFlags(commander: Object) {
+-  commander.description('Manages the yarn configuration files.');
+-}
+-
+-export const {run, examples} = buildSubCommands('config', {
+-  async set(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++const {run, setFlags: _setFlags, examples} = buildSubCommands('config', {
++  async set(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+     if (args.length === 0 || args.length > 2) {
+       return false;
+     }
+@@ -60,7 +56,7 @@ export const {run, examples} = buildSubCommands('config', {
+     return true;
+   },
+ 
+-  get(config: Config, reporter: Reporter, flags: Object, args: Array<string>): boolean {
++  get(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): boolean {
+     if (args.length !== 1) {
+       return false;
+     }
+@@ -69,7 +65,7 @@ export const {run, examples} = buildSubCommands('config', {
+     return true;
+   },
+ 
+-  delete: async function(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++  delete: async function(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+     if (args.length !== 1) {
+       return false;
+     }
+@@ -81,8 +77,8 @@ export const {run, examples} = buildSubCommands('config', {
+     return true;
+   },
+ 
+-  list(config: Config, reporter: Reporter, flags: Object, args: Array<string>): boolean {
+-    if (args.length) {
++  list(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): boolean {
++    if (args.length > 0) {
+       return false;
+     }
+ 
+@@ -95,8 +91,8 @@ export const {run, examples} = buildSubCommands('config', {
+     return true;
+   },
+ 
+-  current(config: Config, reporter: Reporter, flags: Object, args: Array<string>): boolean {
+-    if (args.length) {
++  current(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): boolean {
++    if (args.length > 0) {
+       return false;
+     }
+ 
+@@ -105,3 +101,10 @@ export const {run, examples} = buildSubCommands('config', {
+     return true;
+   },
+ });
++
++export {run, examples};
++
++export function setFlags(commander: Object) {
++  _setFlags(commander);
++  commander.description('Manages the yarn configuration files.');
++}
+diff --git a/src/cli/commands/create.js b/src/cli/commands/create.js
+index 49b81ac5..f1095321 100644
+--- a/src/cli/commands/create.js
++++ b/src/cli/commands/create.js
+@@ -51,7 +51,7 @@ export function coerceCreatePackageName(str: string): Object {
+   return coercedPkgNameObj;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const [builderName, ...rest] = args;
+ 
+   if (!builderName) {
+@@ -64,7 +64,7 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+   if (await fs.exists(linkLoc)) {
+     reporter.info(reporter.lang('linkUsing', packageName));
+   } else {
+-    await runGlobal(config, reporter, {}, ['add', packageName]);
++    await runGlobal(config, reporter, commander, {}, ['add', packageName]);
+   }
+ 
+   const binFolder = await getBinFolder(config, {});
+diff --git a/src/cli/commands/exec.js b/src/cli/commands/exec.js
+index 139de0f2..1e09b504 100644
+--- a/src/cli/commands/exec.js
++++ b/src/cli/commands/exec.js
+@@ -12,7 +12,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const env = await makeEnv(`exec`, config.cwd, config);
+ 
+   if (args.length < 1) {
+diff --git a/src/cli/commands/generate-lock-entry.js b/src/cli/commands/generate-lock-entry.js
+index e5c4c7b5..62dbb39d 100644
+--- a/src/cli/commands/generate-lock-entry.js
++++ b/src/cli/commands/generate-lock-entry.js
+@@ -9,7 +9,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return false;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   let manifest;
+   if (flags.useManifest) {
+     manifest = await config.readJson(flags.useManifest);
+diff --git a/src/cli/commands/global.js b/src/cli/commands/global.js
+index d028c3da..1bd333e5 100644
+--- a/src/cli/commands/global.js
++++ b/src/cli/commands/global.js
+@@ -198,7 +198,7 @@ async function list(config: Config, reporter: Reporter, flags: Object, args: Arr
+ }
+ 
+ const {run, setFlags: _setFlags} = buildSubCommands('global', {
+-  async add(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async add(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await updateCwd(config);
+ 
+     const updateBins = await initUpdateBins(config, reporter, flags);
+@@ -215,55 +215,55 @@ const {run, setFlags: _setFlags} = buildSubCommands('global', {
+     await updateBins();
+   },
+ 
+-  async bin(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async bin(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     reporter.log(await getBinFolder(config, flags), {force: true});
+   },
+ 
+-  dir(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  dir(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     reporter.log(config.globalFolder, {force: true});
+     return Promise.resolve();
+   },
+ 
+-  async ls(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async ls(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     reporter.warn(`\`yarn global ls\` is deprecated. Please use \`yarn global list\`.`);
+     await list(config, reporter, flags, args);
+   },
+ 
+-  async list(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async list(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await list(config, reporter, flags, args);
+   },
+ 
+-  async remove(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async remove(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await updateCwd(config);
+ 
+     const updateBins = await initUpdateBins(config, reporter, flags);
+ 
+     // remove module
+-    await runRemove(config, reporter, flags, args);
++    await runRemove(config, reporter, commander, flags, args);
+ 
+     // remove binaries
+     await updateBins();
+   },
+ 
+-  async upgrade(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async upgrade(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await updateCwd(config);
+ 
+     const updateBins = await initUpdateBins(config, reporter, flags);
+ 
+     // upgrade module
+-    await runUpgrade(config, reporter, flags, args);
++    await runUpgrade(config, reporter, commander, flags, args);
+ 
+     // update binaries
+     await updateBins();
+   },
+ 
+-  async upgradeInteractive(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async upgradeInteractive(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await updateCwd(config);
+ 
+     const updateBins = await initUpdateBins(config, reporter, flags);
+ 
+     // upgrade module
+-    await runUpgradeInteractive(config, reporter, flags, args);
++    await runUpgradeInteractive(config, reporter, commander, flags, args);
+ 
+     // update binaries
+     await updateBins();
+diff --git a/src/cli/commands/help.js b/src/cli/commands/help.js
+index 7d77dd37..2f909ba4 100644
+--- a/src/cli/commands/help.js
++++ b/src/cli/commands/help.js
+@@ -16,8 +16,8 @@ export function setFlags(commander: Object) {
+   commander.description('Displays help information.');
+ }
+ 
+-export function run(config: Config, reporter: Reporter, commander: Object, args: Array<string>): Promise<void> {
+-  if (args.length) {
++export function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
++  if (args.length > 0) {
+     const commandName = args.shift();
+     if (Object.prototype.hasOwnProperty.call(commands, commandName)) {
+       const command = commands[commandName];
+@@ -25,34 +25,30 @@ export function run(config: Config, reporter: Reporter, commander: Object, args:
+         command.setFlags(commander);
+         const examples: Array<string> = (command.examples || []).map(example => `    $ yarn ${example}`);
+         if (examples.length) {
+-          commander.on('--help', () => {
+-            reporter.log(reporter.lang('helpExamples', reporter.rawText(examples.join('\n'))));
+-          });
++          commander.addHelpText('after', '\n' + reporter.lang('helpExamples', reporter.rawText(examples.join('\n'))));
+         }
+         // eslint-disable-next-line yarn-internal/warn-language
+-        commander.on('--help', () => reporter.log('  ' + command.getDocsInfo + '\n'));
++        commander.addHelpText('afterAll', '\n' + command.getDocsInfo + '\n');
+         commander.help();
+         return Promise.resolve();
+       }
+     }
+   }
+ 
+-  commander.on('--help', () => {
+-    const commandsText = [];
+-    for (const name of Object.keys(commands).sort(sortAlpha)) {
+-      if (commands[name].useless || Object.keys(aliases).map(key => aliases[key]).indexOf(name) > -1) {
+-        continue;
+-      }
+-      if (aliases[name]) {
+-        commandsText.push(`    - ${hyphenate(name)} / ${aliases[name]}`);
+-      } else {
+-        commandsText.push(`    - ${hyphenate(name)}`);
+-      }
++  const commandsText = [];
++  for (const name of Object.keys(commands).sort(sortAlpha)) {
++    if (commands[name].useless || Object.keys(aliases).map(key => aliases[key]).indexOf(name) > -1) {
++      continue;
+     }
+-    reporter.log(reporter.lang('helpCommands', reporter.rawText(commandsText.join('\n'))));
+-    reporter.log(reporter.lang('helpCommandsMore', reporter.rawText(chalk.bold('yarn help COMMAND'))));
+-    reporter.log(reporter.lang('helpLearnMore', reporter.rawText(chalk.bold(constants.YARN_DOCS))));
+-  });
++    if (aliases[name]) {
++      commandsText.push(`    - ${hyphenate(name)} / ${aliases[name]}`);
++    } else {
++      commandsText.push(`    - ${hyphenate(name)}`);
++    }
++  }
++  commander.addHelpText('after', '\n' + reporter.lang('helpCommands', reporter.rawText(commandsText.join('\n'))));
++  commander.addHelpText('after', reporter.lang('helpCommandsMore', reporter.rawText(chalk.bold('yarn help COMMAND'))));
++  commander.addHelpText('after', reporter.lang('helpLearnMore', reporter.rawText(chalk.bold(constants.YARN_DOCS))));
+ 
+   commander.options.sort(sortOptionsByFlags);
+ 
+diff --git a/src/cli/commands/import.js b/src/cli/commands/import.js
+index 77996619..7aaf16bf 100644
+--- a/src/cli/commands/import.js
++++ b/src/cli/commands/import.js
+@@ -406,7 +406,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const imp = new Import(flags, config, reporter, new Lockfile({cache: {}}));
+   await imp.init();
+ }
+diff --git a/src/cli/commands/info.js b/src/cli/commands/info.js
+index 391cee44..592d4479 100644
+--- a/src/cli/commands/info.js
++++ b/src/cli/commands/info.js
+@@ -44,7 +44,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   if (args.length > 2) {
+     reporter.error(reporter.lang('tooManyArguments', 2));
+     return;
+diff --git a/src/cli/commands/init.js b/src/cli/commands/init.js
+index 1ee1d82a..6753c144 100644
+--- a/src/cli/commands/init.js
++++ b/src/cli/commands/init.js
+@@ -28,7 +28,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+ 
+ export const shouldRunInCurrentCwd = true;
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const installVersion = flags[`2`] ? `berry` : flags.install;
+   const forwardedArgs = process.argv.slice(process.argv.indexOf('init', 2) + 1);
+ 
+diff --git a/src/cli/commands/install.js b/src/cli/commands/install.js
+index 5137050e..c6707279 100644
+--- a/src/cli/commands/install.js
++++ b/src/cli/commands/install.js
+@@ -1024,7 +1024,7 @@ export async function install(config: Config, reporter: Reporter, flags: Object,
+   });
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   let lockfile;
+   let error = 'installCommandRenamed';
+   if (flags.lockfile === false) {
+@@ -1033,7 +1033,7 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+     lockfile = await Lockfile.fromDirectory(config.lockfileFolder, reporter);
+   }
+ 
+-  if (args.length) {
++  if (args.length > 0) {
+     const exampleArgs = args.slice();
+ 
+     if (flags.saveDev) {
+diff --git a/src/cli/commands/licenses.js b/src/cli/commands/licenses.js
+index f4afb94d..dd769591 100644
+--- a/src/cli/commands/licenses.js
++++ b/src/cli/commands/licenses.js
+@@ -118,20 +118,18 @@ async function list(config: Config, reporter: Reporter, flags: Object, args: Arr
+     reporter.tree('licenses', trees, {force: true});
+   }
+ }
+-export function setFlags(commander: Object) {
+-  commander.description('Lists licenses for installed packages.');
+-}
+-export const {run, examples} = buildSubCommands('licenses', {
+-  async ls(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++
++const {run, setFlags: _setFlags, examples} = buildSubCommands('licenses', {
++  async ls(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     reporter.warn(`\`yarn licenses ls\` is deprecated. Please use \`yarn licenses list\`.`);
+     await list(config, reporter, flags, args);
+   },
+ 
+-  async list(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async list(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await list(config, reporter, flags, args);
+   },
+ 
+-  async generateDisclaimer(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async generateDisclaimer(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     /* eslint-disable no-console */
+ 
+     // `reporter.log` dumps a bunch of ANSI escapes to clear the current line and
+@@ -208,3 +206,10 @@ export const {run, examples} = buildSubCommands('licenses', {
+     }
+   },
+ });
++
++export {run, examples};
++
++export function setFlags(commander: Object) {
++  _setFlags(commander);
++  commander.description('Lists licenses for installed packages.');
++}
+diff --git a/src/cli/commands/link.js b/src/cli/commands/link.js
+index 3fa4d78b..93fb7d46 100644
+--- a/src/cli/commands/link.js
++++ b/src/cli/commands/link.js
+@@ -30,8 +30,8 @@ export function setFlags(commander: Object) {
+   commander.description('Symlink a package folder during development.');
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
+-  if (args.length) {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
++  if (args.length > 0) {
+     for (const name of args) {
+       const src = path.join(config.linkFolder, name);
+ 
+diff --git a/src/cli/commands/list.js b/src/cli/commands/list.js
+index b64936e7..c57dc2d7 100644
+--- a/src/cli/commands/list.js
++++ b/src/cli/commands/list.js
+@@ -191,7 +191,7 @@ export function getDevDeps(manifest: Object): Set<string> {
+   }
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const lockfile = await Lockfile.fromDirectory(config.lockfileFolder, reporter);
+   const install = new Install(flags, config, reporter, lockfile);
+ 
+@@ -216,10 +216,10 @@ export async function run(config: Config, reporter: Reporter, flags: Object, arg
+ 
+   let {trees}: {trees: Trees} = await buildTree(install.resolver, install.linker, activePatterns, opts);
+ 
+-  if (args.length) {
++  if (args.length > 0) {
+     reporter.warn(reporter.lang('deprecatedListArgs'));
+   }
+-  if (args.length || flags.pattern) {
++  if ((args.length > 0) || flags.pattern) {
+     trees = trees.filter(tree => filterTree(tree, args, flags.pattern));
+   }
+ 
+diff --git a/src/cli/commands/login.js b/src/cli/commands/login.js
+index 1c0e2dbf..52f68cf4 100644
+--- a/src/cli/commands/login.js
++++ b/src/cli/commands/login.js
+@@ -136,6 +136,6 @@ export function setFlags(commander: Object) {
+   commander.description('Stores registry username and email.');
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   await getCredentials(config, reporter);
+ }
+diff --git a/src/cli/commands/logout.js b/src/cli/commands/logout.js
+index cc7e7473..4ec60f73 100644
+--- a/src/cli/commands/logout.js
++++ b/src/cli/commands/logout.js
+@@ -11,7 +11,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   await config.registries.yarn.saveHomeConfig({
+     username: undefined,
+     email: undefined,
+diff --git a/src/cli/commands/node.js b/src/cli/commands/node.js
+index 9121882b..df3ccdfd 100644
+--- a/src/cli/commands/node.js
++++ b/src/cli/commands/node.js
+@@ -18,7 +18,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const pnpPath = `${config.lockfileFolder}/${PNP_FILENAME}`;
+ 
+   let nodeOptions = process.env.NODE_OPTIONS || '';
+diff --git a/src/cli/commands/outdated.js b/src/cli/commands/outdated.js
+index b9b4346c..177575db 100644
+--- a/src/cli/commands/outdated.js
++++ b/src/cli/commands/outdated.js
+@@ -19,12 +19,12 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<number> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<number> {
+   const lockfile = await Lockfile.fromDirectory(config.lockfileFolder);
+   const install = new Install({...flags, includeWorkspaceDeps: true}, config, reporter, lockfile);
+   let deps = await PackageRequest.getOutdatedPackages(lockfile, install, config, reporter);
+ 
+-  if (args.length) {
++  if (args.length > 0) {
+     const requested = new Set(args);
+ 
+     deps = deps.filter(({name}) => requested.has(name));
+diff --git a/src/cli/commands/owner.js b/src/cli/commands/owner.js
+index 1d176c24..d2e471bd 100644
+--- a/src/cli/commands/owner.js
++++ b/src/cli/commands/owner.js
+@@ -138,14 +138,10 @@ function remove(config: Config, reporter: Reporter, flags: Object, args: Array<s
+   );
+ }
+ 
+-export function setFlags(commander: Object) {
+-  commander.description('Manages package owners.');
+-}
+-
+-export const {run, hasWrapper, examples} = buildSubCommands(
++const {run, setFlags: _setFlags, hasWrapper, examples} = buildSubCommands(
+   'owner',
+   {
+-    add(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++    add(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+       return mutate(
+         args,
+         config,
+@@ -170,23 +166,30 @@ export const {run, hasWrapper, examples} = buildSubCommands(
+       );
+     },
+ 
+-    rm(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++    rm(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+       reporter.warn(`\`yarn owner rm\` is deprecated. Please use \`yarn owner remove\`.`);
+       return remove(config, reporter, flags, args);
+     },
+ 
+-    remove(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++    remove(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+       return remove(config, reporter, flags, args);
+     },
+ 
+-    ls(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++    ls(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+       reporter.warn(`\`yarn owner ls\` is deprecated. Please use \`yarn owner list\`.`);
+       return list(config, reporter, flags, args);
+     },
+ 
+-    list(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++    list(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+       return list(config, reporter, flags, args);
+     },
+   },
+   ['add <user> [[<@scope>/]<pkg>]', 'remove <user> [[<@scope>/]<pkg>]', 'list [<@scope>/]<pkg>'],
+ );
++
++export {run, hasWrapper, examples};
++
++export function setFlags(commander: Object) {
++  _setFlags(commander);
++  commander.description('Manages package owners.');
++}
+diff --git a/src/cli/commands/pack.js b/src/cli/commands/pack.js
+index 4c8f12e8..6aa18661 100644
+--- a/src/cli/commands/pack.js
++++ b/src/cli/commands/pack.js
+@@ -177,6 +177,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+ export async function run(
+   config: Config,
+   reporter: Reporter,
++  commander: Object,
+   flags: {filename?: string},
+   args?: Array<string>,
+ ): Promise<void> {
+diff --git a/src/cli/commands/policies.js b/src/cli/commands/policies.js
+index 08766c76..9783e220 100644
+--- a/src/cli/commands/policies.js
++++ b/src/cli/commands/policies.js
+@@ -108,7 +108,7 @@ export function hasWrapper(flags: Object, args: Array<string>): boolean {
+ }
+ 
+ const {run, setFlags, examples} = buildSubCommands('policies', {
+-  async setVersion(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async setVersion(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     const initialRange = args[0] || 'latest';
+     let range = initialRange;
+ 
+diff --git a/src/cli/commands/publish.js b/src/cli/commands/publish.js
+index b64297b0..b664b22c 100644
+--- a/src/cli/commands/publish.js
++++ b/src/cli/commands/publish.js
+@@ -123,7 +123,7 @@ async function publish(config: Config, pkg: any, flags: Object, dir: string): Pr
+   await config.executeLifecycleScript('postpublish');
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   // validate arguments
+   const dir = args[0] ? path.resolve(config.cwd, args[0]) : config.cwd;
+   if (args.length > 1) {
+diff --git a/src/cli/commands/remove.js b/src/cli/commands/remove.js
+index 2a6a99c1..e35ab51e 100644
+--- a/src/cli/commands/remove.js
++++ b/src/cli/commands/remove.js
+@@ -24,10 +24,10 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const isWorkspaceRoot = config.workspaceRootFolder && config.cwd === config.workspaceRootFolder;
+ 
+-  if (!args.length) {
++  if (args.length < 1) {
+     throw new MessageError(reporter.lang('tooFewArguments', 1));
+   }
+ 
+diff --git a/src/cli/commands/run.js b/src/cli/commands/run.js
+index 41dad5c9..6e39a530 100644
+--- a/src/cli/commands/run.js
++++ b/src/cli/commands/run.js
+@@ -71,7 +71,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const pkg = await config.readManifest(config.cwd);
+ 
+   const binCommands = new Set();
+diff --git a/src/cli/commands/tag.js b/src/cli/commands/tag.js
+index e8fb5515..0ae33d9f 100644
+--- a/src/cli/commands/tag.js
++++ b/src/cli/commands/tag.js
+@@ -78,14 +78,10 @@ async function remove(config: Config, reporter: Reporter, flags: Object, args: A
+   }
+ }
+ 
+-export function setFlags(commander: Object) {
+-  commander.description('Add, remove, or list tags on a package.');
+-}
+-
+-export const {run, hasWrapper, examples} = buildSubCommands(
++const {run, setFlags: _setFlags, hasWrapper, examples} = buildSubCommands(
+   'tag',
+   {
+-    async add(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<boolean> {
++    async add(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<boolean> {
+       if (args.length !== 2) {
+         return false;
+       }
+@@ -128,23 +124,30 @@ export const {run, hasWrapper, examples} = buildSubCommands(
+       }
+     },
+ 
+-    async rm(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++    async rm(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+       reporter.warn(`\`yarn tag rm\` is deprecated. Please use \`yarn tag remove\`.`);
+       await remove(config, reporter, flags, args);
+     },
+ 
+-    async remove(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++    async remove(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+       await remove(config, reporter, flags, args);
+     },
+ 
+-    async ls(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++    async ls(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+       reporter.warn(`\`yarn tag ls\` is deprecated. Please use \`yarn tag list\`.`);
+       await list(config, reporter, flags, args);
+     },
+ 
+-    async list(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++    async list(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+       await list(config, reporter, flags, args);
+     },
+   },
+   ['add <pkg>@<version> [<tag>]', 'remove <pkg> <tag>', 'list [<pkg>]'],
+ );
++
++export {run, hasWrapper, examples};
++
++export function setFlags(commander: Object) {
++  _setFlags(commander);
++  commander.description('Add, remove, or list tags on a package.');
++}
+diff --git a/src/cli/commands/team.js b/src/cli/commands/team.js
+index ad0353d4..255a7f4e 100644
+--- a/src/cli/commands/team.js
++++ b/src/cli/commands/team.js
+@@ -64,7 +64,7 @@ function wrapRequired(
+       warnDeprecation(reporter, deprecationInfo);
+     }
+ 
+-    if (!args.length) {
++    if (args.length < 1) {
+       return false;
+     }
+ 
+@@ -97,6 +97,7 @@ function wrapRequiredTeam(
+       parts: TeamParts,
+       config: Config,
+       reporter: Reporter,
++      commander: Object,
+       flags: Object,
+       args: Array<string>,
+     ): CLIFunctionReturn {
+@@ -117,6 +118,7 @@ function wrapRequiredUser(callback: CLIFunctionWithParts, subCommandDeprecated?:
+       parts: TeamParts,
+       config: Config,
+       reporter: Reporter,
++      commander: Object,
+       flags: Object,
+       args: Array<string>,
+     ): CLIFunctionReturn {
+@@ -164,11 +166,7 @@ async function list(parts: TeamParts, config: Config, reporter: Reporter): Promi
+   return true;
+ }
+ 
+-export function setFlags(commander: Object) {
+-  commander.description('Maintain team memberships');
+-}
+-
+-export const {run, hasWrapper, examples} = buildSubCommands(
++const {run, setFlags: _setFlags, hasWrapper, examples} = buildSubCommands(
+   'team',
+   {
+     create: wrapRequiredTeam(async function(
+@@ -274,3 +272,10 @@ export const {run, hasWrapper, examples} = buildSubCommands(
+     'list <scope>|<scope:team>',
+   ],
+ );
++
++export {run, hasWrapper, examples};
++
++export function setFlags(commander: Object) {
++  _setFlags(commander);
++  commander.description('Maintain team memberships');
++}
+diff --git a/src/cli/commands/unlink.js b/src/cli/commands/unlink.js
+index 8e6e3fa9..168c08a3 100644
+--- a/src/cli/commands/unlink.js
++++ b/src/cli/commands/unlink.js
+@@ -17,8 +17,8 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
+-  if (args.length) {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
++  if (args.length > 0) {
+     for (const name of args) {
+       const linkLoc = path.join(config.linkFolder, name);
+       if (await fs.exists(linkLoc)) {
+diff --git a/src/cli/commands/unplug.js b/src/cli/commands/unplug.js
+index 34381a95..76ce714e 100644
+--- a/src/cli/commands/unplug.js
++++ b/src/cli/commands/unplug.js
+@@ -22,14 +22,14 @@ export function setFlags(commander: Object) {
+   commander.option('--clear-all', 'Delete all unplugged packages');
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   if (!config.plugnplayEnabled) {
+     throw new MessageError(reporter.lang('unplugDisabled'));
+   }
+-  if (!args.length && flags.clear) {
++  if ((args.length < 1) && flags.clear) {
+     throw new MessageError(reporter.lang('tooFewArguments', 1));
+   }
+-  if (args.length && flags.clearAll) {
++  if ((args.length > 0) && flags.clearAll) {
+     throw new MessageError(reporter.lang('noArguments'));
+   }
+ 
+diff --git a/src/cli/commands/upgrade-interactive.js b/src/cli/commands/upgrade-interactive.js
+index e5e1d778..7a8965a0 100644
+--- a/src/cli/commands/upgrade-interactive.js
++++ b/src/cli/commands/upgrade-interactive.js
+@@ -35,7 +35,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const outdatedFieldName = flags.latest ? 'latest' : 'wanted';
+   const lockfile = await Lockfile.fromDirectory(config.lockfileFolder);
+ 
+diff --git a/src/cli/commands/upgrade.js b/src/cli/commands/upgrade.js
+index 40135de2..b78ff0d7 100644
+--- a/src/cli/commands/upgrade.js
++++ b/src/cli/commands/upgrade.js
+@@ -167,7 +167,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+ 
+ export const requireLockfile = true;
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   let addArgs = [];
+   const upgradeAll = args.length === 0 && typeof flags.scope === 'undefined' && typeof flags.pattern === 'undefined';
+   const addFlags = Object.assign({}, flags, {
+diff --git a/src/cli/commands/version.js b/src/cli/commands/version.js
+index f7ade77b..d71df1b1 100644
+--- a/src/cli/commands/version.js
++++ b/src/cli/commands/version.js
+@@ -55,7 +55,7 @@ export async function setVersion(
+   }
+   invariant(pkgLoc, 'expected package location');
+ 
+-  if (args.length && !newVersion) {
++  if ((args.length > 0) && !newVersion) {
+     throw new MessageError(reporter.lang('invalidVersionArgument', NEW_VERSION_FLAG));
+   }
+ 
+@@ -211,7 +211,7 @@ export async function setVersion(
+   };
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const commit = await setVersion(config, reporter, flags, args, true);
+   await commit();
+ }
+diff --git a/src/cli/commands/versions.js b/src/cli/commands/versions.js
+index eb93a453..7aa21537 100644
+--- a/src/cli/commands/versions.js
++++ b/src/cli/commands/versions.js
+@@ -13,7 +13,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const versions: {[name: string]: string} = {yarn: yarnVersion};
+ 
+   const pkg = await config.maybeReadManifest(config.cwd);
+diff --git a/src/cli/commands/why.js b/src/cli/commands/why.js
+index 94820209..9f696f45 100644
+--- a/src/cli/commands/why.js
++++ b/src/cli/commands/why.js
+@@ -124,8 +124,8 @@ function toStandardPathString(pathString: string): string {
+   return str;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
+-  if (!args.length) {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
++  if (args.length < 1) {
+     throw new MessageError(reporter.lang('missingWhyDependency'));
+   }
+   if (args.length > 1) {
+diff --git a/src/cli/commands/workspace.js b/src/cli/commands/workspace.js
+index 4be65c6e..9c0dbf5e 100644
+--- a/src/cli/commands/workspace.js
++++ b/src/cli/commands/workspace.js
+@@ -14,7 +14,7 @@ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+   return true;
+ }
+ 
+-export async function run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++export async function run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+   const {workspaceRootFolder} = config;
+ 
+   if (!workspaceRootFolder) {
+diff --git a/src/cli/commands/workspaces.js b/src/cli/commands/workspaces.js
+index e95e45f1..2ab47fd5 100644
+--- a/src/cli/commands/workspaces.js
++++ b/src/cli/commands/workspaces.js
+@@ -90,10 +90,10 @@ export async function runScript(config: Config, reporter: Reporter, flags: Objec
+ }
+ 
+ const {run, setFlags, examples} = buildSubCommands('workspaces', {
+-  async info(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async info(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await info(config, reporter, flags, args);
+   },
+-  async run(config: Config, reporter: Reporter, flags: Object, args: Array<string>): Promise<void> {
++  async run(config: Config, reporter: Reporter, commander: Object, flags: Object, args: Array<string>): Promise<void> {
+     await runScript(config, reporter, flags, args);
+   },
+ });
+diff --git a/src/cli/index.js b/src/cli/index.js
+index c84012c4..7e25d8d2 100644
+--- a/src/cli/index.js
++++ b/src/cli/index.js
+@@ -4,7 +4,7 @@ import http from 'http';
+ import net from 'net';
+ import path from 'path';
+ 
+-import commander from 'commander';
++const { Command } = require('commander');
+ import fs from 'fs';
+ import invariant from 'invariant';
+ import lockfile from 'proper-lockfile';
+@@ -26,6 +26,8 @@ import handleSignals from '../util/signal-handler.js';
+ import {boolify, boolifyWithDefault} from '../util/conversion.js';
+ import {ProcessTermError} from '../errors';
+ 
++const commander = new Command();
++
+ process.stdout.prependListener('error', err => {
+   // swallow err only if downstream consumer process closed pipe early
+   if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') {
+@@ -67,7 +69,15 @@ export async function main({
+   loudRejection();
+   handleSignals();
+ 
++  // if -v/--version is the first argument, then always exit after returning the version
++  if ((args[0] === '-v') || (args[0] === '--version')) {
++    console.log(version.trim());
++    process.exitCode = 0;
++    return;
++  }
++
+   // set global options
++  commander.name('yarn');
+   commander.version(version, '-v, --version');
+   commander.usage('[command] [flags]');
+   commander.option('--no-default-rc', 'prevent Yarn from automatically detecting yarnrc and npmrc files');
+@@ -132,18 +142,11 @@ export async function main({
+   commander.option('--focus', 'Focus on a single workspace by installing remote copies of its sibling workspaces.');
+   commander.option('--otp <otpcode>', 'one-time password for two factor authentication');
+ 
+-  // if -v is the first command, then always exit after returning the version
+-  if (args[0] === '-v') {
+-    console.log(version.trim());
+-    process.exitCode = 0;
+-    return;
+-  }
+-
+   // get command name
+   const firstNonFlagIndex = args.findIndex((arg, idx, arr) => {
+     const isOption = arg.startsWith('-');
+     const prev = idx > 0 && arr[idx - 1];
+-    const prevOption = prev && prev.startsWith('-') && commander.optionFor(prev);
++    const prevOption = prev && prev.startsWith('-') && commander._findOption(prev);
+     const boundToPrevOption = prevOption && (prevOption.optional || prevOption.required);
+ 
+     return !isOption && !boundToPrevOption;
+@@ -241,14 +244,16 @@ export async function main({
+   console.assert(commander.args[0] === 'this-arg-will-get-stripped-later');
+   commander.args.shift();
+ 
++  const commanderOpts = commander.opts();
++
+   //
+-  const Reporter = commander.json ? JSONReporter : ConsoleReporter;
++  const Reporter = commanderOpts.json ? JSONReporter : ConsoleReporter;
+   const reporter = new Reporter({
+     emoji: false,
+-    verbose: commander.verbose,
+-    noProgress: !commander.progress,
+-    isSilent: boolifyWithDefault(process.env.YARN_SILENT, false) || commander.silent,
+-    nonInteractive: commander.nonInteractive,
++    verbose: commanderOpts.verbose,
++    noProgress: !commanderOpts.progress,
++    isSilent: boolifyWithDefault(process.env.YARN_SILENT, false) || commanderOpts.silent,
++    nonInteractive: commanderOpts.nonInteractive,
+   });
+ 
+   const exit = exitCode => {
+@@ -262,19 +267,19 @@ export async function main({
+   const outputWrapperEnabled = boolifyWithDefault(process.env.YARN_WRAP_OUTPUT, true);
+   const shouldWrapOutput =
+     outputWrapperEnabled &&
+-    !commander.json &&
++    !commanderOpts.json &&
+     command.hasWrapper(commander, commander.args) &&
+-    !(commandName === 'init' && commander[`2`]);
++    !(commandName === 'init' && commanderOpts[`2`]);
+ 
+   if (shouldWrapOutput) {
+     reporter.header(commandName, {name: 'yarn', version});
+   }
+ 
+-  if (commander.nodeVersionCheck && !semver.satisfies(process.versions.node, constants.SUPPORTED_NODE_VERSIONS)) {
++  if (commanderOpts.nodeVersionCheck && !semver.satisfies(process.versions.node, constants.SUPPORTED_NODE_VERSIONS)) {
+     reporter.warn(reporter.lang('unsupportedNodeVersion', process.versions.node, constants.SUPPORTED_NODE_VERSIONS));
+   }
+ 
+-  if (command.noArguments && commander.args.length) {
++  if (command.noArguments && (commander.args.length > 0)) {
+     reporter.error(reporter.lang('noArguments'));
+     reporter.info(command.getDocsInfo);
+     exit(1);
+@@ -282,12 +287,12 @@ export async function main({
+   }
+ 
+   //
+-  if (commander.yes) {
++  if (commanderOpts.yes) {
+     reporter.warn(reporter.lang('yesWarning'));
+   }
+ 
+   //
+-  if (!commander.offline && network.isOffline()) {
++  if (!commanderOpts.offline && network.isOffline()) {
+     reporter.warn(reporter.lang('networkWarning'));
+   }
+ 
+@@ -299,7 +304,7 @@ export async function main({
+       reporter.warn(reporter.lang('dashDashDeprecation'));
+     }
+ 
+-    return command.run(config, reporter, commander, commander.args).then(exitCode => {
++    return command.run(config, reporter, commander, commanderOpts, commander.args).then(exitCode => {
+       if (shouldWrapOutput) {
+         reporter.footer(false);
+       }
+@@ -515,15 +520,15 @@ export async function main({
+     return errorReportLoc;
+   }
+ 
+-  const cwd = command.shouldRunInCurrentCwd ? commander.cwd : findProjectRoot(commander.cwd);
++  const cwd = command.shouldRunInCurrentCwd ? commanderOpts.cwd : findProjectRoot(commanderOpts.cwd);
+ 
+   const folderOptionKeys = ['linkFolder', 'globalFolder', 'preferredCacheFolder', 'cacheFolder', 'modulesFolder'];
+ 
+   // Resolve all folder options relative to cwd
+   const resolvedFolderOptions = {};
+   folderOptionKeys.forEach(folderOptionKey => {
+-    const folderOption = commander[folderOptionKey];
+-    const resolvedFolderOption = folderOption ? path.resolve(commander.cwd, folderOption) : folderOption;
++    const folderOption = commanderOpts[folderOptionKey];
++    const resolvedFolderOption = folderOption ? path.resolve(commanderOpts.cwd, folderOption) : folderOption;
+     resolvedFolderOptions[folderOptionKey] = resolvedFolderOption;
+   });
+ 
+@@ -532,28 +537,28 @@ export async function main({
+       cwd,
+       commandName,
+       ...resolvedFolderOptions,
+-      enablePnp: commander.pnp,
+-      disablePnp: commander.disablePnp,
+-      enableDefaultRc: commander.defaultRc,
+-      extraneousYarnrcFiles: commander.useYarnrc,
+-      binLinks: commander.binLinks,
+-      preferOffline: commander.preferOffline,
+-      captureHar: commander.har,
+-      ignorePlatform: commander.ignorePlatform,
+-      ignoreEngines: commander.ignoreEngines,
+-      ignoreScripts: commander.ignoreScripts,
+-      offline: commander.preferOffline || commander.offline,
+-      looseSemver: !commander.strictSemver,
+-      production: commander.production,
+-      httpProxy: commander.proxy,
+-      httpsProxy: commander.httpsProxy,
+-      registry: commander.registry,
+-      networkConcurrency: commander.networkConcurrency,
+-      networkTimeout: commander.networkTimeout,
+-      nonInteractive: commander.nonInteractive,
+-      updateChecksums: commander.updateChecksums,
+-      focus: commander.focus,
+-      otp: commander.otp,
++      enablePnp: commanderOpts.pnp,
++      disablePnp: commanderOpts.disablePnp,
++      enableDefaultRc: commanderOpts.defaultRc,
++      extraneousYarnrcFiles: commanderOpts.useYarnrc,
++      binLinks: commanderOpts.binLinks,
++      preferOffline: commanderOpts.preferOffline,
++      captureHar: commanderOpts.har,
++      ignorePlatform: commanderOpts.ignorePlatform,
++      ignoreEngines: commanderOpts.ignoreEngines,
++      ignoreScripts: commanderOpts.ignoreScripts,
++      offline: commanderOpts.preferOffline || commanderOpts.offline,
++      looseSemver: !commanderOpts.strictSemver,
++      production: commanderOpts.production,
++      httpProxy: commanderOpts.proxy,
++      httpsProxy: commanderOpts.httpsProxy,
++      registry: commanderOpts.registry,
++      networkConcurrency: commanderOpts.networkConcurrency,
++      networkTimeout: commanderOpts.networkTimeout,
++      nonInteractive: commanderOpts.nonInteractive,
++      updateChecksums: commanderOpts.updateChecksums,
++      focus: commanderOpts.focus,
++      otp: commanderOpts.otp,
+     })
+     .then(() => {
+       // lockfile check must happen after config.init sets lockfileFolder
+@@ -571,7 +576,7 @@ export async function main({
+       // verbose logs outputs process.uptime() with this line we can sync uptime to absolute time on the computer
+       reporter.verbose(`current time: ${new Date().toISOString()}`);
+ 
+-      const mutex: mixed = commander.mutex;
++      const mutex: mixed = commanderOpts.mutex;
+       if (mutex && typeof mutex === 'string') {
+         const separatorLoc = mutex.indexOf(':');
+         let mutexType;
+diff --git a/src/rc.js b/src/rc.js
+index c8f48131..5f494912 100644
+--- a/src/rc.js
++++ b/src/rc.js
+@@ -3,11 +3,13 @@
+ import {existsSync, readFileSync} from 'fs';
+ import {dirname, resolve} from 'path';
+ 
+-import commander from 'commander';
++const { Command } = require('commander');
+ 
+ import {parse} from './lockfile';
+ import * as rcUtil from './util/rc.js';
+ 
++const commander = new Command();
++
+ // Keys that will get resolved relative to the path of the rc file they belong to
+ const PATH_KEYS = new Set([
+   'yarn-path',
+@@ -92,7 +94,7 @@ function buildRcArgs(cwd: string, args: Array<string>): Map<string, Array<string
+     argsForCommands.set(commandName, args);
+ 
+     // turn config value into appropriate cli flag
+-    const option = commander.optionFor(`--${arg}`);
++    const option = commander._findOption(`--${arg}`);
+ 
+     // If commander doesn't recognize the option or it takes a value after it
+     if (!option || option.optional || option.required) {
+diff --git a/src/util/execute-lifecycle-script.js b/src/util/execute-lifecycle-script.js
+index 8c526f67..28aed851 100644
+--- a/src/util/execute-lifecycle-script.js
++++ b/src/util/execute-lifecycle-script.js
+@@ -311,7 +311,7 @@ async function _checkForGyp(config: Config, paths: Array<string>): Promise<void>
+   reporter.info(reporter.lang('packageRequiresNodeGyp'));
+ 
+   try {
+-    await globalRun(config, reporter, {}, ['add', 'node-gyp']);
++    await globalRun(config, reporter, {}, {}, ['add', 'node-gyp']);
+   } catch (e) {
+     throw new MessageError(reporter.lang('nodeGypAutoInstallFailed', e.message));
+   }
+-- 
+2.40.1
+

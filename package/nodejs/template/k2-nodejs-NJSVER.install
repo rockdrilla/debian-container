@@ -1,0 +1,8 @@
+@{NODEJS_PREFIX}/bin/node
+
+@{NODEJS_MODULES}/@types/node
+
+deps/openssl/openssl/apps/openssl.cnf             @{NODEJS_PREFIX}/share/
+@{NODEJS_PREFIX}/share/doc/node/gdbinit           @{NODEJS_PREFIX}/share/
+@{NODEJS_PREFIX}/share/doc/node/lldb_commands.py  @{NODEJS_PREFIX}/share/
+@{NODEJS_PREFIX}/share/systemtap/tapset/node.stp  @{NODEJS_PREFIX}/share/

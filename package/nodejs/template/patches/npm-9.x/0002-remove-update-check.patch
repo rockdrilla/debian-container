@@ -1,0 +1,57 @@
+From e37fead5bb4830d3b83b769f404e95be581e8794 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:45:12 +0300
+Subject: remove update check
+
+---
+ lib/npm.js                | 7 -------
+ lib/utils/exit-handler.js | 8 --------
+ 2 files changed, 15 deletions(-)
+
+diff --git a/lib/npm.js b/lib/npm.js
+index 14706629..77b7a622 100644
+--- a/lib/npm.js
++++ b/lib/npm.js
+@@ -13,7 +13,6 @@ const Timers = require('./utils/timers.js')
+ const Display = require('./utils/display.js')
+ const log = require('./utils/log-shim')
+ const replaceInfo = require('./utils/replace-info.js')
+-const updateNotifier = require('./utils/update-notifier.js')
+ const pkg = require('../package.json')
+ const { deref } = require('./utils/cmd-list.js')
+ 
+@@ -113,12 +112,6 @@ class Npm {
+ 
+     const timeEnd = this.time(`command:${cmd}`)
+ 
+-    // this is async but we dont await it, since its ok if it doesnt
+-    // finish before the command finishes running. it uses command and argv
+-    // so it must be initiated here, after the command name is set
+-    // eslint-disable-next-line promise/catch-or-return
+-    updateNotifier(this).then((msg) => (this.updateNotification = msg))
+-
+     // Options are prefixed by a hyphen-minus (-, \u2d).
+     // Other dash-type chars look similar but are invalid.
+     if (!this.#warnedNonDashArg) {
+diff --git a/lib/utils/exit-handler.js b/lib/utils/exit-handler.js
+index 25cecd17..4b11fe10 100644
+--- a/lib/utils/exit-handler.js
++++ b/lib/utils/exit-handler.js
+@@ -123,14 +123,6 @@ const exitHandler = err => {
+     console.error(err.stack || err.message)
+   }
+ 
+-  // only show the notification if it finished.
+-  if (typeof npm.updateNotification === 'string') {
+-    const { level } = log
+-    log.level = 'notice'
+-    log.notice('', npm.updateNotification)
+-    log.level = level
+-  }
+-
+   let exitCode = process.exitCode || 0
+   let noLogMessage = exitCode !== 0
+   let jsonError
+-- 
+2.40.1
+

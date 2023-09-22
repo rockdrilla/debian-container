@@ -1,2 +1,19 @@
 #!/bin/sh
-exec /@{NODEJS_MODULES}/npm/bin/node-gyp-bin/node-gyp "$@"
+set -e
+nodedir=/@{NODEJS_PREFIX}/include/node
+nodegyp_path=/@{NODEJS_LIBDIR}/npm/node_modules/node-gyp
+
+_devdir=$(npm config get devdir)
+[ "${_devdir}" != undefined ] || _devdir=
+[ -n "${_devdir}" ] || {
+	npm_config_devdir=$(mktemp -d -t node-gyp-$(id -u).XXXXXX)
+	export npm_config_devdir
+}
+
+_disturl=$(npm config get disturl)
+[ "${_disturl}" != undefined ] || _disturl=
+[ -n "${_disturl}" ] || export npm_config_nodedir=${nodedir}
+
+export PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+exec @{NODEJS_HASHBANG} "${nodegyp_path}/bin/node-gyp.js" "$@"

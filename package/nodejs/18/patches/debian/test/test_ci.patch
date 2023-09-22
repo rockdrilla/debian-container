@@ -22,7 +22,7 @@ Last-Update: 2020-02-09
 
 --- a/Makefile
 +++ b/Makefile
-@@ -540,7 +540,7 @@ test-ci-native: | benchmark/napi/.builds
+@@ -536,7 +536,7 @@ test-ci-native: | benchmark/napi/.builds
  # This target should not use a native compiler at all
  # Related CI job: node-test-commit-arm-fanned
  test-ci-js: | clear-stalled
@@ -75,8 +75,8 @@ Last-Update: 2020-02-09
 +test-fs-utimes-y2K38: PASS,FLAKY
 +
  [$system==win32]
- # https://github.com/nodejs/node/issues/24497
- test-timers-immediate-queue: PASS,FLAKY
+ # https://github.com/nodejs/node/issues/41206
+ test-crypto-keygen: PASS,FLAKY
 --- a/test/sequential/sequential.status
 +++ b/test/sequential/sequential.status
 @@ -15,6 +15,24 @@ test-watch-mode-inspect: PASS, FLAKY
@@ -102,11 +102,11 @@ Last-Update: 2020-02-09
 +test-watch-mode-inspect: SKIP
 +
  [$system==win32]
- 
- [$system==linux]
+ # https://github.com/nodejs/node/issues/47116
+ test-http-max-sockets: PASS, FLAKY
 --- a/tools/test.py
 +++ b/tools/test.py
-@@ -941,25 +941,7 @@ class Context(object):
+@@ -934,25 +934,7 @@ class Context(object):
      self.node_has_crypto = True
  
    def GetVm(self, arch, mode):
@@ -135,7 +135,7 @@ Last-Update: 2020-02-09
      timeout = self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
 --- a/test/common/index.js
 +++ b/test/common/index.js
-@@ -252,16 +252,12 @@ const pwdCommand = isWindows ?
+@@ -257,16 +257,12 @@ const pwdCommand = isWindows ?
  
  function platformTimeout(ms) {
    const multipliers = typeof ms === 'bigint' ?

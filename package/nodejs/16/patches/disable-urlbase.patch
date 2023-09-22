@@ -1,0 +1,13 @@
+--- a/src/node_metadata.h
++++ b/src/node_metadata.h
+@@ -20,10 +20,6 @@ namespace node {
+ #endif  // NODE_VERSION_IS_RELEASE
+ #endif  // NODE_RELEASE_URLBASE
+ 
+-#if defined(NODE_RELEASE_URLBASE)
+-#define NODE_HAS_RELEASE_URLS
+-#endif
+-
+ #define NODE_VERSIONS_KEYS_BASE(V)                                             \
+   V(node)                                                                      \
+   V(v8)                                                                        \

@@ -4,15 +4,14 @@ debian/deps/cares.patch
 debian/deps/localhost-no-addrconfig.patch
 debian/deps/openssl-cnf.patch
 debian/deps/shared_uv_from_uvwasi.patch
-debian/dfsg/multilib_modules.patch
-debian/build/cctest_disable.patch
-debian/build/flag_atomic.patch
 debian/test/test_ci.patch
 debian/test/skip-buffer-nan-internal-check.patch
 debian/test/openssl_related_test_issues.patch
 debian/test/openssl_config_explicit_lower.patch
 
-npm-6.14.patch
-yarn-1.22.patch
-
+build.patch
+disable-urlbase.patch
 module-paths.patch
+shebang.patch
+python3.patch
+openssl3.patch

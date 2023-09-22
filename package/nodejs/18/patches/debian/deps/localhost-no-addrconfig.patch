@@ -7,7 +7,7 @@ Bug-Debian: https://bugs.debian.org/962318
 Forwarded: https://github.com/nodejs/node/issues/33816
 --- a/lib/net.js
 +++ b/lib/net.js
-@@ -1265,13 +1265,6 @@ function lookupAndConnect(self, options)
+@@ -1321,13 +1321,6 @@ function lookupAndConnect(self, options)
      hints: options.hints || 0,
    };
  
@@ -32,5 +32,5 @@ Forwarded: https://github.com/nodejs/node/issues/33816
 +test-tls-securepair-client: PASS,FLAKY
 +
  [$system==win32]
- 
- [$system==linux]
+ # https://github.com/nodejs/node/issues/47116
+ test-http-max-sockets: PASS, FLAKY

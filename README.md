@@ -81,8 +81,8 @@ Versions:
 
 - 12.22.12
 - 14.21.3
-- 16.20.0
-- 18.16.0
+- 16.20.2
+- 18.17.1
 
 Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/nodejs-min/tags)

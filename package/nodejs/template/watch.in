@@ -3,7 +3,7 @@ version=4
 opts=dversionmangle=auto,\
 downloadurlmangle=s/.*v(.*)\//https\:\/\/nodejs\.org\/dist\/v$1\/node\-v$1\.tar\.xz/,\
 filenamemangle=s/.*v(.*)\/$/nodejs-$1\.tar\.xz/ \
-  https://nodejs.org/dist \
+  https://nodejs.org/dist/ \
   v(@{NODEJS_MAJOR_VERSION}\.[.\d]+)/ \
 group
 
@@ -18,14 +18,30 @@ opts=component=node-npm,\
 repack,pgpmode=none,searchmode=plain,\
 filenamemangle=s/npm-(.+)/node-npm-$1/ \
   https://registry.npmjs.org/npm \
-  https://registry.npmjs.org/npm/-/npm-(@{NPM_BASE_VERSION}|@{NPM_BASE_VERSION}\.[.\d]+)@ARCHIVE_EXT@ \
+  https://registry.npmjs.org/npm/-/npm-(@{NPM_VERSION})@ARCHIVE_EXT@ \
+ignore
+
+opts=component=node-npm-src,\
+repack,pgpmode=none,\
+filenamemangle=s/v@{NPM_VERSION}.zip$/node-npm-src-@{NPM_VERSION}.tar.gz/,\
+downloadurlmangle=s/(.+)\.zip$/$1.tar.gz/ \
+  https://github.com/npm/cli/tree/v@{NPM_VERSION}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
 opts=component=node-yarn,\
 repack,pgpmode=none,searchmode=plain,\
 filenamemangle=s/yarn-(.+)/node-yarn-$1/ \
   https://registry.npmjs.org/yarn \
-  https://registry.npmjs.org/yarn/-/yarn-(@{YARN_BASE_VERSION}|@{YARN_BASE_VERSION}\.[.\d]+)@ARCHIVE_EXT@ \
+  https://registry.npmjs.org/yarn/-/yarn-(@{YARN_VERSION})@ARCHIVE_EXT@ \
+ignore
+
+opts=component=node-yarn-src,\
+repack,pgpmode=none,\
+filenamemangle=s/v@{YARN_VERSION}.zip$/node-yarn-src-@{YARN_VERSION}.tar.gz/,\
+downloadurlmangle=s/(.+)\.zip$/$1.tar.gz/ \
+  https://github.com/yarnpkg/yarn/tree/v@{YARN_VERSION}/ \
+  .+/(.+)@ARCHIVE_EXT@ \
 ignore
 
 # for use with proxy
@@ -33,26 +49,42 @@ ignore
 # also read debian/watch.README for proxy details
 
 # opts=pgpmode=none,\
-# filenamemangle=s/node-v(.+)/nodejs-$1/ \
+# filenamemangle=s/node-/nodejs-/ \
 #   http://127.0.0.1:8081/repository/proxy_raw_nodejs_org/dist/v(@{NODEJS_MAJOR_VERSION}\.[.\d]+)/node-v([.\d]+).tar.xz
 
 # opts=component=node-types,\
 # repack,pgpmode=none,searchmode=plain,\
-# filenamemangle=s/node-(.+)/node-types-$1/ \
+# filenamemangle=s/node-/node-types-/ \
 #   http://127.0.0.1:8081/repository/proxy_npm/@types/node \
 #   http://127.0.0.1:8081/repository/proxy_npm/@types/node/-/node-(@{NODEJS_MAJOR_VERSION}|@{NODEJS_MAJOR_VERSION}\.[.\d]+)@ARCHIVE_EXT@ \
 # ignore
 
 # opts=component=node-npm,\
 # repack,pgpmode=none,searchmode=plain,\
-# filenamemangle=s/npm-(.+)/node-npm-$1/ \
+# filenamemangle=s/npm-/node-npm-/ \
 #   http://127.0.0.1:8081/repository/proxy_npm/npm \
-#   http://127.0.0.1:8081/repository/proxy_npm/npm/-/npm-(@{NPM_BASE_VERSION}|@{NPM_BASE_VERSION}\.[.\d]+)@ARCHIVE_EXT@ \
+#   http://127.0.0.1:8081/repository/proxy_npm/npm/-/npm-(@{NPM_VERSION})@ARCHIVE_EXT@ \
+# ignore
+
+# opts=component=node-npm-src,\
+# repack,pgpmode=none,\
+# filenamemangle=s/v@{NPM_VERSION}.zip$/node-npm-src-@{NPM_VERSION}.tar.gz/,\
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_npm_cli\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_npm_cli/tree/v@{NPM_VERSION}/ \
+#   .+/(.+)@ARCHIVE_EXT@ \
 # ignore
 
 # opts=component=node-yarn,\
 # repack,pgpmode=none,searchmode=plain,\
-# filenamemangle=s/yarn-(.+)/node-yarn-$1/ \
+# filenamemangle=s/yarn-/node-yarn-/ \
 #   http://127.0.0.1:8081/repository/proxy_npm/yarn \
-#   http://127.0.0.1:8081/repository/proxy_npm/yarn/-/yarn-(@{YARN_BASE_VERSION}|@{YARN_BASE_VERSION}\.[.\d]+)@ARCHIVE_EXT@ \
+#   http://127.0.0.1:8081/repository/proxy_npm/yarn/-/yarn-(@{YARN_VERSION})@ARCHIVE_EXT@ \
+# ignore
+
+# opts=component=node-yarn-src,\
+# repack,pgpmode=none,\
+# filenamemangle=s/v@{YARN_VERSION}.zip$/node-yarn-src-@{YARN_VERSION}.tar.gz/,\
+# downloadurlmangle=s/^.+\/(.+)\.zip$/http:\/\/127.0.0.1:8081\/repository\/proxy_raw_github_yarnpkg_yarn\/archive\/$1.tar.gz/ \
+#   http://127.0.0.1:8081/repository/proxy_raw_github_yarnpkg_yarn/tree/v@{YARN_VERSION}/ \
+#   .+/(.+)@ARCHIVE_EXT@ \
 # ignore

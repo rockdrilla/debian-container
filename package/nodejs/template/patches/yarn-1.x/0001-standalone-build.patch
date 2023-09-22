@@ -1,0 +1,81 @@
+From 2466ca25aa5009cb0c0992564380d344647a1962 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:36:40 +0300
+Subject: standalone build
+
+---
+ scripts/build-dist.sh           | 13 -------------
+ scripts/update-dist-manifest.js |  2 ++
+ standalone-build.sh             | 25 +++++++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 13 deletions(-)
+ create mode 100644 standalone-build.sh
+
+diff --git a/scripts/build-dist.sh b/scripts/build-dist.sh
+index 70349d5c..c598de37 100755
+--- a/scripts/build-dist.sh
++++ b/scripts/build-dist.sh
+@@ -49,16 +49,3 @@ cp node_modules/v8-compile-cache/v8-compile-cache.js dist/lib/v8-compile-cache.j
+ [[ "$version" == "$(./dist/bin/yarn --version)" ]] || exit 1;
+ 
+ ./scripts/update-dist-manifest.js $(node -p "require('fs').realpathSync('dist/package.json')") tar
+-
+-case "$(tar --version)" in
+-  *GNU*)
+-    tar -cvzf artifacts/yarn-v$version.tar.gz --transform="s/^dist/yarn-v$version/" dist/*
+-    ;;
+-  bsdtar*)
+-    tar -cvzf artifacts/yarn-v$version.tar.gz -s "/^dist/yarn-v$version/" dist/*
+-    ;;
+-  *)
+-    echo "Can't determine tar type (BSD/GNU)!"
+-    exit 1
+-    ;;
+-esac
+diff --git a/scripts/update-dist-manifest.js b/scripts/update-dist-manifest.js
+index 81d18ffa..3d2211ac 100755
+--- a/scripts/update-dist-manifest.js
++++ b/scripts/update-dist-manifest.js
+@@ -20,7 +20,9 @@ if (!packageManifest.installationMethod) {
+ 
+ delete packageManifest.dependencies;
+ delete packageManifest.devDependencies;
++delete packageManifest.resolutions;
+ delete packageManifest.jest;
++delete packageManifest.config;
+ 
+ packageManifest.scripts = {
+   preinstall: ':; (node ./preinstall.js > /dev/null 2>&1 || true)',
+diff --git a/standalone-build.sh b/standalone-build.sh
+new file mode 100644
+index 00000000..4d8ec2b4
+--- /dev/null
++++ b/standalone-build.sh
+@@ -0,0 +1,25 @@
++#!/bin/sh
++
++set -e
++
++unset NODE_ENV
++
++tdir=$(dirname "$(mktemp -u)")
++export XDG_DATA_HOME="${tdir}"
++export XDG_CACHE_HOME="${tdir}"
++export XDG_CONFIG_HOME="${tdir}"
++
++cd "$(dirname "$0")"
++
++version=$(node -p "require('./package.json').version")
++
++rm -rf artifacts dist node_modules
++
++yarn install
++NODE_ENV=production yarn run build-dist
++node "artifacts/yarn-${version}.js" versions
++
++xz -9vvk yarn.lock
++mv yarn.lock.xz dist/
++
++rm -rf artifacts node_modules
+-- 
+2.40.1
+

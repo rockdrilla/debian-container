@@ -8,6 +8,7 @@ ARG BUILD_HELPER_IMAGE=${DISTRO}-buildd-helper:${SUITE}
 ARG BUILD_IMAGE=${DISTRO}-buildd:${SUITE}
 ARG BASE_IMAGE=${DISTRO}:${SUITE}
 ARG NODEJS_MIN_IMAGE=nodejs-min:${NODEJS_VERSION}-${SUITE}
+ARG NODEJS_IMAGE=nodejs:${NODEJS_VERSION}-${SUITE}
 
 # ---
 
@@ -62,7 +63,7 @@ ARG DEB_BUILD_OPTIONS
 ARG DEB_BUILD_PROFILES
 
 # CI/manual execution handler
-ENV BUILDINFO_MASK="container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*_*.buildinfo"
+ENV BUILDINFO_MASK="k2-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*_*.buildinfo"
 RUN [ -z "${CI}" ] || exit 0; \
     if find ${_PKG_DIR}/ -maxdepth 1 -name "${BUILDINFO_MASK}" -type f -printf . -quit 2>/dev/null | grep -Fq . ; then \
       # implicitly deletes /tmp/dsc
@@ -75,7 +76,7 @@ RUN [ -e /tmp/dsc ] || exit 0 ; \
     apt-update ; \
     build_start=$(date -R) ; \
     set +e ; \
-    ep.env deb-src-build ${_SRC_DIR}/container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.dsc ${_PKG_DIR} ; \
+    ep.env deb-src-build ${_SRC_DIR}/k2-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.dsc ${_PKG_DIR} ; \
     result=$? ; \
     set -e ; \
     build_finish=$(date -R) ; \
@@ -90,38 +91,52 @@ RUN [ -e /tmp/dsc ] || exit 0 ; \
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal
 SHELL [ "/bin/sh", "-ec" ]
 
-COPY --from=packages [ \
-  "container-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.deb", \
-  "/tmp/" ]
-
-RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \
-    cleanup ; \
-    # smoke/qa
-    set -xv ; \
-    node --version
+ENV NODE_MODULES=/opt/node-${NODEJS_MAJOR_VERSION}/lib/node
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 CMD [ "node" ]
+
+COPY --from=packages [ \
+  "k2-nodejs-${NODEJS_MAJOR_VERSION}_${NODEJS_VERSION}-*.deb", \
+  "/tmp/" ]
+
+RUN apt-install /tmp/*.deb ; \
+    # smoke/qa
+    set -xv ; \
+    node --version ; \
+    cleanup
 
 # ---
 
 FROM ${IMAGE_PATH}/${NODEJS_MIN_IMAGE} as regular
 SHELL [ "/bin/sh", "-ec" ]
 
-ARG NODEJS_MAJOR_VERSION
-
 COPY --from=packages [ \
-  "container-nodejs-${NODEJS_MAJOR_VERSION}-dev_${NODEJS_VERSION}-*.deb", \
-  "container-nodejs-${NODEJS_MAJOR_VERSION}-full_${NODEJS_VERSION}-*.deb", \
+  "k2-nodejs-${NODEJS_MAJOR_VERSION}-full_${NODEJS_VERSION}-*.deb", \
   "/tmp/" ]
 
-RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \
-    cleanup ; \
+RUN apt-install /tmp/*.deb ; \
     # smoke/qa
     set -xv ; \
-    node --version ; \
     npm --version ; \
     yarn --version ; \
-    # cleanup after yarn (sic!) 
+    cleanup
+
+# ---
+
+FROM ${IMAGE_PATH}/${NODEJS_IMAGE} as dev
+SHELL [ "/bin/sh", "-ec" ]
+
+COPY --from=packages [ \
+  "k2-nodejs-${NODEJS_MAJOR_VERSION}-dev_${NODEJS_VERSION}-*.deb", \
+  "/tmp/" ]
+
+# in order to use node-gyp
+RUN f=/usr/bin/py3compile ; \
+    dpkg-divert --divert $f.real --rename $f ; \
+    ln -s /bin/true $f
+
+RUN apt-install /tmp/*.deb ; \
     cleanup
 
 # ---
@@ -129,25 +144,33 @@ RUN dpkg -i /tmp/*.deb || apt-install --fix-broken ; \
 FROM ${IMAGE_PATH}/${BASE_IMAGE} as minimal-ci
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-nodejs-${NODEJS_MAJOR_VERSION} ; \
-    cleanup ; \
-    # smoke/qa
-    set -xv ; \
-    node --version
+ENV NODE_MODULES=/opt/node-${NODEJS_MAJOR_VERSION}/lib/node
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 CMD [ "node" ]
+
+RUN apt-install k2-nodejs-${NODEJS_MAJOR_VERSION} ; \
+    # smoke/qa
+    set -xv ; \
+    node --version ; \
+    cleanup
 
 # ---
 
 FROM ${IMAGE_PATH}/${NODEJS_MIN_IMAGE} as regular-ci
 SHELL [ "/bin/sh", "-ec" ]
 
-RUN apt-install container-nodejs-${NODEJS_MAJOR_VERSION}-dev ; \
-    cleanup ; \
+RUN apt-install k2-nodejs-${NODEJS_MAJOR_VERSION}-full ; \
     # smoke/qa
     set -xv ; \
-    node --version ; \
     npm --version ; \
     yarn --version ; \
-    # cleanup after yarn (sic!) 
+    cleanup
+
+# ---
+
+FROM ${IMAGE_PATH}/${NODEJS_IMAGE} as dev-ci
+SHELL [ "/bin/sh", "-ec" ]
+
+RUN apt-install k2-nodejs-${NODEJS_MAJOR_VERSION}-dev ; \
     cleanup

@@ -1,0 +1,316 @@
+From 6e212a05f10a0fb050801d6cc4cdb257e60451b4 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:36:40 +0300
+Subject: drop legacy code parts
+
+---
+ .babelrc                 | 42 +-----------------------------------
+ bin/yarn.js              | 34 ++++++++++-------------------
+ gulpfile.js              | 24 ++++-----------------
+ package.json             |  6 ++----
+ scripts/build-dist.sh    | 33 +++++++---------------------
+ scripts/build-webpack.js | 46 ----------------------------------------
+ 6 files changed, 26 insertions(+), 159 deletions(-)
+
+diff --git a/.babelrc b/.babelrc
+index d1c5b6cd..c0596de4 100644
+--- a/.babelrc
++++ b/.babelrc
+@@ -1,49 +1,9 @@
+ {
+   "only": "*.js",
+-  "env": {
+-    "pre-node5": {
+-      "presets": [
+-        ["env", {
+-          "targets": {
+-            "node": "4"
+-          },
+-          "modules": false,
+-          "loose": true,
+-          "exclude": [
+-            "transform-regenerator"
+-          ]
+-        }],
+-        "flow",
+-        "stage-0"
+-     ],
+-     "plugins": [
+-       ["array-includes"],
+-       ["transform-inline-imports-commonjs"],
+-       ["transform-runtime", { "polyfill": true, "regenerator": false }],
+-       ["transform-builtin-extend", { "globals": ["Error"] }]
+-     ]
+-   },
+-   "test": {
+-     "presets": [
+-       ["env", {
+-         "targets": {
+-           "node": "current"
+-         },
+-         "modules": false,
+-         "loose": true
+-        }],
+-        "flow",
+-        "stage-0"
+-      ],
+-      "plugins": [
+-        ["transform-inline-imports-commonjs"]
+-      ]
+-    }
+-  },
+   "presets": [
+     ["env", {
+       "targets": {
+-        "node": "6"
++        "node": "current"
+       },
+       "modules": false,
+       "loose": true
+diff --git a/bin/yarn.js b/bin/yarn.js
+index b34883e9..a3d9af1a 100755
+--- a/bin/yarn.js
++++ b/bin/yarn.js
+@@ -4,28 +4,16 @@
+ /* eslint-disable flowtype/require-valid-file-annotation */
+ 'use strict';
+ 
+-var ver = process.versions.node;
+-var majorVer = parseInt(ver.split('.')[0], 10);
++require(__dirname + '/../lib/v8-compile-cache.js');
+ 
+-if (majorVer < 4) {
+-  console.error('Node version ' + ver + ' is not supported, please use Node.js 4.0 or higher.');
+-  process.exit(1); // eslint-disable-line no-process-exit
+-} else {
+-  try {
+-    require(__dirname + '/../lib/v8-compile-cache.js');
+-  } catch (err) {
+-    // We don't have/need this on legacy builds and dev builds
+-  }
+-
+-  // Just requiring this package will trigger a yarn run since the
+-  // `require.main === module` check inside `cli/index.js` will always
+-  // be truthy when built with webpack :(
+-  // `lib/cli` may be `lib/cli/index.js` or `lib/cli.js` depending on the build.
+-  var cli = require(__dirname + '/../lib/cli');
+-  if (!cli.autoRun) {
+-    cli.default().catch(function(error) {
+-      console.error(error.stack || error.message || error);
+-      process.exitCode = 1;
+-    });
+-  }
++// Just requiring this package will trigger a yarn run since the
++// `require.main === module` check inside `cli/index.js` will always
++// be truthy when built with webpack :(
++// `lib/cli` may be `lib/cli/index.js` or `lib/cli.js` depending on the build.
++var cli = require(__dirname + '/../lib/cli');
++if (!cli.autoRun) {
++  cli.default().catch(function(error) {
++    console.error(error.stack || error.message || error);
++    process.exitCode = 1;
++  });
+ }
+diff --git a/gulpfile.js b/gulpfile.js
+index 3ec77abd..a4a041ff 100644
+--- a/gulpfile.js
++++ b/gulpfile.js
+@@ -1,22 +1,12 @@
+ 'use strict';
+ 
+-const argv = require('yargs').argv;
+ const plumber = require('gulp-plumber');
+ const newer = require('gulp-newer');
+-const babel = require('gulp-babel');
+ const sourcemaps = require('gulp-sourcemaps');
+ const log = require('fancy-log');
+-const gulpif = require('gulp-if');
+ const gulp = require('gulp');
+-const path = require('path');
+-const fs = require('fs');
+ 
+-const babelRc = JSON.parse(fs.readFileSync(path.join(__dirname, '.babelrc'), 'utf8'));
+-
+-const ver = process.versions.node;
+-const majorVer = parseInt(ver.split('.')[0], 10);
+-
+-const build = (lib, opts) =>
++const build = (lib) =>
+   gulp.src('src/**/*.js')
+       .pipe(plumber({
+         errorHandler(err) {
+@@ -24,18 +14,12 @@ const build = (lib, opts) =>
+         },
+       }))
+       .pipe(newer(lib))
+-      .pipe(gulpif(argv.sourcemaps, sourcemaps.init()))
+-      .pipe(babel(opts))
+-      .pipe(gulpif(argv.sourcemaps, sourcemaps.write('.', {sourceRoot: '../src'})))
++      .pipe(sourcemaps.init())
++      .pipe(sourcemaps.write('.', {sourceRoot: '../src'}))
+       .pipe(gulp.dest(lib));
+ 
+ gulp.task('build', () =>
+-  build('lib', babelRc.env[majorVer >= 5 ? 'node5' : 'pre-node5'])
++  build('lib')
+ );
+ 
+ gulp.task('default', gulp.task('build'));
+-
+-gulp.task(
+-  'watch',
+-  gulp.series('build', () => gulp.watch('src/**/*', gulp.task('build')))
+-);
+diff --git a/package.json b/package.json
+index 71b7767d..90a254ae 100644
+--- a/package.json
++++ b/package.json
+@@ -85,7 +85,6 @@
+     "git-release-notes": "^3.0.0",
+     "gulp": "^4.0.0",
+     "gulp-babel": "^7.0.0",
+-    "gulp-if": "^2.0.1",
+     "gulp-newer": "^1.0.0",
+     "gulp-plumber": "^1.0.1",
+     "gulp-sourcemaps": "^2.2.0",
+@@ -96,14 +95,13 @@
+     "prettier": "^1.5.2",
+     "string-replace-loader": "^2.1.1",
+     "temp": "^0.8.3",
+-    "webpack": "^2.1.0-beta.25",
+-    "yargs": "^6.3.0"
++    "webpack": "^2.1.0-beta.25"
+   },
+   "resolutions": {
+     "sshpk": "^1.14.2"
+   },
+   "engines": {
+-    "node": ">=4.0.0"
++    "node": "^12 || >= 12.0"
+   },
+   "repository": "yarnpkg/yarn",
+   "bin": {
+diff --git a/scripts/build-dist.sh b/scripts/build-dist.sh
+index c598de37..011f910b 100755
+--- a/scripts/build-dist.sh
++++ b/scripts/build-dist.sh
+@@ -5,40 +5,23 @@ set -o pipefail
+ 
+ umask 0022 # Ensure permissions are correct (0755 for dirs, 0644 for files)
+ 
+-# Workaround for https://github.com/yarnpkg/yarn/issues/2591
+-case "$(uname -s)" in
+-  *CYGWIN*|MSYS*|MINGW*)
+-    system_yarn=yarn.cmd
+-    ;;
+-  *)
+-    system_yarn=yarn
+-    ;;
+-esac
+-
+-version=`node -p "require('./package.json').version"`
+-node_version=`node -p "process.versions.node.split('.')[0]"`
++version=$(node -p "require('./package.json').version")
+ 
+ rm -rf artifacts dist
+ mkdir artifacts
+ mkdir dist{,/bin,/lib}
+ 
+-# Workaround for https://github.com/yarnpkg/yarn/issues/2591
+-eval $system_yarn run build
+-eval $system_yarn run build-bundle
++yarn run build
++yarn run build-bundle
+ chmod +x artifacts/*.js
+ # Verify that it works as expected
+-if (( node_version > 4 )); then
+-  [[ "$version" == "$(node artifacts/yarn-$version.js --version)" ]] || exit 1
+-fi
+-[[ "$version" == "$(node artifacts/yarn-legacy-$version.js --version)" ]] || exit 1
++[ "$version" = "$(node "artifacts/yarn-$version.js" --version)" ] || exit 1
+ 
+ cp package.json dist/
+ cp README.md dist/
+ cp LICENSE dist/
+-# Only use the legacy version for NPM builds so we are compatible
+-# with any Node >= 4 and still small in terms of size.
+-cp artifacts/yarn-legacy-$version.js dist/lib/cli.js
+-cp bin/{yarn.js,yarn,yarnpkg,*.cmd} dist/bin/
++cp bin/{yarn.js,yarn,yarnpkg} dist/bin/
++cp "artifacts/yarn-$version.js" dist/lib/cli.js
+ cp scripts/preinstall.js dist/preinstall.js
+ chmod +x dist/bin/*
+ 
+@@ -46,6 +29,6 @@ chmod +x dist/bin/*
+ cp node_modules/v8-compile-cache/v8-compile-cache.js dist/lib/v8-compile-cache.js
+ 
+ # Verify that it works as expected
+-[[ "$version" == "$(./dist/bin/yarn --version)" ]] || exit 1;
++[ "$version" = "$(./dist/bin/yarn --version)" ] || exit 1
+ 
+-./scripts/update-dist-manifest.js $(node -p "require('fs').realpathSync('dist/package.json')") tar
++./scripts/update-dist-manifest.js "$(node -p "require('fs').realpathSync('dist/package.json')")" tar
+diff --git a/scripts/build-webpack.js b/scripts/build-webpack.js
+index d0b166fa..766d78fb 100755
+--- a/scripts/build-webpack.js
++++ b/scripts/build-webpack.js
+@@ -9,7 +9,6 @@ const fs = require('fs');
+ 
+ const version = require('../package.json').version;
+ const basedir = path.join(__dirname, '../');
+-const babelRc = JSON.parse(fs.readFileSync(path.join(basedir, '.babelrc'), 'utf8'));
+ 
+ var PnpResolver = {
+   apply: function(resolver) {
+@@ -118,48 +117,3 @@ compiler.run((err, stats) => {
+   const filenames = fileDependencies.map(x => x.replace(basedir, ''));
+   console.log(util.inspect(filenames, {maxArrayLength: null}));
+ });
+-
+-//
+-// Legacy build
+-//
+-
+-const compilerLegacy = webpack({
+-  // devtool: 'inline-source-map',
+-  entry: path.join(basedir, 'src/cli/index.js'),
+-  module: {
+-    rules: [
+-      {
+-        test: /\.js$/,
+-        exclude: /node_modules[\\\/](?!inquirer)/,
+-        use: [
+-          {
+-            loader:'babel-loader',
+-            options: babelRc.env['pre-node5'],
+-          }
+-        ],
+-      },
+-      {
+-        test: /rx\.lite\.aggregates\.js/,
+-        use: 'imports-loader?define=>false'
+-      },
+-    ],
+-  },
+-  plugins: [
+-    new webpack.BannerPlugin({
+-      banner: '#!/usr/bin/env node',
+-      raw: true,
+-    }),
+-  ],
+-  output: {
+-    filename: `yarn-legacy-${version}.js`,
+-    path: path.join(basedir, 'artifacts'),
+-    libraryTarget: 'commonjs2',
+-  },
+-  target: 'node',
+-  node: nodeOptions,
+-  ... pnpOptions,
+-});
+-
+-compilerLegacy.run((err, stats) => {
+-  // do nothing, but keep here for debugging...
+-});
+-- 
+2.40.1
+

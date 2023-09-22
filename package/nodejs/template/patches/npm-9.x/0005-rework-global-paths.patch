@@ -1,0 +1,49 @@
+From 7d9e716f7edf524e270f69303433025d74dd2aa4 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:45:13 +0300
+Subject: rework global paths
+
+---
+ lib/npm.js                                       | 2 +-
+ workspaces/config/lib/definitions/definitions.js | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/lib/npm.js b/lib/npm.js
+index d63c5287..afea7519 100644
+--- a/lib/npm.js
++++ b/lib/npm.js
+@@ -401,7 +401,7 @@ class Npm {
+ 
+   get globalBin () {
+     const b = this.globalPrefix
+-    return resolve(b, 'bin')
++    return (process.env.K2_NODEJS_HIDEBIN === '1') ? resolve(b, 'bin') : resolve('/usr/local/bin')
+   }
+ 
+   get localBin () {
+diff --git a/workspaces/config/lib/definitions/definitions.js b/workspaces/config/lib/definitions/definitions.js
+index 0ff5ded2..8ddbe04d 100644
+--- a/workspaces/config/lib/definitions/definitions.js
++++ b/workspaces/config/lib/definitions/definitions.js
+@@ -6,6 +6,7 @@ const Definition = require('./definition.js')
+ const ciInfo = require('ci-info')
+ const querystring = require('querystring')
+ const { join } = require('path')
++const os = require('os');
+ 
+ // used by cafile flattening to flatOptions.ca
+ const fs = require('fs')
+@@ -78,8 +79,8 @@ const unicode = /UTF-?8$/i.test(
+   process.env.LANG
+ )
+ 
+-const cacheRoot = '~'
+-const cacheExtra = '.npm'
++const cacheRoot = os.tmpdir()
++const cacheExtra = (process.getuid) ? `npm-cache-${process.getuid()}` : `npm-cache`
+ const cache = `${cacheRoot}/${cacheExtra}`
+ 
+ // TODO: refactor these type definitions so that they are less
+-- 
+2.40.1
+

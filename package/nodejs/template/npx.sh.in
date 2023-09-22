@@ -2,19 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2022-2023, Konstantin Demin
 
-set -ef
+set -f
+set +e
 
 reparse_path() {
-	tr ':' '\0' \
-	| grep -zEv '^/@{NODEJS_PREFIX}/bin$' \
+	printf '%s' "${PATH}" \
+	| tr ':' '\0' \
+	| grep -zFxv '/@{NODEJS_PREFIX}/bin' \
 	| paste -zsd':' \
 	| tr -d '\0'
 }
 
-set +e
-__new=$(printf '%s' "${PATH}" | reparse_path)
-set -e
-export PATH="/@{NODEJS_PREFIX}/bin:${__new}"
-unset __new
+PATH="/@{NODEJS_PREFIX}/bin:$(reparse_path)"
+export PATH
 
-exec /@{NODEJS_BINARY} /@{NODEJS_MODULES}/npm/bin/npx-cli.js "$@"
+exec @{NODEJS_HASHBANG} /@{NODEJS_LIBDIR}/npm/bin/npx-cli.js "$@"

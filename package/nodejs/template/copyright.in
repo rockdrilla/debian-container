@@ -1,0 +1,66 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Node.js
+Upstream-Contact: https://github.com/nodejs/node/issues
+Source: https://nodejs.org/
+ https://registry.npmjs.org/@types/node
+ https://registry.npmjs.org/npm
+ https://github.com/npm/cli/tree/v@{NPM_VERSION}/
+ https://registry.npmjs.org/yarn
+ https://github.com/yarnpkg/yarn/tree/v@{YARN_VERSION}/
+Files-Excluded:
+ benchmark/fixtures/alice.html
+ deps/corepack/dist/*
+ deps/corepack/shims/*
+ deps/npm/*
+ deps/openssl/config/*
+ deps/openssl/openssl/CHANGES
+ deps/openssl/openssl/Configurations/*
+ deps/openssl/openssl/Configure
+ deps/openssl/openssl/VMS/*
+ deps/openssl/openssl/apps/demoSRP/*
+ deps/openssl/openssl/apps/include/*
+ deps/openssl/openssl/apps/lib/*
+ deps/openssl/openssl/crypto/*
+ deps/openssl/openssl/demos/*
+ deps/openssl/openssl/doc/*
+ deps/openssl/openssl/engines/*
+ deps/openssl/openssl/external/*
+ deps/openssl/openssl/fuzz/*
+ deps/openssl/openssl/include/*
+ deps/openssl/openssl/ms/*
+ deps/openssl/openssl/os-dep/*
+ deps/openssl/openssl/providers/*
+ deps/openssl/openssl/ssl/*
+ deps/openssl/openssl/test/*
+ deps/openssl/openssl/tools/*
+ deps/openssl/openssl/util/*
+ src/res/node.ico
+ tools/certdata.txt
+Files-Excluded-node-npm:
+ bin/*.cmd
+ bin/*.ps1
+Files-Excluded-node-npm-src:
+ bin/*.cmd
+ bin/*.ps1
+ bin/node-gyp-bin/*.cmd
+ bin/node-gyp-bin/*.ps1
+ node_modules/*
+ smoke-tests/*
+ tap-snapshots/*
+ test/*
+ workspaces/arborist/tap-snapshots/*
+ workspaces/arborist/test/*
+Files-Excluded-node-yarn:
+ bin/*.cmd
+ bin/*.ps1
+Files-Excluded-node-yarn-src:
+ bin/*.cmd
+ bin/*.ps1
+ packages/pkg-tests/*
+ resources/*
+ __tests__/*
+
+Files: *
+Copyright: Node.js contributors,
+ Joyent, Inc. and other Node contributors.
+License: Expat

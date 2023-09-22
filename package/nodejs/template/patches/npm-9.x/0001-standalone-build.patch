@@ -1,0 +1,478 @@
+From 72010a2c780356a09d00d3e9f00aec4547cb1a88 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:45:12 +0300
+Subject: standalone build
+
+---
+ package-lock.json                     | 102 --------------------------
+ package.json                          |  15 +---
+ scripts/bundle-and-gitignore-deps.js  |  52 +------------
+ scripts/publish.js                    |  23 +-----
+ scripts/resetdeps.js                  |   9 +--
+ standalone-build.sh                   |  27 +++++++
+ workspaces/config/package.json        |   1 -
+ workspaces/libnpmaccess/package.json  |   1 -
+ workspaces/libnpmexec/package.json    |   1 -
+ workspaces/libnpmpublish/package.json |   2 -
+ 10 files changed, 33 insertions(+), 200 deletions(-)
+ create mode 100644 standalone-build.sh
+
+diff --git a/package-lock.json b/package-lock.json
+index 8ad02ba2..8ef8452f 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -79,10 +79,6 @@
+       ],
+       "license": "Artistic-2.0",
+       "workspaces": [
+-        "docs",
+-        "smoke-tests",
+-        "mock-globals",
+-        "mock-registry",
+         "workspaces/*"
+       ],
+       "dependencies": {
+@@ -160,11 +156,8 @@
+         "npx": "bin/npx-cli.js"
+       },
+       "devDependencies": {
+-        "@npmcli/docs": "^1.0.0",
+         "@npmcli/eslint-config": "^4.0.2",
+         "@npmcli/git": "^4.1.0",
+-        "@npmcli/mock-globals": "^1.0.0",
+-        "@npmcli/mock-registry": "^1.0.0",
+         "@npmcli/template-oss": "4.18.0",
+         "@tufjs/repo-mock": "^1.3.1",
+         "diff": "^5.1.0",
+@@ -181,63 +174,6 @@
+         "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+       }
+     },
+-    "docs": {
+-      "name": "@npmcli/docs",
+-      "version": "1.0.0",
+-      "license": "ISC",
+-      "devDependencies": {
+-        "@isaacs/string-locale-compare": "^1.1.0",
+-        "@npmcli/config": "^6.1.7",
+-        "@npmcli/eslint-config": "^4.0.0",
+-        "@npmcli/template-oss": "4.18.0",
+-        "front-matter": "^4.0.2",
+-        "ignore-walk": "^6.0.1",
+-        "jsdom": "^21.1.0",
+-        "rehype-stringify": "^9.0.3",
+-        "remark-gfm": "^3.0.1",
+-        "remark-man": "^8.0.1",
+-        "remark-parse": "^10.0.1",
+-        "remark-rehype": "^10.1.0",
+-        "semver": "^7.3.8",
+-        "tap": "^16.3.4",
+-        "unified": "^10.1.2",
+-        "yaml": "^2.2.1"
+-      },
+-      "engines": {
+-        "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+-      }
+-    },
+-    "mock-globals": {
+-      "name": "@npmcli/mock-globals",
+-      "version": "1.0.0",
+-      "license": "ISC",
+-      "devDependencies": {
+-        "@npmcli/eslint-config": "^4.0.1",
+-        "@npmcli/template-oss": "4.18.0",
+-        "tap": "^16.3.2"
+-      },
+-      "engines": {
+-        "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+-      }
+-    },
+-    "mock-registry": {
+-      "name": "@npmcli/mock-registry",
+-      "version": "1.0.0",
+-      "license": "ISC",
+-      "devDependencies": {
+-        "@npmcli/arborist": "^6.1.1",
+-        "@npmcli/eslint-config": "^4.0.1",
+-        "@npmcli/template-oss": "4.18.0",
+-        "json-stringify-safe": "^5.0.1",
+-        "nock": "^13.3.0",
+-        "npm-package-arg": "^10.1.0",
+-        "pacote": "^15.0.8",
+-        "tap": "^16.3.4"
+-      },
+-      "engines": {
+-        "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+-      }
+-    },
+     "node_modules/@actions/core": {
+       "version": "1.10.0",
+       "resolved": "https://registry.npmjs.org/@actions/core/-/core-1.10.0.tgz",
+@@ -2360,10 +2296,6 @@
+         "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+       }
+     },
+-    "node_modules/@npmcli/docs": {
+-      "resolved": "docs",
+-      "link": true
+-    },
+     "node_modules/@npmcli/eslint-config": {
+       "version": "4.0.2",
+       "resolved": "https://registry.npmjs.org/@npmcli/eslint-config/-/eslint-config-4.0.2.tgz",
+@@ -2461,14 +2393,6 @@
+         "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+       }
+     },
+-    "node_modules/@npmcli/mock-globals": {
+-      "resolved": "mock-globals",
+-      "link": true
+-    },
+-    "node_modules/@npmcli/mock-registry": {
+-      "resolved": "mock-registry",
+-      "link": true
+-    },
+     "node_modules/@npmcli/name-from-folder": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/@npmcli/name-from-folder/-/name-from-folder-2.0.0.tgz",
+@@ -2544,10 +2468,6 @@
+         "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+       }
+     },
+-    "node_modules/@npmcli/smoke-tests": {
+-      "resolved": "smoke-tests",
+-      "link": true
+-    },
+     "node_modules/@npmcli/template-oss": {
+       "version": "4.18.0",
+       "resolved": "https://registry.npmjs.org/@npmcli/template-oss/-/template-oss-4.18.0.tgz",
+@@ -15594,23 +15514,6 @@
+         "url": "https://github.com/sponsors/wooorm"
+       }
+     },
+-    "smoke-tests": {
+-      "name": "@npmcli/smoke-tests",
+-      "version": "1.0.1",
+-      "license": "ISC",
+-      "devDependencies": {
+-        "@npmcli/eslint-config": "^4.0.0",
+-        "@npmcli/mock-registry": "^1.0.0",
+-        "@npmcli/promise-spawn": "^6.0.2",
+-        "@npmcli/template-oss": "4.18.0",
+-        "http-proxy": "^1.18.1",
+-        "tap": "^16.3.4",
+-        "which": "^3.0.0"
+-      },
+-      "engines": {
+-        "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+-      }
+-    },
+     "workspaces/arborist": {
+       "name": "@npmcli/arborist",
+       "version": "6.3.0",
+@@ -15683,7 +15586,6 @@
+       },
+       "devDependencies": {
+         "@npmcli/eslint-config": "^4.0.0",
+-        "@npmcli/mock-globals": "^1.0.0",
+         "@npmcli/template-oss": "4.18.0",
+         "tap": "^16.3.4"
+       },
+@@ -15700,7 +15602,6 @@
+       },
+       "devDependencies": {
+         "@npmcli/eslint-config": "^4.0.0",
+-        "@npmcli/mock-registry": "^1.0.0",
+         "@npmcli/template-oss": "4.18.0",
+         "nock": "^13.3.0",
+         "tap": "^16.3.4"
+@@ -15750,7 +15651,6 @@
+       },
+       "devDependencies": {
+         "@npmcli/eslint-config": "^4.0.0",
+-        "@npmcli/mock-registry": "^1.0.0",
+         "@npmcli/template-oss": "4.18.0",
+         "bin-links": "^4.0.1",
+         "chalk": "^5.2.0",
+@@ -15847,8 +15747,6 @@
+       },
+       "devDependencies": {
+         "@npmcli/eslint-config": "^4.0.0",
+-        "@npmcli/mock-globals": "^1.0.0",
+-        "@npmcli/mock-registry": "^1.0.0",
+         "@npmcli/template-oss": "4.18.0",
+         "lodash.clonedeep": "^4.5.0",
+         "nock": "^13.3.0",
+diff --git a/package.json b/package.json
+index 6e719a07..e00d4459 100644
+--- a/package.json
++++ b/package.json
+@@ -3,19 +3,12 @@
+   "name": "npm",
+   "description": "a package manager for JavaScript",
+   "workspaces": [
+-    "docs",
+-    "smoke-tests",
+-    "mock-globals",
+-    "mock-registry",
+     "workspaces/*"
+   ],
+   "files": [
+     "bin/",
+     "lib/",
+-    "index.js",
+-    "docs/content/",
+-    "docs/output/",
+-    "man/"
++    "index.js"
+   ],
+   "keywords": [
+     "install",
+@@ -191,11 +184,8 @@
+     "write-file-atomic"
+   ],
+   "devDependencies": {
+-    "@npmcli/docs": "^1.0.0",
+     "@npmcli/eslint-config": "^4.0.2",
+     "@npmcli/git": "^4.1.0",
+-    "@npmcli/mock-globals": "^1.0.0",
+-    "@npmcli/mock-registry": "^1.0.0",
+     "@npmcli/template-oss": "4.18.0",
+     "@tufjs/repo-mock": "^1.3.1",
+     "diff": "^5.1.0",
+@@ -209,14 +199,13 @@
+     "tap": "^16.3.4"
+   },
+   "scripts": {
+-    "dependencies": "node scripts/bundle-and-gitignore-deps.js && node scripts/dependency-graph.js",
++    "dependencies": "node scripts/bundle-and-gitignore-deps.js",
+     "dumpconf": "env | grep npm | sort | uniq",
+     "licenses": "licensee --production --errors-only",
+     "test": "tap",
+     "test:nocolor": "CI=true tap -Rclassic",
+     "test-all": "node . run test -ws -iwr --if-present",
+     "snap": "tap",
+-    "prepack": "node . run build -w docs",
+     "posttest": "node . run lint",
+     "lint": "eslint \"**/*.js\"",
+     "lintfix": "node . run lint -- --fix",
+diff --git a/scripts/bundle-and-gitignore-deps.js b/scripts/bundle-and-gitignore-deps.js
+index 1b77f170..9a44dd95 100644
+--- a/scripts/bundle-and-gitignore-deps.js
++++ b/scripts/bundle-and-gitignore-deps.js
+@@ -206,57 +206,7 @@ also have to ignore other things in those directories.
+ const main = async () => {
+   await setBundleDeps()
+ 
+-  const arb = new Arborist({ path: CWD })
+-  const allFiles = await arb.loadActual().then(packlist)
+-  const workspaceNames = (await rootPkg.mapWorkspaces()).map(p => p.name)
+-  const isWorkspace = (p) => workspaceNames.some(w => p.startsWith(w + '/'))
+-
+-  // Get all files within node_modules and remove the node_modules/ portion of
+-  // the path for processing since this list will go inside a gitignore at the
+-  // root of the node_modules dir. It also removes workspaces since those are
+-  // symlinks and should not be commited into source control.
+-  const files = allFiles
+-    .filter(f => f.startsWith('node_modules/'))
+-    .map(f => f.replace(/^node_modules\//, ''))
+-    .filter(f => !isWorkspace(f))
+-    .sort(localeCompare)
+-
+-  const ignoreFile = [
+-    '# Automatically generated to ignore everything except bundled deps',
+-    '# Ignore everything by default except this file',
+-    '/*',
+-    '!/.gitignore',
+-    '# Allow all bundled deps',
+-    ...getAllowedPaths(files),
+-    '# Always ignore some specific patterns within any allowed package',
+-    ...ALWAYS_IGNORE,
+-  ]
+-
+-  const NODE_MODULES = join(CWD, 'node_modules')
+-  const res = await fs.writeFile(join(NODE_MODULES, '.gitignore'), ignoreFile.join(EOL))
+-
+-  if (!await npmGit.is({ cwd: CWD })) {
+-    // if we are not running in a git repo then write the files but we do not
+-    // need to run any git commands to check if we have unmatched files in source
+-    return res
+-  }
+-
+-  // After we write the file we have to check if any of the paths already checked in
+-  // inside node_modules are now going to be ignored. If we find any then fail with
+-  // a list of the paths remaining. We already attempted to `git rm` them so just
+-  // explain what happened and leave the repo in a state to debug.
+-  const trackedAndIgnored = await lsAndRmIgnored(NODE_MODULES)
+-
+-  if (trackedAndIgnored.length) {
+-    const message = [
+-      'The following files are checked in to git but will now be ignored.',
+-      `They could not be removed automatically and will need to be removed manually.`,
+-      ...trackedAndIgnored.map(p => relative(NODE_MODULES, p)),
+-    ].join(EOL)
+-    throw new Error(message)
+-  }
+-
+-  return res
++  return true
+ }
+ 
+ run(main)
+diff --git a/scripts/publish.js b/scripts/publish.js
+index 62f2217b..571dec55 100644
+--- a/scripts/publish.js
++++ b/scripts/publish.js
+@@ -19,14 +19,7 @@ const getLatest = async (s) => {
+ const TAG = {
+   cli: ({ version }) => `next-${semver.major(version)}`,
+   workspace: async ({ name, version }) => {
+-    const { prerelease, major } = semver.parse(version)
+-    if (prerelease.length) {
+-      return 'prerelease'
+-    }
+-    if (major === await getLatest(name).then(v => semver.major(v))) {
+-      return 'latest'
+-    }
+-    return 'backport'
++    return 'latest'
+   },
+ }
+ 
+@@ -36,7 +29,7 @@ const needsPublish = async ({ private, name, version }, { force, getTag }) => {
+   }
+ 
+   const tag = await getTag({ name, version })
+-  if (force || version !== await getVersion(`${name}@${tag}`)) {
++  if (force) {
+     return tag
+   }
+ }
+@@ -71,22 +64,10 @@ const main = async (opts) => {
+ 
+   log.info('publish', '\n' + publishes.map(JSON.stringify).join('\n'))
+ 
+-  await git('clean', '-fd')
+   await resetdeps()
+   await npm('ls', '--omit=dev', { quiet: true })
+-  await npm('rm', '--global', '--force', 'npm')
+   await npm('link', '--force', '--ignore-scripts')
+ 
+-  if (opts.test) {
+-    await npm('run', 'lint-all', '--ignore-scripts')
+-    await npm('run', 'postlint', '--ignore-scripts')
+-    await npm('run', 'test-all', '--ignore-scripts')
+-  }
+-
+-  await npm('prune', '--omit=dev', '--no-save', '--no-audit', '--no-fund')
+-  await npm('install', '-w', 'docs', '--ignore-scripts', '--no-audit', '--no-fund')
+-  await git.dirty()
+-
+   for (const p of publishes) {
+     const workspace = p.workspace && `--workspace=${p.workspace}`
+     if (packOnly) {
+diff --git a/scripts/resetdeps.js b/scripts/resetdeps.js
+index afd19c38..686e1ebb 100644
+--- a/scripts/resetdeps.js
++++ b/scripts/resetdeps.js
+@@ -14,15 +14,8 @@ const cleanup = async () => {
+ }
+ 
+ const main = async ({ packageLock }) => {
+-  await fs.rimraf(join(CWD, 'node_modules'))
+-  for (const { path } of await pkg.mapWorkspaces()) {
+-    await fs.rimraf(join(path, 'node_modules'))
+-  }
+-
+-  await cleanup()
+-  await npm('i', '--ignore-scripts', '--no-audit', '--no-fund', packageLock && '--package-lock')
+   await npm('rebuild', '--ignore-scripts')
+   await npm('run', 'dependencies', '--ignore-scripts')
+ }
+ 
+-run(main).catch(cleanup)
++run(main)
+diff --git a/standalone-build.sh b/standalone-build.sh
+new file mode 100644
+index 00000000..c103e8d5
+--- /dev/null
++++ b/standalone-build.sh
+@@ -0,0 +1,27 @@
++#!/bin/sh
++
++set -e
++
++cd "$(dirname "$0")"
++
++rm -rf artifacts dist node_modules
++mkdir artifacts dist
++
++version=$(node -p "require('./package.json').version")
++
++npm install --ignore-scripts --no-audit --no-fund --package-lock
++
++rm -rf \
++  node_modules/node-gyp/test \
++  node_modules/node-gyp/gyp/tools/emacs/testdata \
++;
++
++node scripts/publish.js --pack-destination="${PWD}/artifacts"
++node bin/npm-cli.js version
++
++tar --strip-components=1 -C dist -xf "${PWD}/artifacts/npm-${version}.tgz"
++
++xz -9vvk package-lock.json
++mv package-lock.json.xz dist/
++
++rm -rf artifacts node_modules
+diff --git a/workspaces/config/package.json b/workspaces/config/package.json
+index 76d193ba..f3a83fa8 100644
+--- a/workspaces/config/package.json
++++ b/workspaces/config/package.json
+@@ -31,7 +31,6 @@
+   },
+   "devDependencies": {
+     "@npmcli/eslint-config": "^4.0.0",
+-    "@npmcli/mock-globals": "^1.0.0",
+     "@npmcli/template-oss": "4.18.0",
+     "tap": "^16.3.4"
+   },
+diff --git a/workspaces/libnpmaccess/package.json b/workspaces/libnpmaccess/package.json
+index 713cf8c2..760212b6 100644
+--- a/workspaces/libnpmaccess/package.json
++++ b/workspaces/libnpmaccess/package.json
+@@ -16,7 +16,6 @@
+   },
+   "devDependencies": {
+     "@npmcli/eslint-config": "^4.0.0",
+-    "@npmcli/mock-registry": "^1.0.0",
+     "@npmcli/template-oss": "4.18.0",
+     "nock": "^13.3.0",
+     "tap": "^16.3.4"
+diff --git a/workspaces/libnpmexec/package.json b/workspaces/libnpmexec/package.json
+index 9b86b81a..a55b6ed9 100644
+--- a/workspaces/libnpmexec/package.json
++++ b/workspaces/libnpmexec/package.json
+@@ -50,7 +50,6 @@
+   },
+   "devDependencies": {
+     "@npmcli/eslint-config": "^4.0.0",
+-    "@npmcli/mock-registry": "^1.0.0",
+     "@npmcli/template-oss": "4.18.0",
+     "bin-links": "^4.0.1",
+     "chalk": "^5.2.0",
+diff --git a/workspaces/libnpmpublish/package.json b/workspaces/libnpmpublish/package.json
+index 7c7533a8..46ce8994 100644
+--- a/workspaces/libnpmpublish/package.json
++++ b/workspaces/libnpmpublish/package.json
+@@ -24,8 +24,6 @@
+   },
+   "devDependencies": {
+     "@npmcli/eslint-config": "^4.0.0",
+-    "@npmcli/mock-globals": "^1.0.0",
+-    "@npmcli/mock-registry": "^1.0.0",
+     "@npmcli/template-oss": "4.18.0",
+     "lodash.clonedeep": "^4.5.0",
+     "nock": "^13.3.0",
+-- 
+2.40.1
+

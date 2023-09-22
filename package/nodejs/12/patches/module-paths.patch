@@ -1,15 +1,53 @@
+--- a/configure.py
++++ b/configure.py
+@@ -83,6 +83,12 @@ parser.add_option('--coverage',
+     dest='coverage',
+     help='Build node with code coverage enabled')
+ 
++parser.add_option('--arch-triplet',
++    action='store',
++    dest='arch_triplet',
++    default=None,
++    help='arch triplet used by distro')
++
+ parser.add_option('--debug',
+     action='store_true',
+     dest='debug',
+@@ -1220,6 +1226,12 @@ def configure_napi(output):
+   version = getnapibuildversion.get_napi_version()
+   output['variables']['napi_build_version'] = version
+ 
++def configure_debian(output):
++  if options.arch_triplet:
++    output['variables']['arch_triplet'] = options.arch_triplet
++  else:
++    output['variables']['arch_triplet'] = 'unknown-unknown-unknown'
++
+ def configure_library(lib, output, pkgname=None):
+   shared_lib = 'shared_' + lib
+   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+@@ -1711,6 +1723,7 @@ flavor = GetFlavor(flavor_params)
+ 
+ configure_node(output)
+ configure_napi(output)
++configure_debian(output)
+ configure_library('zlib', output)
+ configure_library('http_parser', output)
+ configure_library('libuv', output)
 --- a/lib/internal/modules/cjs/loader.js
 +++ b/lib/internal/modules/cjs/loader.js
-@@ -1119,9 +1119,9 @@ Module._initPaths = function() {
-     postDirs.push(path.join('lib', 'node'));
-   }
+@@ -1109,7 +1109,13 @@ Module._initPaths = function() {
+     path.resolve(process.execPath, '..') :
+     path.resolve(process.execPath, '..', '..');
  
--  let paths = postDirs.map(postDir => {
--    return path.resolve(prefixDir, postDir);
--  });
-+  let paths = [path.resolve(prefixDir, 'lib', 'node_modules')];
-+  // compatibility with Debian
-+  paths = paths.concat(postDirs.map(postDir => { return path.resolve('/usr', postDir); }));
+-  let paths = [path.resolve(prefixDir, 'lib', 'node')];
++  let paths = [
++    path.resolve(prefixDir, 'lib', 'node_modules'),
++    path.resolve(prefixDir, 'lib', 'yarn_modules', 'link'),
++    path.resolve(prefixDir, 'lib', 'yarn_modules', 'global', 'node_modules'),
++    path.resolve('/usr/lib', process.config.variables.arch_triplet, 'nodejs'),
++    path.resolve('/usr/share/nodejs'),
++  ];
  
    if (homeDir) {
      paths.unshift(path.resolve(homeDir, '.node_libraries'));

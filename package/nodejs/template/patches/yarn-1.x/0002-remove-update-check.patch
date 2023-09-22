@@ -1,0 +1,315 @@
+From f1309b93e274e9fe4d8d297c778ff5f47703a43f Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:36:40 +0300
+Subject: remove update check
+
+---
+ package.json                    |   1 -
+ scripts/update-dist-manifest.js |   8 --
+ src/cli/commands/install.js     | 130 --------------------------------
+ src/constants.js                |   4 -
+ src/util/yarn-version.js        |  44 +----------
+ 5 files changed, 1 insertion(+), 186 deletions(-)
+
+diff --git a/package.json b/package.json
+index 8f08b279..0cfc0b11 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,5 @@
+ {
+   "name": "yarn",
+-  "installationMethod": "unknown",
+   "version": "1.22.19",
+   "packageManager": "yarn@1.22.17",
+   "license": "BSD-2-Clause",
+diff --git a/scripts/update-dist-manifest.js b/scripts/update-dist-manifest.js
+index 3d2211ac..e5402ab0 100755
+--- a/scripts/update-dist-manifest.js
++++ b/scripts/update-dist-manifest.js
+@@ -2,8 +2,6 @@
+ /**
+  * Generates a `package.json` file for the Yarn distributable. This is based on
+  * the root package.json, with the following differences:
+- * - It has an `installationMethod` field that's set to the method used to
+- *   install Yarn (eg. "tar", "brew", "msi")
+  * - It doesn't include any of the dependencies, as they are bundled in the Yarn
+  *   JS file itself.
+  */
+@@ -12,12 +10,6 @@ const fs = require('fs');
+ const packageManifestFilename = process.argv[2];
+ const packageManifest = require(packageManifestFilename);
+ 
+-packageManifest.installationMethod = process.argv[3];
+-
+-if (!packageManifest.installationMethod) {
+-  throw new Error('You need to specify an installation method.');
+-}
+-
+ delete packageManifest.dependencies;
+ delete packageManifest.devDependencies;
+ delete packageManifest.resolutions;
+diff --git a/src/cli/commands/install.js b/src/cli/commands/install.js
+index bbe044fc..cbd99521 100644
+--- a/src/cli/commands/install.js
++++ b/src/cli/commands/install.js
+@@ -1,7 +1,6 @@
+ /* @flow */
+ 
+ import objectPath from 'object-path';
+-import type {InstallationMethod} from '../../util/yarn-version.js';
+ import type {Reporter} from '../../reporters/index.js';
+ import type {ReporterSelectOption} from '../../reporters/types.js';
+ import type {Manifest, DependencyRequestPatterns} from '../../types.js';
+@@ -26,7 +25,6 @@ import * as constants from '../../constants.js';
+ import {normalizePattern} from '../../util/normalize-pattern.js';
+ import * as fs from '../../util/fs.js';
+ import map from '../../util/map.js';
+-import {version as YARN_VERSION, getInstallationMethod} from '../../util/yarn-version.js';
+ import {generatePnpMap} from '../../util/generate-pnp-map.js';
+ import WorkspaceLayout from '../../workspace-layout.js';
+ import ResolutionMap from '../../resolution-map.js';
+@@ -37,12 +35,9 @@ const deepEqual = require('deep-equal');
+ const emoji = require('node-emoji');
+ const invariant = require('invariant');
+ const path = require('path');
+-const semver = require('semver');
+ const uuid = require('uuid');
+ const ssri = require('ssri');
+ 
+-const ONE_DAY = 1000 * 60 * 60 * 24;
+-
+ export type InstallCwdRequest = {
+   requests: DependencyRequestPatterns,
+   patterns: Array<string>,
+@@ -83,55 +78,6 @@ type Flags = {
+   workspaceRootIsCwd: boolean,
+ };
+ 
+-/**
+- * Try and detect the installation method for Yarn and provide a command to update it with.
+- */
+-
+-function getUpdateCommand(installationMethod: InstallationMethod): ?string {
+-  if (installationMethod === 'tar') {
+-    return `curl --compressed -o- -L ${constants.YARN_INSTALLER_SH} | bash`;
+-  }
+-
+-  if (installationMethod === 'homebrew') {
+-    return 'brew upgrade yarn';
+-  }
+-
+-  if (installationMethod === 'deb') {
+-    return 'sudo apt-get update && sudo apt-get install yarn';
+-  }
+-
+-  if (installationMethod === 'rpm') {
+-    return 'sudo yum install yarn';
+-  }
+-
+-  if (installationMethod === 'npm') {
+-    return 'npm install --global yarn';
+-  }
+-
+-  if (installationMethod === 'chocolatey') {
+-    return 'choco upgrade yarn';
+-  }
+-
+-  if (installationMethod === 'apk') {
+-    return 'apk update && apk add -u yarn';
+-  }
+-
+-  if (installationMethod === 'portage') {
+-    return 'sudo emerge --sync && sudo emerge -au sys-apps/yarn';
+-  }
+-
+-  return null;
+-}
+-
+-function getUpdateInstaller(installationMethod: InstallationMethod): ?string {
+-  // Windows
+-  if (installationMethod === 'msi') {
+-    return constants.YARN_INSTALLER_MSI;
+-  }
+-
+-  return null;
+-}
+-
+ function normalizeFlags(config: Config, rawFlags: Object): Flags {
+   const flags = {
+     // install
+@@ -548,8 +494,6 @@ export class Install {
+    */
+ 
+   async init(): Promise<Array<string>> {
+-    this.checkUpdate();
+-
+     // warn if we have a shrinkwrap
+     if (await fs.exists(path.join(this.config.lockfileFolder, constants.NPM_SHRINKWRAP_FILENAME))) {
+       this.reporter.warn(this.reporter.lang('shrinkwrapWarning'));
+@@ -735,7 +679,6 @@ export class Install {
+         if (auditFoundProblems) {
+           this.reporter.warn(this.reporter.lang('auditRunAuditForDetails'));
+         }
+-        this.maybeOutputUpdate();
+         return flattenedTopLevelPatterns;
+       }
+     }
+@@ -749,7 +692,6 @@ export class Install {
+     }
+     await this.saveLockfileAndIntegrity(topLevelPatterns, workspaceLayout);
+     await this.persistChanges();
+-    this.maybeOutputUpdate();
+     this.config.requestManager.clearCache();
+     return flattenedTopLevelPatterns;
+   }
+@@ -1059,78 +1001,6 @@ export class Install {
+ 
+     return request;
+   }
+-
+-  /**
+-   * Check for updates every day and output a nag message if there's a newer version.
+-   */
+-
+-  checkUpdate() {
+-    if (this.config.nonInteractive) {
+-      // don't show upgrade dialog on CI or non-TTY terminals
+-      return;
+-    }
+-
+-    // don't check if disabled
+-    if (this.config.getOption('disable-self-update-check')) {
+-      return;
+-    }
+-
+-    // only check for updates once a day
+-    const lastUpdateCheck = Number(this.config.getOption('lastUpdateCheck')) || 0;
+-    if (lastUpdateCheck && Date.now() - lastUpdateCheck < ONE_DAY) {
+-      return;
+-    }
+-
+-    // don't bug for updates on tagged releases
+-    if (YARN_VERSION.indexOf('-') >= 0) {
+-      return;
+-    }
+-
+-    this._checkUpdate().catch(() => {
+-      // swallow errors
+-    });
+-  }
+-
+-  async _checkUpdate(): Promise<void> {
+-    let latestVersion = await this.config.requestManager.request({
+-      url: constants.SELF_UPDATE_VERSION_URL,
+-    });
+-    invariant(typeof latestVersion === 'string', 'expected string');
+-    latestVersion = latestVersion.trim();
+-    if (!semver.valid(latestVersion)) {
+-      return;
+-    }
+-
+-    // ensure we only check for updates periodically
+-    this.config.registries.yarn.saveHomeConfig({
+-      lastUpdateCheck: Date.now(),
+-    });
+-
+-    if (semver.gt(latestVersion, YARN_VERSION)) {
+-      const installationMethod = await getInstallationMethod();
+-      this.maybeOutputUpdate = () => {
+-        this.reporter.warn(this.reporter.lang('yarnOutdated', latestVersion, YARN_VERSION));
+-
+-        const command = getUpdateCommand(installationMethod);
+-        if (command) {
+-          this.reporter.info(this.reporter.lang('yarnOutdatedCommand'));
+-          this.reporter.command(command);
+-        } else {
+-          const installer = getUpdateInstaller(installationMethod);
+-          if (installer) {
+-            this.reporter.info(this.reporter.lang('yarnOutdatedInstaller', installer));
+-          }
+-        }
+-      };
+-    }
+-  }
+-
+-  /**
+-   * Method to override with a possible upgrade message.
+-   */
+-
+-  maybeOutputUpdate() {}
+-  maybeOutputUpdate: any;
+ }
+ 
+ export function hasWrapper(commander: Object, args: Array<string>): boolean {
+diff --git a/src/constants.js b/src/constants.js
+index 863033a7..0cceb4a0 100644
+--- a/src/constants.js
++++ b/src/constants.js
+@@ -22,10 +22,6 @@ export const YARN_REGISTRY = 'https://registry.yarnpkg.com';
+ export const NPM_REGISTRY_RE = /https?:\/\/registry\.npmjs\.org/g;
+ 
+ export const YARN_DOCS = 'https://yarnpkg.com/en/docs/cli/';
+-export const YARN_INSTALLER_SH = 'https://yarnpkg.com/install.sh';
+-export const YARN_INSTALLER_MSI = 'https://yarnpkg.com/latest.msi';
+-
+-export const SELF_UPDATE_VERSION_URL = 'https://yarnpkg.com/latest-version';
+ 
+ // cache version, bump whenever we make backwards incompatible changes
+ export const CACHE_VERSION = 6;
+diff --git a/src/util/yarn-version.js b/src/util/yarn-version.js
+index 6e458b7c..40df6344 100644
+--- a/src/util/yarn-version.js
++++ b/src/util/yarn-version.js
+@@ -3,48 +3,6 @@
+  * @flow
+  */
+ 
+-import {readJson} from './fs';
+-
+-import fs from 'fs';
+-import path from 'path';
+-
+ // This will be bundled directly in the .js file for production builds
+-const {version, installationMethod: originalInstallationMethod} = require('../../package.json');
++const {version} = require('../../package.json');
+ export {version};
+-
+-export async function getInstallationMethod(): Promise<InstallationMethod> {
+-  let installationMethod = originalInstallationMethod;
+-
+-  // If there's a package.json in the parent directory, it could have an
+-  // override for the installation method, so we should prefer that over
+-  // whatever was originally in Yarn's package.json. This is the case with
+-  // systems such as Homebrew, which take the tarball and modify the
+-  // installation method so we're aware of the fact that Yarn was installed via
+-  // Homebrew (so things like update notifications can point out the correct
+-  // command to upgrade).
+-  try {
+-    const manifestPath = path.join(__dirname, '..', 'package.json');
+-    if (fs.existsSync(manifestPath)) {
+-      // non-async version is deprecated
+-      const manifest = await readJson(manifestPath);
+-      if (manifest.installationMethod) {
+-        installationMethod = manifest.installationMethod;
+-      }
+-    }
+-  } catch (e) {
+-    // Ignore any errors; this is not critical functionality.
+-  }
+-  return installationMethod;
+-}
+-
+-export type InstallationMethod =
+-  | 'tar'
+-  | 'homebrew'
+-  | 'deb'
+-  | 'rpm'
+-  | 'msi'
+-  | 'chocolatey'
+-  | 'apk'
+-  | 'npm'
+-  | 'portage'
+-  | 'unknown';
+-- 
+2.40.1
+

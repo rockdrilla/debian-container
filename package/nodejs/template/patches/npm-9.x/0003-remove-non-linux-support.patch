@@ -1,0 +1,267 @@
+From 1b88cac2ef4d955d275f53d6f3b53e4b9690b6bf Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Fri, 15 Sep 2023 11:45:12 +0300
+Subject: remove non-linux support
+
+---
+ lib/commands/completion.js                       |  8 --------
+ lib/commands/doctor.js                           |  3 ---
+ lib/commands/run-script.js                       |  3 +--
+ lib/npm.js                                       |  6 ++----
+ lib/utils/error-message.js                       | 10 ++--------
+ workspaces/arborist/lib/signals.js               |  6 ------
+ workspaces/config/lib/definitions/definitions.js | 15 +++++----------
+ workspaces/config/lib/index.js                   |  3 ---
+ workspaces/config/lib/parse-field.js             |  2 +-
+ workspaces/libnpmexec/lib/index.js               |  3 +--
+ 10 files changed, 12 insertions(+), 47 deletions(-)
+
+diff --git a/lib/commands/completion.js b/lib/commands/completion.js
+index 59113c50..eaa641fa 100644
+--- a/lib/commands/completion.js
++++ b/lib/commands/completion.js
+@@ -39,7 +39,6 @@ const { commands, aliases, deref } = require('../utils/cmd-list.js')
+ const configNames = Object.keys(definitions)
+ const shorthandNames = Object.keys(shorthands)
+ const allConfs = configNames.concat(shorthandNames)
+-const { isWindowsShell } = require('../utils/is-windows.js')
+ const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => false)
+ 
+ const BaseCommand = require('../base-command.js')
+@@ -71,13 +70,6 @@ class Completion extends BaseCommand {
+   }
+ 
+   async exec (args) {
+-    if (isWindowsShell) {
+-      const msg = 'npm completion supported only in MINGW / Git bash on Windows'
+-      throw Object.assign(new Error(msg), {
+-        code: 'ENOTSUP',
+-      })
+-    }
+-
+     const { COMP_CWORD, COMP_LINE, COMP_POINT, COMP_FISH } = process.env
+ 
+     // if the COMP_* isn't in the env, then just dump the script.
+diff --git a/lib/commands/doctor.js b/lib/commands/doctor.js
+index 96e34370..477666cf 100644
+--- a/lib/commands/doctor.js
++++ b/lib/commands/doctor.js
+@@ -405,9 +405,6 @@ class Doctor extends BaseCommand {
+ 
+   actions (params) {
+     return this.constructor.subcommands.filter(subcmd => {
+-      if (process.platform === 'win32' && subcmd.windows === false) {
+-        return false
+-      }
+       if (params.length) {
+         return params.some(param => subcmd.groups.includes(param))
+       }
+diff --git a/lib/commands/run-script.js b/lib/commands/run-script.js
+index 13efdde7..7233d2b7 100644
+--- a/lib/commands/run-script.js
++++ b/lib/commands/run-script.js
+@@ -3,7 +3,6 @@ const { isServerPackage } = runScript
+ const pkgJson = require('@npmcli/package-json')
+ const log = require('../utils/log-shim.js')
+ const didYouMean = require('../utils/did-you-mean.js')
+-const { isWindowsShell } = require('../utils/is-windows.js')
+ 
+ const cmdList = [
+   'publish',
+@@ -77,7 +76,7 @@ class RunScript extends BaseCommand {
+     if (event === 'restart' && !scripts.restart) {
+       scripts.restart = 'npm stop --if-present && npm start'
+     } else if (event === 'env' && !scripts.env) {
+-      scripts.env = isWindowsShell ? 'SET' : 'env'
++      scripts.env = 'env'
+     }
+ 
+     pkg.scripts = scripts
+diff --git a/lib/npm.js b/lib/npm.js
+index 77b7a622..d63c5287 100644
+--- a/lib/npm.js
++++ b/lib/npm.js
+@@ -388,9 +388,7 @@ class Npm {
+   }
+ 
+   get globalDir () {
+-    return process.platform !== 'win32'
+-      ? resolve(this.globalPrefix, 'lib', 'node_modules')
+-      : resolve(this.globalPrefix, 'node_modules')
++    return resolve(this.globalPrefix, 'lib', 'node_modules')
+   }
+ 
+   get localDir () {
+@@ -403,7 +401,7 @@ class Npm {
+ 
+   get globalBin () {
+     const b = this.globalPrefix
+-    return process.platform !== 'win32' ? resolve(b, 'bin') : b
++    return resolve(b, 'bin')
+   }
+ 
+   get localBin () {
+diff --git a/lib/utils/error-message.js b/lib/utils/error-message.js
+index a2cdb0aa..85673fd4 100644
+--- a/lib/utils/error-message.js
++++ b/lib/utils/error-message.js
+@@ -78,9 +78,7 @@ const errorMessage = (er, npm) => {
+         npm.config.loaded &&
+         er.dest.startsWith(npm.config.get('cache'))
+ 
+-      const { isWindows } = require('./is-windows.js')
+-
+-      if (!isWindows && (isCachePath || isCacheDest)) {
++      if (isCachePath || isCacheDest) {
+         // user probably doesn't need this, but still add it to the debug log
+         log.verbose(er.stack)
+         short.push([
+@@ -102,12 +100,8 @@ const errorMessage = (er, npm) => {
+           '',
+           [
+             '\nThe operation was rejected by your operating system.',
+-            isWindows
+-              /* eslint-disable-next-line max-len */
+-              ? "It's possible that the file was already in use (by a text editor or antivirus),\n" +
+-                'or that you lack permissions to access it.'
+               /* eslint-disable-next-line max-len */
+-              : 'It is likely you do not have the permissions to access this file as the current user',
++              'It is likely you do not have the permissions to access this file as the current user',
+             '\nIf you believe this might be a permissions issue, please double-check the',
+             'permissions of the file and its containing directories, or try running',
+             'the command again as root/Administrator.',
+diff --git a/workspaces/arborist/lib/signals.js b/workspaces/arborist/lib/signals.js
+index 8dcd585c..d347c132 100644
+--- a/workspaces/arborist/lib/signals.js
++++ b/workspaces/arborist/lib/signals.js
+@@ -21,8 +21,6 @@
+ // state from which it is not safe to try and enter JS
+ // listeners.
+ 
+-const platform = global.__ARBORIST_FAKE_PLATFORM__ || process.platform
+-
+ module.exports = [
+   'SIGABRT',
+   'SIGALRM',
+@@ -31,7 +29,6 @@ module.exports = [
+   'SIGTERM',
+ ]
+ 
+-if (platform !== 'win32') {
+   module.exports.push(
+     'SIGVTALRM',
+     'SIGXCPU',
+@@ -45,9 +42,7 @@ if (platform !== 'win32') {
+     // see #21
+     // 'SIGPROF'
+   )
+-}
+ 
+-if (platform === 'linux') {
+   module.exports.push(
+     'SIGIO',
+     'SIGPOLL',
+@@ -55,4 +50,3 @@ if (platform === 'linux') {
+     'SIGSTKFLT',
+     'SIGUNUSED'
+   )
+-}
+diff --git a/workspaces/config/lib/definitions/definitions.js b/workspaces/config/lib/definitions/definitions.js
+index fe5cafa1..0ff5ded2 100644
+--- a/workspaces/config/lib/definitions/definitions.js
++++ b/workspaces/config/lib/definitions/definitions.js
+@@ -7,8 +7,6 @@ const ciInfo = require('ci-info')
+ const querystring = require('querystring')
+ const { join } = require('path')
+ 
+-const isWindows = process.platform === 'win32'
+-
+ // used by cafile flattening to flatOptions.ca
+ const fs = require('fs')
+ const maybeReadFile = file => {
+@@ -59,10 +57,9 @@ const buildOmitList = obj => {
+ 
+ const editor = process.env.EDITOR ||
+   process.env.VISUAL ||
+-  (isWindows ? `${process.env.SYSTEMROOT}\\notepad.exe` : 'vi')
++  'vi'
+ 
+-const shell = isWindows ? process.env.ComSpec || 'cmd'
+-  : process.env.SHELL || 'sh'
++const shell = process.env.SHELL || 'sh'
+ 
+ const { tmpdir, networkInterfaces } = require('os')
+ const getLocalAddresses = () => {
+@@ -81,10 +78,8 @@ const unicode = /UTF-?8$/i.test(
+   process.env.LANG
+ )
+ 
+-// use LOCALAPPDATA on Windows, if set
+-// https://github.com/npm/cli/pull/899
+-const cacheRoot = (isWindows && process.env.LOCALAPPDATA) || '~'
+-const cacheExtra = isWindows ? 'npm-cache' : '.npm'
++const cacheRoot = '~'
++const cacheExtra = '.npm'
+ const cache = `${cacheRoot}/${cacheExtra}`
+ 
+ // TODO: refactor these type definitions so that they are less
+@@ -2283,7 +2278,7 @@ define('versions', {
+ })
+ 
+ define('viewer', {
+-  default: isWindows ? 'browser' : 'man',
++  default: 'man',
+   defaultDescription: `
+     "man" on Posix, "browser" on Windows
+   `,
+diff --git a/workspaces/config/lib/index.js b/workspaces/config/lib/index.js
+index 0e19d32e..e3248b77 100644
+--- a/workspaces/config/lib/index.js
++++ b/workspaces/config/lib/index.js
+@@ -344,9 +344,6 @@ class Config {
+ 
+     if (this.env.PREFIX) {
+       this.globalPrefix = this.env.PREFIX
+-    } else if (this.platform === 'win32') {
+-      // c:\node\node.exe --> prefix=c:\node\
+-      this.globalPrefix = dirname(this.execPath)
+     } else {
+       // /usr/local/bin/node --> prefix=/usr/local
+       this.globalPrefix = dirname(dirname(this.execPath))
+diff --git a/workspaces/config/lib/parse-field.js b/workspaces/config/lib/parse-field.js
+index 099b0b4e..ff56bcc5 100644
+--- a/workspaces/config/lib/parse-field.js
++++ b/workspaces/config/lib/parse-field.js
+@@ -59,7 +59,7 @@ const parseField = (f, key, opts, listElement = false) => {
+   }
+ 
+   if (isPath) {
+-    const homePattern = platform === 'win32' ? /^~(\/|\\)/ : /^~\//
++    const homePattern = /^~\//
+     if (homePattern.test(f) && home) {
+       f = resolve(home, f.slice(2))
+     } else {
+diff --git a/workspaces/libnpmexec/lib/index.js b/workspaces/libnpmexec/lib/index.js
+index 34bb2076..460fd497 100644
+--- a/workspaces/libnpmexec/lib/index.js
++++ b/workspaces/libnpmexec/lib/index.js
+@@ -15,7 +15,6 @@ const { fileExists, localFileExists } = require('./file-exists.js')
+ const getBinFromManifest = require('./get-bin-from-manifest.js')
+ const noTTY = require('./no-tty.js')
+ const runScript = require('./run-script.js')
+-const isWindows = require('./is-windows.js')
+ 
+ const { dirname, resolve } = require('path')
+ 
+@@ -89,7 +88,7 @@ const exec = async (opts) => {
+     packages: [...packages] = [],
+     path = '.',
+     runPath = '.',
+-    scriptShell = isWindows ? process.env.ComSpec || 'cmd' : 'sh',
++    scriptShell = process.env.SHELL || 'sh',
+     ...flatOptions
+   } = opts
+ 
+-- 
+2.40.1
+
