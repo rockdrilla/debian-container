@@ -2,7 +2,7 @@
 #
 # dpkg-source-raw: "hackish" script based on original dpkg-source
 # repo: https://git.dpkg.org/git/dpkg/dpkg.git
-# synced commit: d7a1dfdfc24d19e7ed6444490fe146f06f928042
+# synced commit: f506e5dbc94393e9b5a8783d992815dca8ea7a2b
 # file: scripts/dpkg-source.pl
 #
 # Copyright © 1996 Ian Jackson <ijackson@chiark.greenend.org.uk>
@@ -37,7 +37,7 @@ use Cwd;
 use File::Basename;
 use File::Spec;
 
-use Dpkg ();
+use Dpkg;
 use Dpkg::ErrorHandling;
 use Dpkg::Arch qw(:operators);
 use Dpkg::Deps;
@@ -48,11 +48,24 @@ use Dpkg::Control::Tests;
 use Dpkg::Control::Fields;
 use Dpkg::Substvars;
 use Dpkg::Version;
-use Dpkg::Vars;
 use Dpkg::Changelog::Parse;
 use Dpkg::Source::Format;
 use Dpkg::Source::Package;
 use Dpkg::Vendor;
+
+# heavily-conditional "use MODULE"
+BEGIN {
+    my $dpkg_ver = Dpkg::Version->new($Dpkg::PROGVERSION);
+    my $new_api_ver = Dpkg::Version->new('1.22.0');
+    if ($dpkg_ver >= $new_api_ver) {
+        require Dpkg::Package;
+        Dpkg::Package->import(qw(set_source_name));
+        # aliasing
+        *set_source_package = \&set_source_name;
+    } else {
+        require Dpkg::Vars;
+    }
+}
 
 my $build_format;
 my %options = ();
@@ -98,24 +111,26 @@ error("debian/control doesn't contain any information about the source package")
 my $src_sect = $src_fields->{'Section'} || 'unknown';
 my $src_prio = $src_fields->{'Priority'} || 'unknown';
 
-foreach (keys %{$src_fields}) {
-    my $v = $src_fields->{$_};
-    if (m/^Source$/i) {
+foreach my $f (keys %{$src_fields}) {
+    my $v = $src_fields->{$f};
+
+    if ($f eq 'Source') {
         set_source_package($v);
-        $fields->{$_} = $v;
-    } elsif (m/^Uploaders$/i) {
-        ($fields->{$_} = $v) =~ s/\s*[\r\n]\s*/ /g; # Merge in a single-line
-    } elsif (m/^Build-(?:Depends|Conflicts)(?:-Arch|-Indep)?$/i) {
+        $fields->{$f} = $v;
+    } elsif ($f eq 'Uploaders') {
+        # Merge in a single-line
+        ($fields->{$f} = $v) =~ s/\s*[\r\n]\s*/ /g;
+    } elsif (any { $f eq $_ } field_list_src_dep()) {
         my $dep;
-        my $type = field_get_dep_type($_);
+        my $type = field_get_dep_type($f);
         $dep = deps_parse($v, build_dep => 1, union => $type eq 'union');
-        error('error occurred while parsing %s', $_) unless defined $dep;
+        error('error occurred while parsing %s', $f) unless defined $dep;
         my $facts = Dpkg::Deps::KnownFacts->new();
         $dep->simplify_deps($facts);
         $dep->sort() if $type eq 'union';
-        $fields->{$_} = $dep->output();
+        $fields->{$f} = $dep->output();
     } else {
-        field_transfer_single($src_fields, $fields);
+        field_transfer_single($src_fields, $fields, $f);
     }
 }
 
@@ -156,9 +171,9 @@ foreach my $pkg ($control->get_packages()) {
 
     push @pkglist, $pkg_summary;
     push @binarypackages, $p;
-    foreach (keys %{$pkg}) {
-        my $v = $pkg->{$_};
-        if (m/^Architecture$/) {
+    foreach my $f (keys %{$pkg}) {
+        my $v = $pkg->{$f};
+        if ($f eq 'Architecture') {
             # Gather all binary architectures in one set. 'any' and 'all'
             # are special-cased as they need to be the only ones in the
             # current stanza if present.
@@ -175,10 +190,10 @@ foreach my $pkg ($control->get_packages()) {
                     push(@sourcearch, $a) unless $archadded{$a}++;
                 }
             }
-        } elsif (m/^(?:Homepage|Description)$/) {
+        } elsif (any { $f eq $_ } qw(Homepage Description)) {
             # Do not overwrite the same field from the source entry
         } else {
-            field_transfer_single($pkg, $fields);
+            field_transfer_single($pkg, $fields, $f);
         }
     }
 }
@@ -210,23 +225,23 @@ $fields->{'Architecture'} = join(' ', @sourcearch);
 $fields->{'Package-List'} = "\n" . join("\n", sort @pkglist);
 
 # Scan fields of dpkg-parsechangelog
-foreach (keys %{$changelog}) {
-    my $v = $changelog->{$_};
+foreach my $f (keys %{$changelog}) {
+    my $v = $changelog->{$f};
 
-    if (m/^Source$/) {
+    if ($f eq 'Source') {
         set_source_package($v);
-        $fields->{$_} = $v;
-    } elsif (m/^Version$/) {
+        $fields->{$f} = $v;
+    } elsif ($f eq 'Version') {
         my ($ok, $error) = version_check($v);
         error($error) unless $ok;
-        $fields->{$_} = $v;
-    } elsif (m/^Binary-Only$/) {
+        $fields->{$f} = $v;
+    } elsif ($f eq 'Binary-Only') {
         error('building source for a binary-only release')
             if $v eq 'yes';
-    } elsif (m/^Maintainer$/i) {
+    } elsif ($f eq 'Maintainer') {
         # Do not replace the field coming from the source entry
     } else {
-        field_transfer_single($changelog, $fields);
+        field_transfer_single($changelog, $fields, $f);
     }
 }
 

@@ -105,15 +105,17 @@ find "${deb_folder}/" -mindepth 1 -maxdepth 1 -printf '%P\0' \
 
 chmod 0755 "${temp_folder}/debian/rules"
 
+d_rules() { DPKG_BUILD_API="${DPKG_BUILD_API:-0}" debian/rules "$@" ; }
+
 (
 	cd "${temp_folder}"
 
 	set +e
 
 	# refresh control files
-	debian/rules clean
-	debian/rules debian/control
-	debian/rules debian/changelog
+	d_rules clean
+	d_rules debian/control
+	d_rules debian/changelog
 )
 if ! [ -s "${temp_folder}/debian/control" ] ; then
 	echo "# ${0##*/}: debian/control is missing/unreproducible for ${deb_folder}/!"
@@ -233,7 +235,7 @@ pna="${pnd}_source"
 
 cd "$W"
 
-debian/rules debian/watch || :
+d_rules debian/watch || :
 
 (
 	# verify that we have upstream tarball(s)
@@ -246,7 +248,7 @@ debian/rules debian/watch || :
 	tar -cf - debian | xz -9 > "$T/${pnd}.debian.tar.xz"
 
 	# hackish way to generate .dsc with minimal overhead
-	dpkg-source-raw "$T"
+	dpkg-source-raw "$T" || exit 1
 
 	sign_file "$T/${pnd}.dsc"
 
