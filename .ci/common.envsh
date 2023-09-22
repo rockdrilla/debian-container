@@ -10,8 +10,7 @@ fi
 
 : "${SOURCE_DATE_EPOCH:=$(date -u '+%s')}"
 : "${BUILD_IMAGE_ARGS:=IMAGE_PATH DISTRO SUITE}"
-: "${BUILD_IMAGE_PUSH:=0}"
-export SOURCE_DATE_EPOCH BUILD_IMAGE_ARGS BUILD_IMAGE_PUSH
+export SOURCE_DATE_EPOCH BUILD_IMAGE_ARGS
 
 # NB: assume that we're already logged in registry
 
