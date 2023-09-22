@@ -15,7 +15,7 @@ Images on Docker.io:
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu/tags)
 
-### minimal with "debug"
+### minimal-debug
 
 "Debug" base image - `image/minbase-debug/` ([dockerfile](image/minbase-debug/Dockerfile))
 
@@ -40,9 +40,9 @@ Images on Docker.io:
 |
 [Ubuntu](https://hub.docker.com/r/rockdrilla/ubuntu-buildd-helper/tags)
 
-### python - minimal/standard
+### python
 
-Python image/packages - `image/python/` ([dockerfile](image/python/Dockerfile))
+Python images/packages - `image/python/` ([dockerfile](image/python/Dockerfile))
 
 Versions:
 
@@ -59,9 +59,9 @@ Images on Docker.io:
 |
 [+ development files](https://hub.docker.com/r/rockdrilla/python-dev/tags)
 
-### golang - minimal/standard
+### golang
 
-Golang image/packages - `image/golang/` ([dockerfile](image/golang/Dockerfile))
+Golang images/packages - `image/golang/` ([dockerfile](image/golang/Dockerfile))
 
 Versions:
 
@@ -75,9 +75,9 @@ Images on Docker.io:
 |
 [+ GCC (with CGO)](https://hub.docker.com/r/rockdrilla/golang/tags)
 
-### nodejs - minimal/standard
+### nodejs
 
-NodeJs image/packages - `image/nodejs/` ([dockerfile](image/nodejs/Dockerfile))
+Node.js images/packages - `image/nodejs/` ([dockerfile](image/nodejs/Dockerfile))
 
 Versions:
 
