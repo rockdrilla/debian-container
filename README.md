@@ -65,8 +65,8 @@ Golang image/packages - `image/golang/` ([dockerfile](image/golang/Dockerfile))
 
 Versions:
 
-- 1.19.12
-- 1.20.7
+- 1.20.8
+- 1.21.1
 
 Images on Docker.io:
 [minimal (no CGO)](https://hub.docker.com/r/rockdrilla/golang-min/tags)
@@ -82,7 +82,9 @@ Versions:
 - 12.22.12
 - 14.21.3
 - 16.20.2
-- 18.17.1
+- 18.18.0
+
+*NB*: Node.js versions below 18.x are OBSOLETE and provided for backward compatibility.
 
 Images on Docker.io:
 [minimal](https://hub.docker.com/r/rockdrilla/nodejs-min/tags)
