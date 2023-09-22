@@ -33,6 +33,9 @@ for d_s_t in ${DISTRO_SUITE_TAGS} ; do
 	BUILD_IMAGE_TARGET="buildd" \
 	build-image.sh image/buildd/ "${IMAGE_PATH}/${BUILDD_IMAGE}" ${tags}
 
+	# wait for image registry
+	sleep 10
+
 	BUILD_IMAGE_TARGET="buildd-helper" \
 	BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS} BUILDD_IMAGE" \
 	build-image.sh image/buildd/ "${helper_image}" ${tags}
