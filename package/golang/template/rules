@@ -79,11 +79,14 @@ DH_ARGS =
 
 execute_before_dh_auto_configure:
 	: # applies to Go versions before 1.21
-	sed -i \
-	  -e 's$(xsedx)@{GOPROXY}$(xsedx)$(GOPROXY)$(xsedx)g' \
-	  -e 's$(xsedx)@{GOSUMDB}$(xsedx)$(GOSUMDB)$(xsedx)g' \
-	  -e 's$(xsedx)@{GOPRIVATE}$(xsedx)$(GOPRIVATE)$(xsedx)g' \
-	src/cmd/go/internal/cfg/cfg.go
+	f=src/cmd/go/internal/cfg/cfg.go ; \
+	if grep -Fq '@{GOPROXY}' $$f ; then \
+	    sed -i \
+	      -e 's$(xsedx)@{GOPROXY}$(xsedx)$(GOPROXY)$(xsedx)g' \
+	      -e 's$(xsedx)@{GOSUMDB}$(xsedx)$(GOSUMDB)$(xsedx)g' \
+	      -e 's$(xsedx)@{GOPRIVATE}$(xsedx)$(GOPRIVATE)$(xsedx)g' \
+	    $$f ; \
+	fi
 
 	: # applies to Go versions starting 1.21
 	{ \

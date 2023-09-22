@@ -9,13 +9,12 @@ grep -rH "/usr/bin/env perl" * | cut -d: -f1 | xargs -n1 sed -i -e "s,/usr/bin/e
  src/syscall/mksyscall.pl          | 2 +-
  src/syscall/mksyscall_libc.pl     | 2 +-
  src/syscall/mksysctl_openbsd.pl   | 2 +-
- src/syscall/mksysnum_darwin.pl    | 2 +-
  src/syscall/mksysnum_dragonfly.pl | 2 +-
  src/syscall/mksysnum_freebsd.pl   | 2 +-
  src/syscall/mksysnum_linux.pl     | 2 +-
  src/syscall/mksysnum_netbsd.pl    | 2 +-
  src/syscall/mksysnum_openbsd.pl   | 2 +-
- 9 files changed, 9 insertions(+), 9 deletions(-)
+ 8 files changed, 8 insertions(+), 8 deletions(-)
 
 --- a/src/syscall/mksyscall.pl
 +++ b/src/syscall/mksyscall.pl
