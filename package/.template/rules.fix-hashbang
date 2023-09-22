@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+
+# $1 - directory
+# $2 - hashbang regex
+# $3 - new hashbang
+define fix_hashbangs_r
+
+	: # $(strip $(1)): fix hashbang
+	hashbang_rx='^#![ \t]*$(strip $(2))' ; \
+	list=$$(mktemp) ; \
+	find $(strip $(1))/ -type f -exec grep -EIl "$${hashbang_rx}" {} + \
+	> "$${list}" || : ; \
+	[ -s "$${list}" ] || { \
+	    rm -f "$${list}" ; \
+		exit 0 ; \
+	} ; \
+	tfile=$$(mktemp) ; \
+	while read -r f ; do \
+	    [ -n "$$f" ] || continue ; \
+	    [ -e "$$f" ] || continue ; \
+		hashbang_bytes=$$(od -A n -j 0 -N 2 -t x1 "$$f" | tr -d '[:space:]') ; \
+		[ "$${hashbang_bytes}" = 2321 ] || continue ; \
+	    x_flag=1 ; \
+	    [ -x "$$f" ] || x_flag= ; \
+	    sed -E "1s$(xsedx)$${hashbang_rx}$(xsedx)#!$(strip $(3))$(xsedx)" \
+	    < "$$f" > "$${tfile}" ; \
+	    if ! cmp -s "$${tfile}" "$$f" ; then \
+	        echo "# fixed hashbang: $$f" ; \
+	        mv -f "$${tfile}" "$$f" ; \
+	    fi ; \
+	    if [ -z "$${x_flag}" ] ; then \
+	        echo "# fixed permissions: $$f" ; \
+	    fi ; \
+	    chmod 0755 "$$f" ; \
+	done < "$${list}" >&2 ; \
+	rm -f "$${tfile}" "$${list}"
+
+endef

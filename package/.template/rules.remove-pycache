@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+
+# $1 - directory
+define remove_pycache
+
+	: # $(strip $(1)): remove Python cache
+	find $(strip $(1))/ -name __pycache__ -type d -exec rm -rf {} +
+	find $(strip $(1))/ -name '*.py[co]' -ls -delete
+
+endef

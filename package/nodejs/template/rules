@@ -10,6 +10,8 @@ export DH_VERBOSE := 1
 include /usr/share/dpkg/default.mk
 
 include debian/rules.common-defs
+include debian/rules.remove-pycache
+include debian/rules.fix-hashbang
 
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
 
@@ -29,6 +31,9 @@ DEB_NODEJS_PRIO = $(shell printf '1%03d0' $(NODEJS_MAJOR_VERSION))
 NODEJS_BINARY = usr/bin/node-$(NODEJS_MAJOR_VERSION)
 NODEJS_PREFIX = opt/node-$(NODEJS_MAJOR_VERSION)
 NODEJS_MODULES = $(NODEJS_PREFIX)/lib/node_modules
+
+NODEJS_HASHBANG_RX = .*[/ ]node(js|)
+NODEJS_HASHBANG = /$(NODEJS_BINARY)
 
 NPROC_MAKE := $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 NPROC_MAKE := $(if $(NPROC_MAKE),$(NPROC_MAKE),$(shell nproc))
@@ -211,42 +216,6 @@ execute_after_dh_auto_build:
 override_dh_auto_test:
 	$(call try_dh_auto_test,)
 
-define fix_hashbangs_r
-
-	hashbang_rx='^#!.*[/ ]node(js|)' ; \
-	list='$(strip $(1)).hashbang' ; \
-	find '$(strip $(1))/' -type f -exec grep -EIl "$${hashbang_rx}" '{}' '+' \
-	> "$${list}" || : ; \
-	if [ -s "$${list}" ] ; then \
-		while read -r f ; do \
-			[ -n "$$f" ] || continue ; \
-			x_flag=1 ; \
-			[ -x "$$f" ] || x_flag= ; \
-			sed -E "1s$(xsedx)$${hashbang_rx}$(xsedx)#!/$(NODEJS_BINARY)$(xsedx)" \
-			< "$$f" > "$${list}.tmp" ; \
-			if ! cmp -s "$${list}.tmp" "$$f" ; then \
-				echo "# fixed hashbang: $$f" ; \
-				mv -f "$${list}.tmp" "$$f" ; \
-			fi ; \
-			if [ -z "$${x_flag}" ] ; then \
-				echo "# fixed permissions: $$f" ; \
-			fi ; \
-			chmod 0755 "$$f" ; \
-		done < "$${list}" >&2 ; \
-		rm -f "$${list}.tmp" ; \
-	fi ; \
-	rm -f "$${list}"
-
-endef
-
-define remove_pycache
-
-	: # $(strip $(1)): remove Python cache
-	find $(strip $(1))/ -name __pycache__ -type d -exec rm -rf '{}' '+'
-	find $(strip $(1))/ -name '*.py[co]' -ls -delete
-
-endef
-
 execute_after_dh_auto_install:
 ifeq ($(with_shared),yes)
 	: # move shared library from staged location
@@ -327,7 +296,7 @@ endif
 
 	: # fix permissions and hashbangs
 	find debian/tmp/$(NODEJS_MODULES)/ -type f -exec chmod a-x '{}' +
-	$(call fix_hashbangs_r, debian/tmp )
+	$(call fix_hashbangs_r, debian/tmp , $(NODEJS_HASHBANG_RX) , $(NODEJS_HASHBANG) )
 
 	: # remove directories without files/symlinks
 	find debian/tmp/ -type d | sort -V | while read -r d ; do \

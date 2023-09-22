@@ -10,6 +10,8 @@ export DH_VERBOSE := 1
 include /usr/share/dpkg/default.mk
 
 include debian/rules.common-defs
+include debian/rules.remove-pycache
+include debian/rules.fix-hashbang
 
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-pie,-stackprotectorstrong
 export DEB_BUILD_PATH := $(CURDIR)/debian/build
@@ -35,6 +37,9 @@ DEB_PYTHON_PRIO = $(shell printf '1%03d%03d0' $(PYTHON_MAJOR_VERSION) $(PYTHON_M
 PYTHON_PREFIX = opt/python-$(PYTHON_BASE_VERSION)
 PYTHON_BINARY = usr/bin/python-$(PYTHON_BASE_VERSION)
 PYTHON_MODULES = $(PYTHON_PREFIX)/lib/python$(PYTHON_BASE_VERSION)
+
+PYTHON_HASHBANG_RX = .*[/ ]python[^ ]*
+PYTHON_HASHBANG = /$(PYTHON_BINARY)
 
 include debian/rules.versions
 
@@ -253,14 +258,6 @@ define deb_python_build
 
 endef
 
-define remove_pycache
-
-	: # $(strip $(1)): remove Python cache
-	find $(strip $(1))/ -name __pycache__ -type d -exec rm -rf {} +
-	find $(strip $(1))/ -name '*.py[co]' -ls -delete
-
-endef
-
 define deb_python_test
 
 	$(call remove_pycache, $(1) )
@@ -274,34 +271,6 @@ define deb_python_test
 	make test TESTOPTS='-j $(NPROC_TEST) $(TEST_OPTS)' $(if $(strip $(2)),|| $(strip $(2)))
 
 	$(call remove_pycache, $(1) )
-
-endef
-
-define fix_hashbangs_r
-
-	hashbang_rx='#!.*[/ ]python[^ ]*' ; \
-	list=$(strip $(1)).hashbang ; \
-	find $(strip $(1))/ -type f -exec grep -EIl "$${hashbang_rx}" {} + \
-	> $${list} || : ; \
-	if [ -s "$${list}" ] ; then \
-		while read -r f ; do \
-			[ -n "$$f" ] || continue ; \
-			x_flag=1 ; \
-			[ -x "$$f" ] || x_flag= ; \
-			sed -E "1s$(xsedx)$${hashbang_rx}$(xsedx)#!/$(PYTHON_BINARY)$(xsedx)" \
-			< $$f > $${list}.tmp ; \
-			if ! cmp -s $${list}.tmp $$f ; then \
-				echo "# fixed hashbang: $$f" ; \
-				mv -f $${list}.tmp $$f ; \
-			fi ; \
-			if [ -z "$${x_flag}" ] ; then \
-				echo "# fixed permissions: $$f" ; \
-			fi ; \
-			chmod 0755 $$f ; \
-		done < $${list} >&2 ; \
-		rm -f $${list}.tmp ; \
-	fi ; \
-	rm -f $${list}
 
 endef
 
@@ -488,7 +457,7 @@ define deb_python_postinstall_1st_stage
 	K2_PYTHON_DISTINSTALL=1 \
 	$(limb_python) -m pip install wheel virtualenv
 
-	$(call fix_hashbangs_r, debian/tmp )
+	$(call fix_hashbangs_r, debian/tmp , $(PYTHON_HASHBANG_RX) , $(PYTHON_HASHBANG) )
 
 	: # list installed packages (refreshing version info)
 	$(limb_python) -m pip list --format json > debian/pip.list.json
@@ -695,7 +664,7 @@ define deb_python_postinstall_3rd_stage
 	    patchelf --set-rpath /$(PYTHON_PREFIX)/lib "$$d/$$f" ; \
 	done
 
-	$(call fix_hashbangs_r, debian/tmp )
+	$(call fix_hashbangs_r, debian/tmp , $(PYTHON_HASHBANG_RX) , $(PYTHON_HASHBANG) )
 
 endef
 
