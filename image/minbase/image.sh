@@ -4,6 +4,9 @@
 
 set -ef
 
+unset LANGUAGE LC_COLLATE LC_CTYPE LC_MESSAGES LC_NUMERIC LC_TIME
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
+
 distro="${1:?}"
 suite="${2:?}"
 image="${3:?}"
