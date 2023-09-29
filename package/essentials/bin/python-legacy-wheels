@@ -4,12 +4,10 @@
 
 set -ef
 
-conf=/etc/k2/cleanup/python-site-packages
-
 me="${0##*/}"
 usage() {
 	cat >&2 <<-EOF
-	# usage: ${me} [options]
+	# usage: ${me} [options] <wheel directory> <pip wheel parameters>
 	# options:
 	#  -V <version>, --python-version <version>, --python-version=<version>
 	#    Python version selector
@@ -80,10 +78,36 @@ done
 
 [ ${n_opt} = 0 ] || shift ${n_opt}
 
-if ! [ -s "${conf}" ] ; then
-	msg "warning: ${conf} is missing or empty"
-	exit 0
+[ $# -ge 2 ] || usage 1
+
+wheel_dir="$1" ; shift
+if [ -z "${wheel_dir}" ] ; then
+	msg "error: <wheel directory> is empty string"
+	usage 1
 fi
+wheel_dir=$(readlink -ne "${wheel_dir}")
+if [ -z "${wheel_dir}" ] ; then
+	msg "error: <wheel directory> does not exist"
+	usage 1
+fi
+if ! [ -d "${wheel_dir}" ] ; then
+	msg "error: <wheel directory> is not directory"
+	usage 1
+fi
+
+reparse_path() {
+	printf '%s' "${PATH}" \
+	| tr -s ':' '\0' \
+	| grep -zEv "^$1/" \
+	| paste -zsd':' \
+	| tr -d '\0'
+}
+
+if [ -n "${VIRTUAL_ENV}" ] ; then
+	PATH=$(reparse_path "${VIRTUAL_ENV}")
+	export PATH
+fi
+unset VIRTUAL_ENV
 
 python='python'
 if [ -n "${o_version}" ] ; then
@@ -95,30 +119,22 @@ if ! command -v "${python}" >/dev/null ; then
 	usage 1
 fi
 
-unset pathspec
-if [ -n "${VIRTUAL_ENV}" ] ; then
-	pathspec=$(python -c 'import site;print(":".join(site.getsitepackages()))')
-else
-	case "$(id -u)" in
-	0 )
-		pathspec=$("${python}" -c 'import site;print(":".join([site.getusersitepackages()] + site.getsitepackages()))')
-	;;
-	* )
-		pathspec=$("${python}" -c 'import site;print(site.getusersitepackages())')
-	;;
-	esac
-fi
+venv_dir=$(mktemp -d)
 
-if [ -z "${pathspec}" ] ; then
-	msg "error: unable to determine site package path(s)"
-	exit 1
-fi
+set +e
+(
+	set -e
+	"${python}" -m venv "${venv_dir}"
+	export VIRTUAL_ENV="${venv_dir}"
+	export PATH="${venv_dir}/bin:${PATH}"
+	pip install -U 'setuptools<68.0.0'
+	wheel_tmp="${venv_dir}/tmp.wheels"
+	mkdir -p "${wheel_tmp}"
+	pip wheel -w "${wheel_tmp}" "$@"
+	find "${wheel_tmp}/" -type f -exec cp -t "${wheel_dir}" {} +
+)
+r=$?
 
-rm="rm -rf${VERBOSE:+v}"
-[ -z "${DEBUG}" ] || set -xv
+rm -rf "${venv_dir}"
 
-printf '%s' "${pathspec}" | tr ':' '\0' \
-| xargs -0 -r -n 1 stat --printf='%n\0' 2>/dev/null \
-| xargs -0 -r -I '%_%' xglob '%_%' "${conf}" -- ${rm}
-
-exit 0
+exit $r

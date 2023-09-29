@@ -45,7 +45,11 @@ case "$1" in
 	shift 2
 
 	old_PATH="${PATH}"
-	export PATH="/opt/python-${pyverspec}/bin:${PATH}"
+	PATH="/opt/python-${pyverspec}/bin:${PATH}"
+	if [ -n "${VIRTUAL_ENV}" ] ; then
+		export PATH="${VIRTUAL_ENV}/bin:${PATH}"
+	fi
+	export PATH
 
 	set +e
 	"$@"
@@ -62,19 +66,34 @@ case "$1" in
 	t=$(mktemp)
 
 	# move original keep list
-	tr -s '[:space:]' '\n' < "${APT_WRAP_KEEP}" > "$t"
+	{
+		tr -s '[:space:]' '\n' < "${APT_WRAP_KEEP}"
+		echo
+	} | grep -Ev '^$' | sort -uV > "$t"
 	: > "${APT_WRAP_KEEP}"
 
 	if [ -z "${pathspec}" ] ; then
-		pathspec=$(python-${pyverspec} -c 'import site;print(":".join([site.getusersitepackages()] + site.getsitepackages()))')
+		if [ -n "${VIRTUAL_ENV}" ] ; then
+			pathspec=$(env PATH="${VIRTUAL_ENV}/bin:${PATH}" python -c 'import site;print(":".join(site.getsitepackages()))')
+		else
+			python="python-${pyverspec}"
+			case "$(id -u)" in
+			0 )
+				pathspec=$("${python}" -c 'import site;print(":".join([site.getusersitepackages()] + site.getsitepackages()))')
+			;;
+			* )
+				pathspec=$("${python}" -c 'import site;print(site.getusersitepackages())')
+			;;
+			esac
+		fi
 	fi
 
 	if [ -n "${pathspec}" ] ; then
-		new_LD_LIBRARY_PATH="\$ORIGIN${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+		new_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}"'$ORIGIN'
 
 		printf '%s' "${pathspec}" | tr ':' '\0' \
 		| grep -zFxv -e '' | sort -zuV \
-		| xvp env "LD_LIBRARY_PATH=${new_LD_LIBRARY_PATH}" sodeps - >> "$t" || r=$?
+		| xvp env "LD_LIBRARY_PATH=${new_LIBRARY_PATH}" sodeps - >> "$t" || r=$?
 	fi
 
 	# (not so) early exit
@@ -229,9 +248,12 @@ if [ -n "${o_version}" ] ; then
 		exit 1
 	fi
 else
-	b=/usr/bin/python
-	if [ -e "$b" ] ; then
+	b=$(command -v python)
+	if [ -n "$b" ] ; then
 		pypkg=$(readlink -ne "$b" | xvp dpkg-which - )
+	fi
+	if [ -z "${pypkg}" ] ; then
+		pypkg=$(readlink -ne /usr/bin/python | xvp dpkg-which - )
 	fi
 	if [ -z "${pypkg}" ] ; then
 		pypkg=$(_apt_search k2-python 'k2-python-[0-9.]+')
@@ -266,4 +288,24 @@ if [ -n "${o_deps}" ] ; then
 	deps="${deps} ${o_deps}"
 fi
 
-exec apt-wrap ${o_user:+ -u "${o_user}" } "${deps}" "$0" --do "${o_version}" "${o_path}" "$@"
+reparse_path() {
+	printf '%s' "${PATH}" \
+	| tr -s ':' '\0' \
+	| grep -zEv "^$1/" \
+	| paste -zsd':' \
+	| tr -d '\0'
+}
+
+unset py_venv
+if [ -n "${VIRTUAL_ENV}" ] ; then
+	py_venv=${VIRTUAL_ENV}
+	PATH=$(reparse_path "${VIRTUAL_ENV}")
+	export PATH
+fi
+unset VIRTUAL_ENV
+
+exec apt-wrap \
+  ${o_user:+ -u "${o_user}" } \
+  "${deps}" \
+  ${py_venv:+ env "VIRTUAL_ENV=${py_venv}" } \
+  "$0" --do "${o_version}" "${o_path}" "$@"
