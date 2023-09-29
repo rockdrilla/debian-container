@@ -4,7 +4,7 @@
 
 while : ; do
     if [ -n "${FORCE_GOMAXPROCS}" ] ; then
-        log "FORCE_GOMAXPROCS is in effect: GOMAXPROCS=${FORCE_GOMAXPROCS}"
+        log_always "FORCE_GOMAXPROCS is in effect: GOMAXPROCS=${FORCE_GOMAXPROCS}"
         export GOMAXPROCS="${FORCE_GOMAXPROCS}"
         break
     fi

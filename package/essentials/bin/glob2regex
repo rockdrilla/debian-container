@@ -16,7 +16,7 @@ set -f
 # special magic with separator for sed "s" command
 # char 027 (0x17) seems to be safe separator for sed "s" command;
 # idea taken from Debian src:nginx/debian/dh_nginx
-xsedx=$(env printf '\027')
+xsedx=$(printf '\027')
 
 # $1 - match
 # $2 - replacement

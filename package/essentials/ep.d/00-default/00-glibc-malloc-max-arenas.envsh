@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+a=$( ( echo $(( EP_GLIBC_MALLOC_ARENAS + 0 )); ) || echo 2 )
+if [ -n "${NPROC}" ] ; then
+    [ "$a" -ge "${NPROC}" ] || a=${NPROC}
+fi
+
+EP_GLIBC_MALLOC_ARENAS=$a
+unset a

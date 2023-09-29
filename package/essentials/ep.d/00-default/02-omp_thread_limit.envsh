@@ -4,7 +4,7 @@
 
 while : ; do
     if [ -n "${FORCE_OMP_THREAD_LIMIT}" ] ; then
-        log "FORCE_OMP_THREAD_LIMIT is in effect: OMP_THREAD_LIMIT=${FORCE_OMP_THREAD_LIMIT}"
+        log_always "FORCE_OMP_THREAD_LIMIT is in effect: OMP_THREAD_LIMIT=${FORCE_OMP_THREAD_LIMIT}"
         export OMP_THREAD_LIMIT="${FORCE_OMP_THREAD_LIMIT}"
         break
     fi

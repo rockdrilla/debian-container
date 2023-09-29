@@ -111,6 +111,7 @@ int get_container_cpus(void)
 		x = read_int_file(10, file_nproc);
 		if ((x < 1) || (x > cpu_max)) {
 			x = 0;
+			(void) unlink(file_nproc);
 		}
 	}
 
@@ -118,8 +119,6 @@ int get_container_cpus(void)
 		x = min_positive(x, get_container_cpus_sysfs());
 		x = min_positive(x, get_container_cpus_cgroups());
 		x = min_positive(x, get_container_cpus_sched_affinity());
-
-		set_nproc_file_value(x, 1);
 	}
 
 	n = get_nproc_value();
