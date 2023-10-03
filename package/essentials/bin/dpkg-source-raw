@@ -37,7 +37,7 @@ use Cwd;
 use File::Basename;
 use File::Spec;
 
-use Dpkg;
+use Dpkg ();
 use Dpkg::ErrorHandling;
 use Dpkg::Arch qw(:operators);
 use Dpkg::Deps;
@@ -64,6 +64,7 @@ BEGIN {
         *set_source_package = \&set_source_name;
     } else {
         require Dpkg::Vars;
+        Dpkg::Vars->import(qw(set_source_package));
     }
 }
 
