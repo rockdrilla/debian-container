@@ -25,11 +25,13 @@ bin/list-broken-symlinks
 bin/list-rootful-files
 bin/list-stalled-configs
 bin/overlay-dir-list
+bin/python-legacy-wheels
 bin/python-remove-cache
 bin/python-site-cleanup
 bin/quiet
 bin/run-as
 bin/run-prio
+bin/select-wanted-locales
 bin/tz
 bin/xglob
 bin/zap-tree
