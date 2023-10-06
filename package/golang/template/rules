@@ -62,6 +62,7 @@ bootstrap_dir = debian/bootstrap
 export GOROOT  := $(CURDIR)
 export GOPATH  := $(CURDIR)/debian/gopath
 export GOCACHE := $(CURDIR)/debian/gocache
+export GODEBUG := installgoroot=all
 
 # make tests happy
 export SCHROOT_SESSION_ID ?= 1
@@ -170,7 +171,8 @@ endif
 	export PATH="$(GOROOT)/bin:$$PATH" ; \
 	export CGO_ENABLED=1 ; \
 	$(call deb_cgo_flags) ; \
-	go install -race std || :
+	cd src ; \
+	go install -race std
 
 override_dh_auto_test:
 	export NPROC=$(NPROC_TEST) ; \
@@ -194,7 +196,7 @@ execute_before_dh_install:
 include debian/rules.install-extras
 
 pkg_src = debian/k2-golang-$(GOLANG_BASE_VERSION)-src/$(GOLANG_PREFIX)
-pkg_misc = debian/k2-golang-$(GOLANG_BASE_VERSION)-misc/$(GOLANG_PREFIX)
+pkg_full = debian/k2-golang-$(GOLANG_BASE_VERSION)-full/$(GOLANG_PREFIX)
 pkg_base = debian/k2-golang-$(GOLANG_BASE_VERSION)/$(GOLANG_PREFIX)
 
 override_dh_install:
@@ -205,10 +207,10 @@ override_dh_install:
 	rm -f $(cleansrc_tar)
 	$(call dh_dedup_ex, $(pkg_src) , . )
 
-	mkdir -p $(pkg_misc)
+	mkdir -p $(pkg_full)
 	s=$$(ls -1d lib pkg/*_race ) || true ; \
 	[ -n "$$s" ] || exit 0 ; \
-	tar -cf - $$s | tar -C $(pkg_misc) -xf - ; \
+	tar -cf - $$s | tar -C $(pkg_full) -xf - ; \
 	rm -rf $$s
 
 	mkdir -p $(pkg_base)
@@ -218,7 +220,7 @@ override_dh_install:
 	rm -rf $$s
 
 override_dh_strip_nondeterminism:
-	dh_strip_nondeterminism $(addprefix --exclude=,.png testdata)
+	dh_strip_nondeterminism --no-package=k2-golang-$(GOLANG_BASE_VERSION)-src $(addprefix --exclude=,_race)
 
 execute_after_dh_fixperms:
 	find $(pkg_src)/ -regextype egrep -regex '.+\.(sh|bash)$$' -type f -exec chmod a+x '{}' '+'
@@ -227,13 +229,13 @@ execute_after_dh_fixperms:
 override_dh_dwz:
 
 override_dh_strip:
-	dh_strip $(addprefix --exclude=,testdata)
+	dh_strip --no-package=k2-golang-$(GOLANG_BASE_VERSION)-src $(addprefix --exclude=,_race)
 
 override_dh_makeshlibs:
-	dh_makeshlibs $(addprefix --exclude=,testdata test)
+	dh_makeshlibs $(addprefix --exclude=,test _race)
 
 override_dh_shlibdeps:
-	dh_shlibdeps $(addprefix --exclude=,testdata test)
+	dh_shlibdeps $(addprefix --exclude=,test _race)
 
 include debian/rules.build-reproducible-info
 execute_before_dh_builddeb:

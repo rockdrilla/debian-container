@@ -51,12 +51,6 @@ Description: K2 - Go v@{GOLANG_BASE_VERSION} - source files
  This package provides the Go programming language source files needed for
  compilation.
 
-Package: k2-golang-@{GOLANG_BASE_VERSION}-misc
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends},
-Description: K2 - Go v@{GOLANG_BASE_VERSION} - miscellaneous files
- This package contains auxiliary files for Go v@{GOLANG_BASE_VERSION}.
-
 Package: k2-thin-ci-golang-@{GOLANG_BASE_VERSION}
 Architecture: all
 Multi-Arch: allowed
