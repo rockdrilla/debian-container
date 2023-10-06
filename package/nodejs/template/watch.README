@@ -5,34 +5,63 @@ Here is configuration:
     proxy_cache_path
         /var/cache/nginx/proxy/nodejs-org
         keys_zone=nodejs_org:10m
-        levels=1:2 inactive=2h;
+        levels=1:2 inactive=1h;
 
     server {
-        server_name nodejs-org.example.org;
+        root /var/www/empty;
+
+        access_log off;
+        log_not_found off;
 
         location / {
+            try_files /.non-existent-uri @redirect;
+        }
+
+        location ~* \.(?:7z|exe|exp|gz|lib|msi|pkg|tgz|xz|zip)$ {
+            try_files /.non-existent-uri @redirect;
+        }
+
+        location ~* ^/(?:dist|download)$ {
+            return 301 $scheme://$server_name$uri/;
+        }
+
+        location ~ /$ {
+            try_files /.non-existent-uri @download;
+        }
+
+    #   location ~* ^/(?:dist|download)/ {
+    #       try_files /.non-existent-uri @download;
+    #   }
+        location /dist/ {
+            try_files /.non-existent-uri @download;
+        }
+        location /download/ {
+            try_files /.non-existent-uri @download;
+        }
+
+        location @redirect {
             return 301 https://nodejs.org$request_uri;
         }
 
-        location ~ ^.+/$ {
+        location @download {
             proxy_pass https://nodejs.org$uri$is_args$args;
             proxy_http_version 1.1;
-            proxy_redirect off;
+            proxy_redirect https://nodejs.org $scheme://$server_name;
 
             proxy_ssl_protocols TLSv1.2 TLSv1.3;
             proxy_ssl_server_name on;
 
             proxy_set_header  Accept      "*/*";
-            proxy_set_header  User-Agent  "curl/7.88.1";
-            proxy_set_header  Connection  $http_connection;
-            proxy_set_header  Upgrade     $http_upgrade;
+            proxy_set_header  User-Agent  "nginx/$nginx_version";
+            proxy_set_header  Connection  close;
+            proxy_set_header  Upgrade     "";
 
             proxy_set_header  Accept-Encoding  "";
 
             proxy_cache nodejs_org;
             proxy_cache_key $uri$is_args$args;
             proxy_cache_valid 200 1h;
-            proxy_cache_valid 1m;
+            proxy_cache_valid 30s;
             proxy_ignore_client_abort on;
 
             proxy_ignore_headers Cache-Control;
@@ -43,6 +72,6 @@ Here is configuration:
             chunked_transfer_encoding off;
             proxy_method GET;
             proxy_buffering on;
-            proxy_temp_file_write_size 1m;
+            proxy_temp_file_write_size 4m;
         }
     }
