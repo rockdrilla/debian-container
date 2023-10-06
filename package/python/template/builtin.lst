@@ -3,8 +3,10 @@ _ast
 _asyncio
 _bisect
 _blake2
+_codecs_iso2022
 _collections
 _contextvars
+_crypt
 _csv
 _datetime
 _decimal
@@ -13,6 +15,7 @@ _functools
 _heapq
 _json
 _locale
+_lsprof
 _md5
 _multibytecodec
 _multiprocessing
@@ -37,6 +40,7 @@ _typing
 _zoneinfo
 array
 atexit
+binascii
 cmath
 fcntl
 grp
@@ -44,9 +48,11 @@ itertools
 math
 mmap
 pyexpat
+resource
 select
 spwd
 syslog
 time
 termios
 unicodedata
+zlib

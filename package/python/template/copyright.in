@@ -29,8 +29,6 @@ Files-Excluded-py-email:
  manual/*
 Files-Excluded-py-numpy:
  doc/*
- numpy/*
 Files-Excluded-py-pandas:
  doc/*
- pandas/*
  web/*

@@ -131,7 +131,7 @@ x_python = env \
 	PATH=$(dir $(strip $(1))/$(strip $(2))):$(PATH) \
 	$(strip $(3)) $(strip $(1))/$(strip $(2))
 
-with_network_tests := $(if $(filter check_with_network,$(DEB_BUILD_OPTIONS)),yes,no)
+with_network_tests := $(if $(filter with_network_tests,$(DEB_BUILD_OPTIONS)),yes,no)
 
 # TEST_OPTS and TEST_EXCLUDES are defined here
 include debian/rules.tests
@@ -192,7 +192,7 @@ define deb_python_configure
 	rm -rf $(strip $(1)) ; mkdir -p $(strip $(1))
 
 	find $(CURDIR) -mindepth 1 -maxdepth 1 -printf '%P\0' \
-	| grep -zEv '^(\.pc|debian|pip-.+)$$' | sort -zu \
+	| grep -zEv '^(\.pc|debian|py-.+)$$' | sort -zu \
 	| xargs -0r cp -t $(strip $(1)) -alP
 
 	: # build quirk
@@ -257,7 +257,10 @@ define deb_python_test
 	$(call remove_pycache, $(1) )
 
 	: # unset *FLAGS to avoid duplication
-	unset LD_LIBRARY_PATH LD_PRELOAD SOURCE_DATE_EPOCH ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
+	unset LD_LIBRARY_PATH LD_PRELOAD SOURCE_DATE_EPOCH ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS TEST_OPT_MEMLIMIT ; \
+	with_bigmem_tests='$(filter with_bigmem_tests,$(DEB_BUILD_OPTIONS))' ; \
+	TEST_OPT_MEMLIMIT='' ; \
+	[ -z "$${with_bigmem_tests}" ] || \
 	TEST_OPT_MEMLIMIT=$$( debian/test-opt-memlimit.sh $(NPROC_TEST) | awk '{print $$2}' ) ; \
 	env -C $(strip $(1)) \
 	  K2_PYTHON_COMPAT=1 \
@@ -387,7 +390,7 @@ define deb_python_install
 	d=debian/tmp/$(PYTHON_MODULES)/test ; \
 	rm -f debian/test.tar ; \
 	find $$d/ -regextype egrep \
-	  -regex '.+/test/(libregrtest|support|(__.+|ann_module.*|regrtest|test_support)\.py)$$' \
+	  -regex '.+/test/(libregrtest|support|typinganndata|(__.+|ann_module.*|regrtest|test_support)\.py)$$' \
 	  -exec tar -cvf debian/test.tar {} + ; \
 	rm -rf $$d
 
@@ -670,7 +673,9 @@ endef
 override_dh_auto_build:
 	$(call deb_python_configure, $(DEB_BUILD_PATH) , )
 	$(call deb_python_build, $(DEB_BUILD_PATH) , )
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	$(call deb_python_test, $(DEB_BUILD_PATH) , )
+endif
 
 	$(call deb_python_install, $(DEB_BUILD_PATH) )
 	$(call deb_python_postinstall_1st_stage)
@@ -681,7 +686,9 @@ override_dh_auto_build:
 
 	$(call deb_python_configure, $(DEB_BUILD_PATH) , $(CONFIGURE_FLAGS_BINARY) )
 	$(call deb_python_build, $(DEB_BUILD_PATH) , )
-	$(call deb_python_test, $(DEB_BUILD_PATH) , $(if $(filter nocheck,$(DEB_BUILD_OPTIONS)), true, false) )
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	$(call deb_python_test, $(DEB_BUILD_PATH) , true )
+endif
 
 	$(call deb_python_install, $(DEB_BUILD_PATH) )
 	$(call deb_python_postinstall_2nd_stage)

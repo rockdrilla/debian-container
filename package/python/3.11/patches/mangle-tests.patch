@@ -1,6 +1,6 @@
 --- a/Lib/test/libregrtest/main.py
 +++ b/Lib/test/libregrtest/main.py
-@@ -725,20 +725,7 @@ class Regrtest:
+@@ -725,22 +725,7 @@ class Regrtest:
              self.tmp_dir = self.ns.tempdir
  
          if not self.tmp_dir:
@@ -10,11 +10,13 @@
 -            if sysconfig.is_python_build():
 -                self.tmp_dir = sysconfig.get_config_var('abs_builddir')
 -                if self.tmp_dir is None:
--                    # bpo-30284: On Windows, only srcdir is available. Using
--                    # abs_builddir mostly matters on UNIX when building Python
--                    # out of the source tree, especially when the source tree
--                    # is read only.
--                    self.tmp_dir = sysconfig.get_config_var('srcdir')
+-                    self.tmp_dir = sysconfig.get_config_var('abs_srcdir')
+-                    if not self.tmp_dir:
+-                        # gh-74470: On Windows, only srcdir is available. Using
+-                        # abs_builddir mostly matters on UNIX when building
+-                        # Python out of the source tree, especially when the
+-                        # source tree is read only.
+-                        self.tmp_dir = sysconfig.get_config_var('srcdir')
 -                self.tmp_dir = os.path.join(self.tmp_dir, 'build')
 -            else:
 -                self.tmp_dir = tempfile.gettempdir()
@@ -29,10 +31,10 @@
              self.assertLess(pos - frameless_start, self.FRAME_SIZE_MIN)
  
 -    @support.skip_if_pgo_task
+     @support.requires_resource('cpu')
      def test_framing_many_objects(self):
          obj = list(range(10**5))
-         for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
-@@ -2665,7 +2664,6 @@ class AbstractPickleTests:
+@@ -2666,7 +2665,6 @@ class AbstractPickleTests:
                                  count_opcode(pickle.FRAME, pickled))
                  self.assertEqual(obj, self.loads(some_frames_pickle))
  
@@ -42,7 +44,7 @@
              """Accumulate pickler output in a list of raw chunks."""
 --- a/Lib/test/test__xxsubinterpreters.py
 +++ b/Lib/test/test__xxsubinterpreters.py
-@@ -489,7 +489,6 @@ class IsRunningTests(TestBase):
+@@ -488,7 +488,6 @@ class IsRunningTests(TestBase):
          main = interpreters.get_main()
          self.assertTrue(interpreters.is_running(main))
  
@@ -62,31 +64,6 @@
  support.requires_working_socket(module=True)
  
  asyncore = warnings_helper.import_deprecated('asyncore')
---- a/Lib/test/test_concurrent_futures.py
-+++ b/Lib/test/test_concurrent_futures.py
-@@ -376,10 +376,6 @@ class ExecutorShutdownTest:
-         self.assertGreater(len(others), 0)
- 
-     def test_hang_gh83386(self):
--        """shutdown(wait=False) doesn't hang at exit with running futures.
--
--        See https://github.com/python/cpython/issues/83386.
--        """
-         if self.executor_type == futures.ProcessPoolExecutor:
-             raise unittest.SkipTest(
-                 "Hangs, see https://github.com/python/cpython/issues/83386")
-@@ -398,11 +394,6 @@ class ExecutorShutdownTest:
-         self.assertEqual(out.strip(), b"apple")
- 
-     def test_hang_gh94440(self):
--        """shutdown(wait=True) doesn't hang when a future was submitted and
--        quickly canceled right before shutdown.
--
--        See https://github.com/python/cpython/issues/94440.
--        """
-         if not hasattr(signal, 'alarm'):
-             raise unittest.SkipTest(
-                 "Tested platform does not support the alarm signal")
 --- a/Lib/test/test_exceptions.py
 +++ b/Lib/test/test_exceptions.py
 @@ -1094,7 +1094,6 @@ class ExceptionTests(unittest.TestCase):
@@ -140,13 +117,13 @@
          self.assertEqual(hist, [0,1])
  
 -    @support.skip_if_pgo_task
+     @support.requires_resource('cpu')
      def test_long_chain_of_empty_iterables(self):
          # Make sure itertools.chain doesn't run into recursion limits when
-         # dealing with long chains of empty iterables. Even with a high
---- a/Lib/test/test_multiprocessing_fork.py
-+++ b/Lib/test/test_multiprocessing_fork.py
-@@ -4,9 +4,6 @@ import test._test_multiprocessing
- import sys
+--- a/Lib/test/test_multiprocessing_fork/__init__.py
++++ b/Lib/test/test_multiprocessing_fork/__init__.py
+@@ -3,9 +3,6 @@ import sys
+ import unittest
  from test import support
  
 -if support.PGO:
@@ -155,10 +132,10 @@
  if sys.platform == "win32":
      raise unittest.SkipTest("fork is not available on Windows")
  
---- a/Lib/test/test_multiprocessing_forkserver.py
-+++ b/Lib/test/test_multiprocessing_forkserver.py
-@@ -4,9 +4,6 @@ import test._test_multiprocessing
- import sys
+--- a/Lib/test/test_multiprocessing_forkserver/__init__.py
++++ b/Lib/test/test_multiprocessing_forkserver/__init__.py
+@@ -3,9 +3,6 @@ import sys
+ import unittest
  from test import support
  
 -if support.PGO:
@@ -179,18 +156,17 @@
  # Look up which start methods are available to test
  import multiprocessing
  AVAILABLE_START_METHODS = set(multiprocessing.get_all_start_methods())
---- a/Lib/test/test_multiprocessing_spawn.py
-+++ b/Lib/test/test_multiprocessing_spawn.py
-@@ -3,9 +3,6 @@ import test._test_multiprocessing
- 
+--- a/Lib/test/test_multiprocessing_spawn/__init__.py
++++ b/Lib/test/test_multiprocessing_spawn/__init__.py
+@@ -2,8 +2,5 @@ import os.path
+ import unittest
  from test import support
  
 -if support.PGO:
 -    raise unittest.SkipTest("test is not helpful for PGO")
 -
- test._test_multiprocessing.install_tests_in_module_dict(globals(), 'spawn')
- 
- if __name__ == '__main__':
+ def load_tests(*args):
+     return support.load_package_tests(os.path.dirname(__file__), *args)
 --- a/Lib/test/test_nntplib.py
 +++ b/Lib/test/test_nntplib.py
 @@ -141,8 +141,6 @@ class NetworkedNNTPTestsMixin:
@@ -314,14 +290,14 @@
      def test_sethostname(self):
 --- a/Lib/test/test_statistics.py
 +++ b/Lib/test/test_statistics.py
-@@ -2743,7 +2743,6 @@ class TestNormalDist:
+@@ -2744,7 +2744,6 @@ class TestNormalDist:
          self.assertEqual(X.cdf(float('Inf')), 1.0)
          self.assertTrue(math.isnan(X.cdf(float('NaN'))))
  
 -    @support.skip_if_pgo_task
+     @support.requires_resource('cpu')
      def test_inv_cdf(self):
          NormalDist = self.module.NormalDist
- 
 --- a/Lib/test/test_subprocess.py
 +++ b/Lib/test/test_subprocess.py
 @@ -46,9 +46,6 @@ try:
@@ -334,7 +310,7 @@
  if not support.has_subprocess_support:
      raise unittest.SkipTest("test module requires subprocess")
  
-@@ -1690,7 +1687,6 @@ class RunFuncTestCase(BaseTestCase):
+@@ -1693,7 +1690,6 @@ class RunFuncTestCase(BaseTestCase):
          res = subprocess.run(args)
          self.assertEqual(res.returncode, 57)
  

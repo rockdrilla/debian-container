@@ -1,6 +1,6 @@
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -2445,9 +2445,7 @@ clean-retain-profile: pycremoval
+@@ -2448,9 +2448,7 @@ clean-retain-profile: pycremoval
  	find . -name '*.so.[0-9]*.[0-9]*' -exec rm -f {} ';'
  	find . -name '*.wasm' -exec rm -f {} ';'
  	find . -name '*.lst' -exec rm -f {} ';'
@@ -11,7 +11,7 @@
  	-rm -f pybuilddir.txt
  	-rm -f Lib/lib2to3/*Grammar*.pickle
  	-rm -f _bootstrap_python
-@@ -2457,7 +2455,6 @@ clean-retain-profile: pycremoval
+@@ -2460,7 +2458,6 @@ clean-retain-profile: pycremoval
  	-rm -f Python/deepfreeze/*.[co]
  	-rm -f Python/frozen_modules/*.h
  	-rm -f Python/frozen_modules/MANIFEST

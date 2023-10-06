@@ -228,9 +228,9 @@
              self.assertIn('nginx', server_string)
  
 +    @unittest.skip('skip internet tests')
+     @support.requires_resource('walltime')
      def test_networked_bad_cert(self):
          # We feed a "CA" cert that is unrelated to the server's cert
-         import ssl
 --- a/Lib/test/test_nntplib.py
 +++ b/Lib/test/test_nntplib.py
 @@ -307,6 +307,7 @@ if ssl is not None:
@@ -253,14 +253,14 @@
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -464,6 +464,7 @@ class ImportSideEffectTests(unittest.Tes
+@@ -456,6 +456,7 @@ class ImportSideEffectTests(unittest.Tes
              else:
                  self.fail("sitecustomize not imported automatically")
  
 +    @unittest.skip('skip internet tests')
-     @test.support.requires_resource('network')
-     @test.support.system_must_validate_cert
      @unittest.skipUnless(hasattr(urllib.request, "HTTPSHandler"),
+                          'need SSL support to download license')
+     @test.support.requires_resource('network')
 --- a/Lib/test/test_socket.py
 +++ b/Lib/test/test_socket.py
 @@ -1603,6 +1603,7 @@ class GeneralModuleTests(unittest.TestCa
@@ -273,7 +273,7 @@
      def test_idna(self):
 --- a/Lib/test/test_ssl.py
 +++ b/Lib/test/test_ssl.py
-@@ -2378,6 +2378,7 @@ class SimpleBackgroundTests(unittest.Tes
+@@ -2375,6 +2375,7 @@ class SimpleBackgroundTests(unittest.Tes
              self.assertRaises(ssl.SSLEOFError, sslobj.read)
  
  
@@ -303,11 +303,11 @@
          def check_version(testfile):
 --- a/Lib/test/test_unicodedata.py
 +++ b/Lib/test/test_unicodedata.py
-@@ -334,6 +334,7 @@ class NormalizationTest(unittest.TestCas
+@@ -335,6 +335,7 @@ class NormalizationTest(unittest.TestCas
          data = [int(x, 16) for x in data.split(" ")]
          return "".join([chr(x) for x in data])
  
 +    @unittest.skip('skip internet tests')
      @requires_resource('network')
+     @requires_resource('cpu')
      def test_normalization(self):
-         TESTDATAFILE = "NormalizationTest.txt"

@@ -253,7 +253,7 @@
      base_url = 'http://www.pythontest.net/'
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -471,6 +471,7 @@ class ImportSideEffectTests(unittest.Tes
+@@ -463,6 +463,7 @@ class ImportSideEffectTests(unittest.Tes
              else:
                  self.fail("sitecustomize not imported automatically")
  

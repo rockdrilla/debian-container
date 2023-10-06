@@ -45,4 +45,4 @@ TEST_EXCLUDES += test_zipfile64
 TEST_EXCLUDE := $(sort $(TEST_EXCLUDES))
 export PROFILE_TEST_EXCLUDE := $(sort $(TEST_EXCLUDES) $(PROFILE_EXCLUDES))
 export TEST_RESOURCES := all,tzdata,-audio,-gui
-TEST_OPTS = $(if $(filter verbose_check,$(DEB_BUILD_OPTIONS)),--verbose) --verbose2 --use=$(TEST_RESOURCES) --timeout=1200 --exclude $(TEST_EXCLUDE)
+TEST_OPTS = $(if $(filter verbose_tests,$(DEB_BUILD_OPTIONS)),--verbose) --verbose2 --use=$(TEST_RESOURCES) --timeout=1200 --exclude $(TEST_EXCLUDE)

@@ -1,6 +1,6 @@
 --- a/Lib/multiprocessing/connection.py
 +++ b/Lib/multiprocessing/connection.py
-@@ -364,6 +364,7 @@ class Connection(_ConnectionBase):
+@@ -381,6 +381,7 @@ class Connection(_ConnectionBase):
      def _send(self, buf, write=_write):
          remaining = len(buf)
          while True:

@@ -48,7 +48,7 @@ Versions:
 
 - 3.9.18
 - 3.10.13
-- 3.11.5
+- 3.11.6
 
 Images on Docker.io:
 [raw .deb](https://hub.docker.com/r/rockdrilla/python-pkg/tags)

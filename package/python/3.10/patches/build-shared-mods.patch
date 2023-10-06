@@ -19,7 +19,7 @@
  	$(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' \
  		_TCLTK_INCLUDES='$(TCLTK_INCLUDES)' _TCLTK_LIBS='$(TCLTK_LIBS)' \
 -		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py $$quiet build
-+		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py --verbose build
++		$(PYTHON_FOR_BUILD) $(srcdir)/setup.py --verbose build_ext --parallel 1
  
  
  # Build static library

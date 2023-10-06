@@ -44,10 +44,22 @@
              if docloc.startswith(("http://", "https://")):
 --- a/Lib/site.py
 +++ b/Lib/site.py
-@@ -362,15 +362,18 @@ def getsitepackages(prefixes=None):
+@@ -356,24 +356,31 @@ def getsitepackages(prefixes=None):
+     if prefixes is None:
+         prefixes = PREFIXES
+ 
++    if os.sep != '/':
++        raise RuntimeError('os.sep is not "/"')
++
++    libpart = 'lib/python%d.%d' % sys.version_info[:2]
++    is_venv = (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ)
++    is_venv_only = is_venv and (os.getenv('K2_PYTHON_VENVONLY', '') == '1')
+     for prefix in prefixes:
+         if not prefix or prefix in seen:
+             continue
          seen.add(prefix)
  
-         if os.sep == '/':
+-        if os.sep == '/':
 -            libdirs = [sys.platlibdir]
 -            if sys.platlibdir != "lib":
 -                libdirs.append("lib")
@@ -57,21 +69,26 @@
 -                                    "python%d.%d" % sys.version_info[:2],
 -                                    "site-packages")
 -                sitepackages.append(path)
-+            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
-+                # virtual environment
-+                return sitepackages
-+            # paths owned by k2-python-{pyver}
-+            sitepackages.append(os.path.join(prefix, 'lib/python%d.%d/dist-packages' % sys.version_info[:2]))
-+            # compatibility with world
-+            sitepackages.append(os.path.join('/usr/local/lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            # compatibility with Debian and derivatives
-+            sitepackages.append(os.path.join('/usr/local/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
-+            sitepackages.append(os.path.join('/usr/lib/python3/dist-packages'))
-+            sitepackages.append(os.path.join('/usr/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
-         else:
-             sitepackages.append(prefix)
-             sitepackages.append(os.path.join(prefix, "Lib", "site-packages"))
+-        else:
+-            sitepackages.append(prefix)
+-            sitepackages.append(os.path.join(prefix, "Lib", "site-packages"))
++        sitepackages.append(os.path.join(prefix, libpart, 'site-packages'))
++        if is_venv_only:
++            return sitepackages
++        if prefix != sys.base_prefix:
++            # "dist-packages" is meaningless for virtual env
++            continue
++        sitepackages.append(os.path.join(prefix, libpart, 'dist-packages'))
++    if os.getenv('K2_PYTHON_ALLSITES', '') == '1':
++        # compatibility with world
++        sitepackages.append(os.path.join('/usr/local', libpart, 'site-packages'))
++        # compatibility with Debian and derivatives
++        sitepackages.append(os.path.join('/usr/local', libpart, 'dist-packages'))
++        sitepackages.append(os.path.join('/usr/lib/python3/dist-packages'))
++        sitepackages.append(os.path.join('/usr', libpart, 'dist-packages'))
+     return sitepackages
+ 
+ def addsitepackages(known_paths, prefixes=None):
 --- a/Lib/sysconfig.py
 +++ b/Lib/sysconfig.py
 @@ -36,6 +36,26 @@ _INSTALL_SCHEMES = {
@@ -139,7 +156,7 @@
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -285,18 +285,16 @@ class HelperFunctionsTests(unittest.Test
+@@ -285,18 +285,8 @@ class HelperFunctionsTests(unittest.Test
          dirs = site.getsitepackages()
          if os.sep == '/':
              # OS X, Linux, FreeBSD, etc
@@ -155,16 +172,8 @@
 -                                  'python%d.%d' % sys.version_info[:2],
 -                                  'site-packages')
 -            self.assertEqual(dirs[-1], wanted)
-+            self.assertEqual(len(dirs), 6)
-+            # paths owned by k2-python-{pyver}
++            self.assertEqual(len(dirs), 1)
 +            self.assertEqual(dirs[0], os.path.join('xoxo/lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            self.assertEqual(dirs[1], os.path.join('xoxo/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
-+            # compatibility with world
-+            self.assertEqual(dirs[2], os.path.join('/usr/local/lib/python%d.%d/site-packages' % sys.version_info[:2]))
-+            # compatibility with Debian and derivatives
-+            self.assertEqual(dirs[3], os.path.join('/usr/local/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
-+            self.assertEqual(dirs[4], os.path.join('/usr/lib/python3/dist-packages'))
-+            self.assertEqual(dirs[5], os.path.join('/usr/lib/python%d.%d/dist-packages' % sys.version_info[:2]))
          else:
              # other platforms
              self.assertEqual(len(dirs), 2)
