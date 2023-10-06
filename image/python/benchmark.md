@@ -1,6 +1,6 @@
-# Python 3.11.5 benchmarks
+# Python 3.11.6 benchmarks
 
-Date: 26.08.2023
+Date: 06.10.2023
 
 Reference: [`pyperformance`](https://github.com/python/pyperformance), commit ef1d636b
 
