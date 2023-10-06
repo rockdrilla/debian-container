@@ -109,13 +109,13 @@ if [ -n "${VIRTUAL_ENV}" ] ; then
 fi
 unset VIRTUAL_ENV
 
-python='python'
+pyvenv='virtualenv'
 if [ -n "${o_version}" ] ; then
-	python="python-${o_version}"
+	pyvenv="virtualenv-${o_version}"
 fi
 
-if ! command -v "${python}" >/dev/null ; then
-	msg "error: Python binary '${python}' is missing"
+if ! "${pyvenv}" --help >/dev/null 2>&1 ; then
+	msg "error: '${pyvenv}' is missing or failed to run"
 	usage 1
 fi
 
@@ -124,7 +124,7 @@ venv_dir=$(mktemp -d)
 set +e
 (
 	set -e
-	"${python}" -m venv "${venv_dir}"
+	"${pyvenv}" --system-site-packages "${venv_dir}"
 	export VIRTUAL_ENV="${venv_dir}"
 	export PATH="${venv_dir}/bin:${PATH}"
 	pip install -U 'setuptools<68.0.0'
