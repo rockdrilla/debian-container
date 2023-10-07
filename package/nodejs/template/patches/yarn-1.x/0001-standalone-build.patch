@@ -68,8 +68,8 @@ index 00000000..4d8ec2b4
 +
 +rm -rf artifacts dist node_modules
 +
-+yarn install
-+NODE_ENV=production yarn run build-dist
++yarn ${YARN_CONFIG:+ --no-default-rc --use-yarnrc "${YARN_CONFIG}" } install
++NODE_ENV=production yarn ${YARN_CONFIG:+ --no-default-rc --use-yarnrc "${YARN_CONFIG}" } run build-dist
 +node "artifacts/yarn-${version}.js" versions
 +
 +xz -9vvk yarn.lock
