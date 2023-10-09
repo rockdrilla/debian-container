@@ -4,23 +4,6 @@ set -e
 
 case "$1" in
 configure )
-	prio=$(( @{DEB_GOLANG_PRIO} + 1 ))
-	bin=/usr/bin
-	golang_bin=/@{GOLANG_PREFIX}/bin
-
-	for suffix in '' '-@{GOLANG_BASE_VERSION}' ; do
-		update-alternatives --install \
-		  ${bin}/go${suffix} \
-		  go${suffix} \
-		  ${golang_bin}/go \
-		${prio} \
-		--slave \
-		  ${bin}/gofmt${suffix} \
-		  gofmt${suffix} \
-		  ${golang_bin}/gofmt \
-
-	done
-
 	tmp=$(mktemp -d)
 	set -a
 	GOPATH='/@{GOLANG_PREFIX}'
@@ -30,7 +13,7 @@ configure )
 	if [ "${GOMAXPROCS}" = 1 ] ; then
 		GOMAXPROCS=2
 	fi
-	CGO_ENABLED=0
+	CGO_ENABLED=1
 	GODEBUG=installgoroot=all
 	GOTMPDIR="${tmp}/tmp-dir"
 	GOCACHE="${tmp}/build-cache"
@@ -38,7 +21,7 @@ configure )
 	set +a
 	mkdir -p "${GOTMPDIR}" "${GOCACHE}" "${GOMODCACHE}"
 
-	env -C '/@{GOLANG_PREFIX}/src' '/@{GOLANG_PREFIX}/bin/go' install -trimpath std
+	env -C '/@{GOLANG_PREFIX}/src' '/@{GOLANG_PREFIX}/bin/go' install -trimpath -race std
 
 	rm -rf "${tmp}" ; unset tmp
 ;;

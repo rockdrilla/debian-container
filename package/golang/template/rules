@@ -62,7 +62,6 @@ bootstrap_dir = debian/bootstrap
 export GOROOT  := $(CURDIR)
 export GOPATH  := $(CURDIR)/debian/gopath
 export GOCACHE := $(CURDIR)/debian/gocache
-export GODEBUG := installgoroot=all
 
 # make tests happy
 export SCHROOT_SESSION_ID ?= 1
@@ -166,13 +165,6 @@ else
 	bash ./make.bash --no-banner
 
 endif
-
-	: # build race detection lib (if applicable)
-	export PATH="$(GOROOT)/bin:$$PATH" ; \
-	export CGO_ENABLED=1 ; \
-	$(call deb_cgo_flags) ; \
-	cd src ; \
-	go install -race std
 
 override_dh_auto_test:
 	export NPROC=$(NPROC_TEST) ; \
