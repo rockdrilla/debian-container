@@ -109,13 +109,16 @@ if [ -n "${VIRTUAL_ENV}" ] ; then
 fi
 unset VIRTUAL_ENV
 
-pyvenv='virtualenv'
+python='python'
+pip='pip'
 if [ -n "${o_version}" ] ; then
-	pyvenv="virtualenv-${o_version}"
+	python="python-${o_version}"
+	pip="pip-${o_version}"
 fi
 
-if ! "${pyvenv}" --help >/dev/null 2>&1 ; then
-	msg "error: '${pyvenv}' is missing or failed to run"
+# not really going to use "${pip}" but rather a hack :)
+if ! "${pip}" --version >/dev/null 2>&1 ; then
+	msg "error: '${pip}' is missing or failed to run"
 	usage 1
 fi
 
@@ -124,12 +127,17 @@ venv_dir=$(mktemp -d)
 set +e
 (
 	set -e
-	"${pyvenv}" --system-site-packages "${venv_dir}"
-	export VIRTUAL_ENV="${venv_dir}"
-	export PATH="${venv_dir}/bin:${PATH}"
-	pip install -U 'setuptools<68.0.0'
+
+	home_tmp="${venv_dir}/tmp.home"
 	wheel_tmp="${venv_dir}/tmp.wheels"
-	mkdir -p "${wheel_tmp}"
+	mkdir -p "${home_tmp}" "${wheel_tmp}"
+	export HOME="${home_tmp}"
+
+	"${python}" -m venv --system-site-packages "${venv_dir}"
+	export VIRTUAL_ENV="${venv_dir}" PATH="${venv_dir}/bin:${PATH}"
+
+	K2_PYTHON_VENVONLY=1 pip install -U 'setuptools<68.0.0'
+
 	pip wheel -w "${wheel_tmp}" "$@"
 	find "${wheel_tmp}/" -type f -exec cp -t "${wheel_dir}" {} +
 )
