@@ -176,6 +176,7 @@ override_dh_auto_test:
 	bash ./run.bash -k -no-rebuild || :
 
 override_dh_auto_install:
+	rm -rf pkg/*_race || :
 
 execute_before_dh_install:
 	rm -rf pkg/obj
@@ -200,7 +201,7 @@ override_dh_install:
 	$(call dh_dedup_ex, $(pkg_src) , . )
 
 	mkdir -p $(pkg_full)
-	s=$$(ls -1d lib pkg/*_race ) || true ; \
+	s=$$(ls -1d lib ) || true ; \
 	[ -n "$$s" ] || exit 0 ; \
 	tar -cf - $$s | tar -C $(pkg_full) -xf - ; \
 	rm -rf $$s

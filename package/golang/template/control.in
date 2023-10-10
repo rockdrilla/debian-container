@@ -12,17 +12,6 @@ Homepage: https://go.dev/
 Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/golang/@{GOLANG_BASE_VERSION}
 
-Package: k2-golang-@{GOLANG_BASE_VERSION}-full
-Architecture: any
-Pre-Depends: ${shlibs:Pre-Depends}
-Depends: k2-golang-@{GOLANG_BASE_VERSION},
-         build-essential,
-         ca-certificates,
-         pkg-config,
-Description: K2 - Go v@{GOLANG_BASE_VERSION} - full installation
- This package installs k2-golang-@{GOLANG_BASE_VERSION} along with
- recommended packages.
-
 Package: k2-golang-@{GOLANG_BASE_VERSION}
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
@@ -50,6 +39,25 @@ Depends: ${misc:Depends},
 Description: K2 - Go v@{GOLANG_BASE_VERSION} - source files
  This package provides the Go programming language source files needed for
  compilation.
+
+Package: k2-golang-@{GOLANG_BASE_VERSION}-full
+Architecture: any
+Pre-Depends: ${shlibs:Pre-Depends}
+Depends: k2-golang-@{GOLANG_BASE_VERSION},
+         build-essential,
+         ca-certificates,
+         pkg-config,
+Description: K2 - Go v@{GOLANG_BASE_VERSION} - full installation
+ This package installs k2-golang-@{GOLANG_BASE_VERSION} along with
+ recommended packages.
+
+Package: k2-golang-@{GOLANG_BASE_VERSION}-race
+Architecture: any
+Pre-Depends: ${shlibs:Pre-Depends}
+Depends: k2-golang-@{GOLANG_BASE_VERSION}-full,
+Description: K2 - Go v@{GOLANG_BASE_VERSION} - extra installation
+ This package installs k2-golang-@{GOLANG_BASE_VERSION}-full and standard
+ library with enabled data race detector.
 
 Package: k2-thin-ci-golang-@{GOLANG_BASE_VERSION}
 Architecture: all

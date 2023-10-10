@@ -8,6 +8,7 @@ ARG BUILD_HELPER_IMAGE=${DISTRO}-buildd-helper:${SUITE}
 ARG BUILD_IMAGE=${DISTRO}-buildd:${SUITE}
 ARG BASE_IMAGE=${DISTRO}:${SUITE}
 ARG GOLANG_MIN_IMAGE=golang-min:${GOLANG_VERSION}-${SUITE}
+ARG GOLANG_IMAGE=golang:${GOLANG_VERSION}-${SUITE}
 
 # ---
 
@@ -181,10 +182,19 @@ COPY --from=packages [ \
 ENV CGO_ENABLED=1
 
 RUN apt-install /tmp/*.deb ; \
-    cleanup ; \
-    # smoke/qa
-    set -xv ; \
-    go version
+    cleanup
+
+# ---
+
+FROM ${IMAGE_PATH}/${GOLANG_IMAGE} as race
+SHELL [ "/bin/sh", "-ec" ]
+
+COPY --from=packages [ \
+  "k2-golang-${GOLANG_BASE_VERSION}-race_${GOLANG_VERSION}-*.deb", \
+  "/tmp/" ]
+
+RUN apt-install /tmp/*.deb ; \
+    cleanup
 
 # ---
 
@@ -205,7 +215,12 @@ SHELL [ "/bin/sh", "-ec" ]
 ENV CGO_ENABLED=1
 
 RUN apt-install k2-golang-${GOLANG_BASE_VERSION}-full ; \
-    cleanup ; \
-    # smoke/qa
-    set -xv ; \
-    go version
+    cleanup
+
+# ---
+
+FROM ${IMAGE_PATH}/${GOLANG_MIN_IMAGE} as race-ci
+SHELL [ "/bin/sh", "-ec" ]
+
+RUN apt-install k2-golang-${GOLANG_BASE_VERSION}-race ; \
+    cleanup

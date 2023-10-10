@@ -16,6 +16,7 @@ cd "${rootdir:?}" || exit
 
 export BUILD_IMAGE_ARGS="${BUILD_IMAGE_ARGS}
 	GOLANG_MIN_IMAGE
+	GOLANG_IMAGE
 "
 
 build_single() {
@@ -38,7 +39,8 @@ build_single() {
 	"
 
 	export GOLANG_MIN_IMAGE="golang-min:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
-	full_image="${IMAGE_PATH}/golang:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	export GOLANG_IMAGE="golang:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
+	race_image="${IMAGE_PATH}/golang-race:${GOLANG_VERSION}-${SUITE}${IMAGE_TAG_SUFFIX}"
 
 	extra_tags=":${GOLANG_BASE_VERSION}-${SUITE}"
 	[ -z "${IMAGE_TAG_SUFFIX}" ] || extra_tags=
@@ -60,7 +62,13 @@ build_single() {
 
 	BUILD_IMAGE_PULL=0 \
 	BUILD_IMAGE_TARGET="regular${CI:+-ci}" \
-	build-image.sh image/golang/ "${full_image}" ${extra_tags}
+	build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_IMAGE}" ${extra_tags}
+
+	# "golang-race" derives env from "golang"
+
+	# BUILD_IMAGE_PULL=0 \
+	# BUILD_IMAGE_TARGET="race${CI:+-ci}" \
+	# build-image.sh image/golang/ "${race_image}" ${extra_tags}
 
 	set +e
 
