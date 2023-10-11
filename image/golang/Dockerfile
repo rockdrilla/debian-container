@@ -219,7 +219,7 @@ RUN apt-install k2-golang-${GOLANG_BASE_VERSION}-full ; \
 
 # ---
 
-FROM ${IMAGE_PATH}/${GOLANG_MIN_IMAGE} as race-ci
+FROM ${IMAGE_PATH}/${GOLANG_IMAGE} as race-ci
 SHELL [ "/bin/sh", "-ec" ]
 
 RUN apt-install k2-golang-${GOLANG_BASE_VERSION}-race ; \
