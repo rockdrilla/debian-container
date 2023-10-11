@@ -11,7 +11,7 @@ fi
 if [ "$1" != "upgrade" ] ; then
 	python_bin=/@{PYTHON_PREFIX}/bin
 
-	for n in pip virtualenv wheel ; do
+	for n in pip venv wheel ; do
 		for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 			update-alternatives --remove \
 			  $n${suffix} \

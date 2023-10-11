@@ -1,6 +1,6 @@
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -730,19 +730,9 @@ $(srcdir)/Modules/_blake2/blake2s_impl.c
+@@ -731,19 +731,9 @@ $(srcdir)/Modules/_blake2/blake2s_impl.c
  	$(PYTHON_FOR_REGEN) $(srcdir)/Tools/clinic/clinic.py -f $@
  
  # Build the shared modules

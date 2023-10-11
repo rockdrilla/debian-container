@@ -189,7 +189,7 @@
      # Technical limits for this public NNTP server (see http://www.aioe.org):
 --- a/Lib/test/test_os.py
 +++ b/Lib/test/test_os.py
-@@ -3299,7 +3299,6 @@ class SpawnTests(unittest.TestCase):
+@@ -3303,7 +3303,6 @@ class SpawnTests(unittest.TestCase):
  
  # The introduction of this TestCase caused at least two different errors on
  # *nix buildbots. Temporarily skip this to let the buildbots move along.
@@ -280,7 +280,7 @@
      try:
          # RFCOMM is supported by all platforms with bluetooth support. Windows
          # does not support omitting the protocol.
-@@ -1045,6 +1052,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1047,6 +1054,7 @@ class GeneralModuleTests(unittest.TestCa
              with self.assertRaises(OSError, msg=explanation):
                  socket.gethostbyaddr(addr)
  
@@ -310,7 +310,7 @@
  if not support.has_subprocess_support:
      raise unittest.SkipTest("test module requires subprocess")
  
-@@ -1693,7 +1690,6 @@ class RunFuncTestCase(BaseTestCase):
+@@ -1698,7 +1695,6 @@ class RunFuncTestCase(BaseTestCase):
          res = subprocess.run(args)
          self.assertEqual(res.returncode, 57)
  

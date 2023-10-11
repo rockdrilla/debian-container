@@ -40,8 +40,32 @@ configure )
 
 	done
 
+	# preserve original state of directories
+	tmpinfo=$(mktemp -d)
+	find ${lib}/ -mindepth 1 | sort -V > "${tmpinfo}/lib.0"
+
 	# precompile Python bytecode (no matter what packages were installed with it)
-	${python_bin}/python -m compileall -q ${lib}
+	(
+		unset K2_PYTHON_COMPAT
+		${python_bin}/python -m compileall -q ${lib}
+	)
+
+	find ${lib}/ -mindepth 1 | sort -V > "${tmpinfo}/lib.1"
+
+	self_list="${DPKG_ADMINDIR:=/var/lib/dpkg}/info/#PACKAGE#.list"
+	if [ -s "${self_list}" ] ; then
+		# calculate list diffs
+		set +e
+		grep -Fxv -f "${tmpinfo}/lib.0" "${tmpinfo}/lib.1" > "${tmpinfo}/lib.diff"
+		sort -uV < "${tmpinfo}/lib.diff" > "${tmpinfo}/diff.0"
+		grep -Fxv -f "${self_list}" "${tmpinfo}/diff.0" > "${tmpinfo}/diff.1"
+		set -e
+
+		# adjust dpkg info: let dpkg maintain these files
+		cat "${tmpinfo}/diff.1" >> "${self_list}"
+	fi
+
+	rm -rf "${tmpinfo}"
 ;;
 abort-upgrade | abort-remove | abort-deconfigure )
 ;;

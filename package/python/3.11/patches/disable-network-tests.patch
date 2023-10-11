@@ -263,7 +263,7 @@
      @test.support.requires_resource('network')
 --- a/Lib/test/test_socket.py
 +++ b/Lib/test/test_socket.py
-@@ -1603,6 +1603,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1605,6 +1605,7 @@ class GeneralModuleTests(unittest.TestCa
          # only IP addresses are allowed
          self.assertRaises(OSError, socket.getnameinfo, ('mail.python.org',0), 0)
  

@@ -15,7 +15,7 @@ python*-config | *-python*-config )
 python* | pydoc* | 2to3* )
 	pkg="${pkg_regular}"
 ;;
-pip* | virtualenv* | wheel* )
+pip* | venv* | wheel* )
 	pkg="${pkg_full}"
 ;;
 * )

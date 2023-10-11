@@ -1,0 +1,89 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage:
+	#   create:  ${me} [venv options] <venv directory>
+	#   modify:
+	#     include system site-packages:
+	#       enable:   ${me} --unseal <venv directory>
+	#       disable:  ${me} --seal   <venv directory>
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+
+msg() { echo ${1:+"# ${me}: $*"} >&2 ; }
+msgf() {
+	_____fmt="$1" ; shift
+	env printf "# ${me}: ${_____fmt}\\n" ${@+"$@"} >&2
+	unset _____fmt
+}
+
+want_seal=
+case "$1" in
+--seal )   want_seal=1 ;;
+--unseal ) want_seal=0 ;;
+* )
+	unset K2_PYTHON_COMPAT K2_PYTHON_VENV K2_PYTHON_INSTALL K2_PYTHON_ALLSITES
+	exec /@{PYTHON_PREFIX}/bin/python -m venv "$@"
+;;
+esac
+[ $# = 2 ] || usage 1
+
+venv_dir="$2"
+if [ -z "${venv_dir}" ] ; then
+	msg "error: <venv directory> is empty string"
+	usage 1
+fi
+venv_dir=$(readlink -ne "${venv_dir}")
+if [ -z "${venv_dir}" ] ; then
+	msg "error: <venv directory> does not exist"
+	usage 1
+fi
+if ! [ -d "${venv_dir}" ] ; then
+	msg "error: <venv directory> is not directory"
+	usage 1
+fi
+
+cfg_file="${venv_dir}/pyvenv.cfg"
+if ! [ -s "${cfg_file}" ] ; then
+	msg "error: <venv directory> doesn't have pyvenv.cfg or it's empty"
+	usage 1
+fi
+
+cfg_seal=$(sed -nE '/^\s*include-system-site-packages\s*=(.*)$/{s//\1/;s/^\s+//g;s/\s+$//g;p;}' "${cfg_file}" | tail -n1)
+have_seal=1
+if [ "${cfg_seal}" = true ] ; then
+	have_seal=0
+fi
+
+if [ "${want_seal}" = "${have_seal}" ] ; then
+	msg "info: no changes are required/made for <venv directory>/pyvenv.cfg"
+	exit 0
+fi
+
+set +e
+cfg_seal=$(grep -Ec '^\s*include-system-site-packages\s*=' "${cfg_file}")
+set -e
+
+cfg_value=
+case "${want_seal}" in
+0 ) cfg_value=true  ;;
+1 ) cfg_value=false ;;
+esac
+cfg_line="include-system-site-packages = ${cfg_value}"
+
+if [ "${cfg_seal}" = 0 ] ; then
+	cfg_seal=1
+	echo "${cfg_line}" >> "${cfg_file}"
+else
+	sed -i -E '/^(\s*include-system-site-packages\s*=.*)$/{s//'"${cfg_line}"'/}' "${cfg_file}"
+fi
+msg "info: ${cfg_seal} change(s) is/are made in <venv directory>/pyvenv.cfg"
+exit 0

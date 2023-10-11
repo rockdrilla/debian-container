@@ -123,6 +123,8 @@ export REQUESTS_CA_BUNDLE = /etc/ssl/certs/ca-certificates.crt
 
 export PIP_CONFIG_FILE = $(word 1,$(wildcard /etc/pip.conf) $(CURDIR)/debian/pip.conf)
 
+export K2_PYTHON_ALLSITES := 0
+
 # $1 = PYTHONHOME
 # $2 = path to binary
 # $3 - wrapper cmd
@@ -348,7 +350,7 @@ define deb_python_install
 
 	: # unset *FLAGS to avoid duplication
 	unset ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS ; \
-	K2_PYTHON_DISTINSTALL=1 \
+	K2_PYTHON_INSTALL=dist \
 	DEB_PYTHON_BUILD_DIR=$(strip $(1)) \
 	dh_auto_install --sourcedir=$(strip $(1)) --builddir=$(strip $(1))
 
@@ -447,12 +449,13 @@ define deb_python_postinstall_1st_stage
 	$(limb_python) -m pip list --format json > debian/pip.list.json
 
 	: # upgrade installed packages
-	K2_PYTHON_DISTINSTALL=1 \
-	$(limb_python) -m pip install --upgrade $$(jq -r '.[].name' < debian/pip.list.json | sort -uV)
+	wheels=$$(jq -r '.[].name' < debian/pip.list.json | sort -uV) ; \
+	K2_PYTHON_INSTALL=dist \
+	$(limb_python) -m pip install --upgrade $${wheels}
 
-	: # install wheel and virtualenv
-	K2_PYTHON_DISTINSTALL=1 \
-	$(limb_python) -m pip install wheel virtualenv
+	: # install setuptools and wheel
+	K2_PYTHON_INSTALL=dist \
+	$(limb_python) -m pip install setuptools wheel
 
 	$(call fix_hashbangs_r, debian/tmp , $(PYTHON_HASHBANG_RX) , $(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/bin/python$(PYTHON_BASE_VERSION) )
 
@@ -482,7 +485,7 @@ define deb_python_postinstall_1st_stage
 
 	: # file name mangling
 	cd debian/tmp/$(PYTHON_PREFIX)/bin ; \
-	for n in pip virtualenv wheel ; do \
+	for n in pip wheel ; do \
 	    find ./ -name "$$n*" -type f -exec mv -n {} safe.$$n ';' ; \
 	    find ./ -name "$$n*" -delete ; \
 	    mv -n safe.$$n $$n ; \
@@ -497,7 +500,7 @@ define deb_python_postinstall_1st_stage
 	| sort -V | while read -r name version ; do \
 	    [ -n "$${name}" ] || continue ; \
 	    [ -n "$${version}" ] || continue ; \
-	    env -C $${wheel_dir} $(limb_python) -m pip download "$${name}==$${version}" ; \
+	    $(limb_python) -m pip download --dest $${wheel_dir} --no-deps "$${name}==$${version}" ; \
 	done ; \
 	find $${wheel_dir}/ -name '*.whl' -exec ls -l {} +
 
@@ -505,9 +508,14 @@ define deb_python_postinstall_1st_stage
 	s=debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
 	d=debian/tmp/$(PYTHON_MODULES)/ensurepip/_bundled ; \
 	find $$d/ -name '*.whl' -exec ls -l {} + ; \
-	find $$d/ -name '*.whl' -delete ; \
 	for n in pip setuptools ; do \
-	    find $$s/ -name "$$n"'-*.whl' -exec cp -t $$d {} + ; \
+	    x=$$(find $$d/ -name "$$n-*.whl" -type f -printf 1 -quit) ; \
+	    if [ -z "$$x" ] ; then \
+	      find $$s/ -name "$$n-*.whl" -type f -delete ; \
+	      continue ; \
+	    fi ; \
+	    find $$d/ -name "$$n-*.whl" -type f -delete ; \
+	    find $$s/ -name "$$n-*.whl" -type f -exec cp -t $$d {} + ; \
 	done ; \
 	echo ; \
 	find $$d/ -name '*.whl' -exec ls -l {} +
@@ -546,26 +554,6 @@ define deb_python_postinstall_1st_stage
 	pip_dir=$$(ls -1d $${tmpdir}/pip-*) ; \
 	cd $${pip_dir} ; \
 	patch -p2 --fuzz=0 < $(CURDIR)/debian/patches/pip.patch
-
-	: # virtualenv: adjust bundled wheels versions and provide empty stub files
-	wheel_dir=$(CURDIR)/debian/tmp/$(PYTHON_PREFIX)/share/wheels ; \
-	tmpdir=debian/tmp.wheels ; \
-	for n in pip setuptools wheel ; do \
-	    v=$$(jq -r ".[] | select(.name==\"$$n\") | .version" < debian/pip.list.json) ; \
-	    fn_new=$$(find $${wheel_dir}/ -name "$$n-$$v-*.whl" -exec basename {} ';') ; \
-	    find $${tmpdir}/virtualenv-*/ -name "$$n-*.whl" -type f \
-	    | while read -r fn_orig ; do \
-	        [ -n "$${fn_orig}" ] || continue ; \
-	        rm -fv "$${fn_orig}" ; \
-	        fn_orig_dir=$$(dirname "$${fn_orig}") ; \
-	        fn_orig=$$(basename "$${fn_orig}") ; \
-	        touch "$${fn_orig_dir}/$${fn_new}" ; \
-	        if [ "$${fn_orig}" = "$${fn_new}" ] ; then continue ; fi ; \
-	        echo "$$n: $${fn_orig} -> $${fn_new}" >&2 ; \
-	        find $${tmpdir}/virtualenv-*/ -type f -exec grep -FRl -e "$${fn_orig}" {} + \
-	        | xargs -t -r -d '\n' sed -i "s/$${fn_orig}/$${fn_new}/g" ; \
-	    done ; \
-	done
 
 	$(call fix_hashbangs_r, debian/tmp.wheels , $(PYTHON_HASHBANG_RX) , $(PYTHON_HASHBANG) )
 
@@ -716,17 +704,19 @@ override_dh_auto_install:
 	find debian/tmp/ -path '*/bin/*' -type l -exec rm -vf {} +
 
 execute_before_dh_install:
-	chmod +x debian/thin-ci.sh
+	chmod +x debian/thin-ci.sh debian/venv.sh
 
-include debian/rules.install-extras
-
-override_dh_install:
-	dh_install -p k2-thin-ci-python-$(PYTHON_BASE_VERSION)
+	cp debian/venv.sh debian/tmp/$(PYTHON_PREFIX)/bin/venv
 
 	mkdir -p debian/tmp/$(PYTHON_PREFIX)/share
 	cp -t debian/tmp/$(PYTHON_PREFIX)/share \
 	  debian/ensurepip-simple.py \
 	  debian/pip.conf
+
+include debian/rules.install-extras
+
+override_dh_install:
+	dh_install -p k2-thin-ci-python-$(PYTHON_BASE_VERSION)
 
 	$(call dh_install_move, k2-python-$(PYTHON_BASE_VERSION)-misc )
 	$(call dh_install_move, k2-python-$(PYTHON_BASE_VERSION)-dev )

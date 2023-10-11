@@ -109,18 +109,19 @@ if [ -n "${VIRTUAL_ENV}" ] ; then
 fi
 unset VIRTUAL_ENV
 
-python='python'
-pip='pip'
+venv='venv'
 if [ -n "${o_version}" ] ; then
-	python="python-${o_version}"
-	pip="pip-${o_version}"
+	venv="venv-${o_version}"
 fi
 
-# not really going to use "${pip}" but rather a hack :)
-if ! "${pip}" --version >/dev/null 2>&1 ; then
-	msg "error: '${pip}' is missing or failed to run"
+if ! "${venv}" --help >/dev/null 2>&1 ; then
+	msg "error: '${venv}' is missing or failed to run"
 	usage 1
 fi
+
+venv_fullpath=$(readlink -ne "$(command -v "${venv}")")
+python_bindir=$(dirname "${venv_fullpath}")
+export PATH="${python_bindir}:${PATH}"
 
 venv_dir=$(mktemp -d)
 
@@ -133,12 +134,12 @@ set +e
 	mkdir -p "${home_tmp}" "${wheel_tmp}"
 	export HOME="${home_tmp}"
 
-	"${python}" -m venv --system-site-packages "${venv_dir}"
+	"${venv}" --system-site-packages "${venv_dir}"
 	export VIRTUAL_ENV="${venv_dir}" PATH="${venv_dir}/bin:${PATH}"
 
-	K2_PYTHON_VENVONLY=1 pip install -U 'setuptools<68.0.0'
-
+	K2_PYTHON_VENV=only pip install -U 'setuptools<68.0.0'
 	pip wheel -w "${wheel_tmp}" "$@"
+
 	find "${wheel_tmp}/" -type f -exec cp -t "${wheel_dir}" {} +
 )
 r=$?

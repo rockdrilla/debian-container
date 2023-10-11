@@ -163,7 +163,6 @@ RUN apt-install /tmp/*.deb ; \
     # smoke/qa
     set -xv ; \
     pip --version ; \
-    virtualenv --version ; \
     wheel version
 
 # ---
@@ -206,7 +205,6 @@ RUN apt-install k2-python-shim-${PYTHON_BASE_VERSION}-full ; \
     # smoke/qa
     set -xv ; \
     pip --version ; \
-    virtualenv --version ; \
     wheel version
 
 # ---

@@ -21,20 +21,22 @@
      'unix_home': {
          'purelib': '$base/lib/python',
          'platlib': '$base/$platlibdir/python',
-@@ -428,7 +442,15 @@ class install(Command):
+@@ -428,7 +442,17 @@ class install(Command):
  
              self.install_base = self.prefix
              self.install_platbase = self.exec_prefix
 -            self.select_scheme("unix_prefix")
++            _scheme = 'posix_system'
 +            if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
 +                # virtual environment
-+                self.select_scheme('unix_prefix')
-+            elif os.getenv('K2_PYTHON_DISTINSTALL', '') == '1':
-+                self.select_scheme('posix_dist')
-+            elif os.getenv('K2_PYTHON_HIDEBIN', '') == '1':
-+                self.select_scheme('unix_prefix')
-+            else:
-+                self.select_scheme('posix_system')
++                _scheme = 'unix_prefix'
++            elif 'K2_PYTHON_INSTALL' in os.environ:
++                k2_install = os.getenv('K2_PYTHON_INSTALL', '').lower()
++                if k2_install == 'dist':
++                    _scheme = 'posix_dist'
++                elif k2_install == 'prefix':
++                    _scheme = 'unix_prefix'
++            self.select_scheme(_scheme)
  
      def finalize_other(self):
          """Finalizes options for non-posix platforms"""
@@ -50,16 +52,38 @@
              if docloc.startswith(("http://", "https://")):
 --- a/Lib/site.py
 +++ b/Lib/site.py
-@@ -329,27 +329,31 @@ def getsitepackages(prefixes=None):
+@@ -324,32 +324,60 @@ def getsitepackages(prefixes=None):
+     system environment, and will return a list of full paths.
+     """
+     sitepackages = []
++    if os.sep != '/':
++        return sitepackages
++
+     seen = set()
+ 
      if prefixes is None:
          prefixes = PREFIXES
  
-+    if os.sep != '/':
-+        raise RuntimeError('os.sep is not "/"')
-+
 +    libpart = 'lib/python%d.%d' % sys.version_info[:2]
++
 +    is_venv = (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ)
-+    is_venv_only = is_venv and (os.getenv('K2_PYTHON_VENVONLY', '') == '1')
++    is_venv_thin = False
++    is_venv_only = False
++    force_venv_thin = False
++    force_venv_only = False
++    if is_venv:
++        is_venv_thin = sys.base_prefix in prefixes
++        is_venv_only = not is_venv_thin
++        k2_venv = os.getenv('K2_PYTHON_VENV', '').lower()
++        force_venv_thin = k2_venv in ( '0', 'thin' )
++        force_venv_only = k2_venv in ( '1', 'only' )
++
++    if force_venv_thin:
++        pfx = []
++        pfx.extend(prefixes)
++        pfx.append(sys.base_prefix)
++        prefixes = pfx
++
      for prefix in prefixes:
          if not prefix or prefix in seen:
              continue
@@ -82,19 +106,26 @@
 -                path = os.path.join(prefix, libdir, "site-packages")
 -                sitepackages.append(path)
 +        sitepackages.append(os.path.join(prefix, libpart, 'site-packages'))
-+        if is_venv_only:
++        if force_venv_only:
 +            return sitepackages
 +        if prefix != sys.base_prefix:
-+            # "dist-packages" is meaningless for virtual env
 +            continue
++        # "dist-packages" is meaningful only for real prefix
 +        sitepackages.append(os.path.join(prefix, libpart, 'dist-packages'))
-+    if os.getenv('K2_PYTHON_ALLSITES', '') == '1':
-+        # compatibility with world
-+        sitepackages.append(os.path.join('/usr/local', libpart, 'site-packages'))
-+        # compatibility with Debian and derivatives
-+        sitepackages.append(os.path.join('/usr/local', libpart, 'dist-packages'))
-+        sitepackages.append(os.path.join('/usr/lib/python3/dist-packages'))
-+        sitepackages.append(os.path.join('/usr', libpart, 'dist-packages'))
++
++    if is_venv_only and (not force_venv_thin):
++        return sitepackages
++
++    if os.getenv('K2_PYTHON_ALLSITES', '1') == '0':
++        return sitepackages
++
++    # compatibility with world
++    sitepackages.append(os.path.join('/usr/local', libpart, 'site-packages'))
++    # compatibility with Debian and derivatives
++    sitepackages.append(os.path.join('/usr/local', libpart, 'dist-packages'))
++    sitepackages.append(os.path.join('/usr/lib/python3/dist-packages'))
++    sitepackages.append(os.path.join('/usr', libpart, 'dist-packages'))
++
      return sitepackages
  
  def addsitepackages(known_paths, prefixes=None):
@@ -136,7 +167,7 @@
          _INSTALL_SCHEMES[scheme]['include'] = '{srcdir}/Include'
          _INSTALL_SCHEMES[scheme]['platinclude'] = '{projectbase}/.'
  
-@@ -184,7 +204,14 @@ def _expand_vars(scheme, vars):
+@@ -184,7 +204,16 @@ def _expand_vars(scheme, vars):
  def _get_default_scheme():
      if os.name == 'posix':
          # the default scheme for posix is posix_prefix
@@ -144,15 +175,17 @@
 +        if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
 +            # virtual environment
 +            return 'posix_prefix'
-+        if os.getenv('K2_PYTHON_DISTINSTALL', '') == '1':
-+            return 'posix_dist'
-+        if os.getenv('K2_PYTHON_HIDEBIN', '') == '1':
-+            return 'posix_prefix'
++        if 'K2_PYTHON_INSTALL' in os.environ:
++            k2_install = os.getenv('K2_PYTHON_INSTALL', '').lower()
++            if k2_install == 'dist':
++                return 'posix_dist'
++            elif k2_install == 'prefix':
++                return 'posix_prefix'
 +        return 'posix_system'
      return os.name
  
  
-@@ -489,7 +516,7 @@ def get_config_h_filename():
+@@ -489,7 +518,7 @@ def get_config_h_filename():
          else:
              inc_dir = _sys_home or _PROJECT_BASE
      else:

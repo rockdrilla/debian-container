@@ -43,7 +43,7 @@ configure )
 
 	# k2-python-{PYTHON_BASE_VERSION}-full
 
-	for n in pip virtualenv wheel ; do
+	for n in pip venv wheel ; do
 		for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 			update-alternatives --install \
 			  ${bin}/$n${suffix} \

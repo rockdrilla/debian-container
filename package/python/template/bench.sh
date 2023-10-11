@@ -68,7 +68,7 @@ python_wrap=$(readlink -f "${DEB_SRC_TOPDIR}/python-stage1.sh")
 cpu_affinity=$(taskset -c -p $$ | awk -F: '{print $2}' | tr -d '[:space:]')
 
 do_pip_install() {
-	K2_PYTHON_HIDEBIN=1 \
+	K2_PYTHON_INSTALL=prefix \
 	"${python_wrap}" -m pip install "$@" || end_script 1
 }
 

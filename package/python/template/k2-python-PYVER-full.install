@@ -1,3 +1,4 @@
+@{PYTHON_PREFIX}/bin/venv
 @{PYTHON_PREFIX}/share
 
 @{PYTHON_MODULES}/ensurepip

@@ -1,5 +1,135 @@
+--- a/Lib/contextlib.py
++++ b/Lib/contextlib.py
+@@ -145,7 +145,10 @@ class _GeneratorContextManager(
+             except StopIteration:
+                 return False
+             else:
+-                raise RuntimeError("generator didn't stop")
++                try:
++                    raise RuntimeError("generator didn't stop")
++                finally:
++                    self.gen.close()
+         else:
+             if value is None:
+                 # Need to force instantiation so we can reliably
+@@ -187,7 +190,10 @@ class _GeneratorContextManager(
+                     raise
+                 exc.__traceback__ = traceback
+                 return False
+-            raise RuntimeError("generator didn't stop after throw()")
++            try:
++                raise RuntimeError("generator didn't stop after throw()")
++            finally:
++                self.gen.close()
+ 
+ class _AsyncGeneratorContextManager(
+     _GeneratorContextManagerBase,
+@@ -212,7 +218,10 @@ class _AsyncGeneratorContextManager(
+             except StopAsyncIteration:
+                 return False
+             else:
+-                raise RuntimeError("generator didn't stop")
++                try:
++                    raise RuntimeError("generator didn't stop")
++                finally:
++                    await self.gen.aclose()
+         else:
+             if value is None:
+                 # Need to force instantiation so we can reliably
+@@ -254,7 +263,10 @@ class _AsyncGeneratorContextManager(
+                     raise
+                 exc.__traceback__ = traceback
+                 return False
+-            raise RuntimeError("generator didn't stop after athrow()")
++            try:
++                raise RuntimeError("generator didn't stop after athrow()")
++            finally:
++                await self.gen.aclose()
+ 
+ 
+ def contextmanager(func):
+--- a/Lib/gettext.py
++++ b/Lib/gettext.py
+@@ -46,6 +46,7 @@ internationalized, to the local language
+ #   find this format documented anywhere.
+ 
+ 
++import operator
+ import os
+ import re
+ import sys
+@@ -166,14 +167,21 @@ def _parse(tokens, priority=-1):
+ 
+ def _as_int(n):
+     try:
+-        i = round(n)
++        round(n)
+     except TypeError:
+         raise TypeError('Plural value must be an integer, got %s' %
+                         (n.__class__.__name__,)) from None
++
+     import warnings
++    frame = sys._getframe(1)
++    stacklevel = 2
++    while frame.f_back is not None and frame.f_globals.get('__name__') == __name__:
++        stacklevel += 1
++        frame = frame.f_back
+     warnings.warn('Plural value must be an integer, got %s' %
+                   (n.__class__.__name__,),
+-                  DeprecationWarning, 4)
++                  DeprecationWarning,
++                  stacklevel)
+     return n
+ 
+ 
+@@ -200,7 +208,7 @@ def c2py(plural):
+             elif c == ')':
+                 depth -= 1
+ 
+-        ns = {'_as_int': _as_int}
++        ns = {'_as_int': _as_int, '__name__': __name__}
+         exec('''if True:
+             def func(n):
+                 if not isinstance(n, int):
+--- a/Lib/test/_test_embed_set_config.py
++++ b/Lib/test/_test_embed_set_config.py
+@@ -9,9 +9,9 @@ import _testinternalcapi
+ import os
+ import sys
+ import unittest
++from test.support import MS_WINDOWS
+ 
+ 
+-MS_WINDOWS = (os.name == 'nt')
+ MAX_HASH_SEED = 4294967295
+ 
+ class SetConfigTests(unittest.TestCase):
 --- a/Lib/test/_test_multiprocessing.py
 +++ b/Lib/test/_test_multiprocessing.py
+@@ -1650,12 +1650,12 @@ class _TestCondition(BaseTestCase):
+     def _test_waitfor_timeout_f(cls, cond, state, success, sem):
+         sem.release()
+         with cond:
+-            expected = 0.1
++            expected = 0.100
+             dt = time.monotonic()
+             result = cond.wait_for(lambda : state.value==4, timeout=expected)
+             dt = time.monotonic() - dt
+             # borrow logic in assertTimeout() from test/lock_tests.py
+-            if not result and expected * 0.6 < dt < expected * 10.0:
++            if not result and expected * 0.6 <= dt:
+                 success.value = True
+ 
+     @unittest.skipUnless(HAS_SHAREDCTYPES, 'needs sharedctypes')
+@@ -1674,7 +1674,7 @@ class _TestCondition(BaseTestCase):
+ 
+         # Only increment 3 times, so state == 4 is never reached.
+         for i in range(3):
+-            time.sleep(0.01)
++            time.sleep(0.010)
+             with cond:
+                 state.value += 1
+                 cond.notify()
 @@ -4376,18 +4376,13 @@ class _TestSharedMemory(BaseTestCase):
              p.terminate()
              p.wait()
@@ -117,6 +247,35 @@
                  break
  
          a = sorted(self.alive.keys())
+--- a/Lib/test/libregrtest/setup.py
++++ b/Lib/test/libregrtest/setup.py
+@@ -88,16 +88,19 @@ def setup_tests(ns):
+     setup_unraisable_hook()
+     setup_threading_excepthook()
+ 
+-    if ns.timeout is not None:
++    timeout = ns.timeout
++    if timeout is not None:
+         # For a slow buildbot worker, increase SHORT_TIMEOUT and LONG_TIMEOUT
+-        support.SHORT_TIMEOUT = max(support.SHORT_TIMEOUT, ns.timeout / 40)
+-        support.LONG_TIMEOUT = max(support.LONG_TIMEOUT, ns.timeout / 4)
++        support.LOOPBACK_TIMEOUT = max(support.LOOPBACK_TIMEOUT, timeout / 120)
++        # don't increase INTERNET_TIMEOUT
++        support.SHORT_TIMEOUT = max(support.SHORT_TIMEOUT, timeout / 40)
++        support.LONG_TIMEOUT = max(support.LONG_TIMEOUT, timeout / 4)
+ 
+         # If --timeout is short: reduce timeouts
+-        support.LOOPBACK_TIMEOUT = min(support.LOOPBACK_TIMEOUT, ns.timeout)
+-        support.INTERNET_TIMEOUT = min(support.INTERNET_TIMEOUT, ns.timeout)
+-        support.SHORT_TIMEOUT = min(support.SHORT_TIMEOUT, ns.timeout)
+-        support.LONG_TIMEOUT = min(support.LONG_TIMEOUT, ns.timeout)
++        support.LOOPBACK_TIMEOUT = min(support.LOOPBACK_TIMEOUT, timeout)
++        support.INTERNET_TIMEOUT = min(support.INTERNET_TIMEOUT, timeout)
++        support.SHORT_TIMEOUT = min(support.SHORT_TIMEOUT, timeout)
++        support.LONG_TIMEOUT = min(support.LONG_TIMEOUT, timeout)
+ 
+     if ns.xmlpath:
+         from test.support.testresult import RegressionTestResult
 --- a/Lib/test/lock_tests.py
 +++ b/Lib/test/lock_tests.py
 @@ -20,54 +20,74 @@ requires_fork = unittest.skipUnless(supp
@@ -1033,9 +1192,64 @@
 +        barrier.abort()
 +        self.assertRegex(repr(barrier),
 +                         r"<\w+\.Barrier at .*: broken>")
+--- a/Lib/test/pythoninfo.py
++++ b/Lib/test/pythoninfo.py
+@@ -713,6 +713,19 @@ def collect_test_support(info_add):
+     attributes = ('IPV6_ENABLED',)
+     copy_attributes(info_add, support, 'test_support.%s', attributes)
+ 
++    attributes = (
++        'MS_WINDOWS',
++        'has_fork_support',
++        'has_socket_support',
++        'has_strftime_extensions',
++        'has_subprocess_support',
++        'is_android',
++        'is_emscripten',
++        'is_jython',
++        'is_wasi',
++    )
++    copy_attributes(info_add, support, 'support.%s', attributes)
++
+     call_func(info_add, 'test_support._is_gui_available', support, '_is_gui_available')
+     call_func(info_add, 'test_support.python_is_optimized', support, 'python_is_optimized')
+ 
 --- a/Lib/test/support/__init__.py
 +++ b/Lib/test/support/__init__.py
-@@ -769,14 +769,17 @@ def check_cflags_pgo():
+@@ -48,7 +48,7 @@ __all__ = [
+     "check__all__", "skip_if_buggy_ucrt_strfptime",
+     "check_disallow_instantiation", "check_sanitizer", "skip_if_sanitizer",
+     # sys
+-    "is_jython", "is_android", "is_emscripten", "is_wasi",
++    "MS_WINDOWS", "is_jython", "is_android", "is_emscripten", "is_wasi",
+     "check_impl_detail", "unix_shell", "setswitchinterval",
+     # network
+     "open_urlresource",
+@@ -72,13 +72,7 @@ __all__ = [
+ #
+ # The timeout should be long enough for connect(), recv() and send() methods
+ # of socket.socket.
+-LOOPBACK_TIMEOUT = 5.0
+-if sys.platform == 'win32' and ' 32 bit (ARM)' in sys.version:
+-    # bpo-37553: test_socket.SendfileUsingSendTest is taking longer than 2
+-    # seconds on Windows ARM32 buildbot
+-    LOOPBACK_TIMEOUT = 10
+-elif sys.platform == 'vxworks':
+-    LOOPBACK_TIMEOUT = 10
++LOOPBACK_TIMEOUT = 10.0
+ 
+ # Timeout in seconds for network requests going to the internet. The timeout is
+ # short enough to prevent a test to wait for too long if the internet request
+@@ -507,6 +501,8 @@ def requires_debug_ranges(reason='requir
+ requires_legacy_unicode_capi = unittest.skipUnless(unicode_legacy_string,
+                         'requires legacy Unicode C API')
+ 
++MS_WINDOWS = (sys.platform == 'win32')
++
+ is_jython = sys.platform.startswith('java')
+ 
+ is_android = hasattr(sys, 'getandroidapilevel')
+@@ -769,14 +765,17 @@ def check_cflags_pgo():
      # Check if Python was built with ./configure --enable-optimizations:
      # with Profile Guided Optimization (PGO).
      cflags_nodist = sysconfig.get_config_var('PY_CFLAGS_NODIST') or ''
@@ -1055,7 +1269,7 @@
      return any(option in cflags_nodist for option in pgo_options)
  
  
-@@ -2324,6 +2327,82 @@ def requires_venv_with_pip():
+@@ -2324,6 +2323,82 @@ def requires_venv_with_pip():
      return unittest.skipUnless(ctypes, 'venv: pip requires ctypes')
  
  
@@ -1158,6 +1372,52 @@
  
  
  @contextlib.contextmanager
+--- a/Lib/test/test_asyncio/test_subprocess.py
++++ b/Lib/test/test_asyncio/test_subprocess.py
+@@ -15,8 +15,7 @@ from test import support
+ from test.support import os_helper
+ 
+ 
+-MS_WINDOWS = (sys.platform == 'win32')
+-if MS_WINDOWS:
++if support.MS_WINDOWS:
+     import msvcrt
+ else:
+     from asyncio import unix_events
+@@ -266,7 +265,7 @@ class SubprocessMixin:
+         rfd, wfd = os.pipe()
+         self.addCleanup(os.close, rfd)
+         self.addCleanup(os.close, wfd)
+-        if MS_WINDOWS:
++        if support.MS_WINDOWS:
+             handle = msvcrt.get_osfhandle(rfd)
+             os.set_handle_inheritable(handle, True)
+             code = textwrap.dedent(f'''
+--- a/Lib/test/test_builtin.py
++++ b/Lib/test/test_builtin.py
+@@ -2146,8 +2146,6 @@ class PtyTests(unittest.TestCase):
+         if pid == 0:
+             # Child
+             try:
+-                # Make sure we don't get stuck if there's a problem
+-                signal.alarm(2)
+                 os.close(r)
+                 with open(w, "w") as wpipe:
+                     child(wpipe)
+--- a/Lib/test/test_codecs.py
++++ b/Lib/test/test_codecs.py
+@@ -3590,9 +3590,10 @@ class Rot13UtilTest(unittest.TestCase):
+     $ echo "Hello World" | python -m encodings.rot_13
+     """
+     def test_rot13_func(self):
++        from encodings.rot_13 import rot13
+         infile = io.StringIO('Gb or, be abg gb or, gung vf gur dhrfgvba')
+         outfile = io.StringIO()
+-        encodings.rot_13.rot13(infile, outfile)
++        rot13(infile, outfile)
+         outfile.seek(0)
+         plain_text = outfile.read()
+         self.assertEqual(
 --- a/Lib/test/test_concurrent_futures/test_deadlock.py
 +++ b/Lib/test/test_concurrent_futures/test_deadlock.py
 @@ -284,11 +284,12 @@ class ExecutorDeadlockTest:
@@ -1192,6 +1452,369 @@
              # ... and from this point submit() is guaranteed to fail
              with self.assertRaises(BrokenExecutor):
                  self.executor.submit(get_init_status)
+--- a/Lib/test/test_contextlib.py
++++ b/Lib/test/test_contextlib.py
+@@ -156,9 +156,24 @@ class ContextManagerTestCase(unittest.Te
+                 yield
+         ctx = whoo()
+         ctx.__enter__()
+-        self.assertRaises(
+-            RuntimeError, ctx.__exit__, TypeError, TypeError("foo"), None
+-        )
++        with self.assertRaises(RuntimeError):
++            ctx.__exit__(TypeError, TypeError("foo"), None)
++        if support.check_impl_detail(cpython=True):
++            # The "gen" attribute is an implementation detail.
++            self.assertFalse(ctx.gen.gi_suspended)
++
++    def test_contextmanager_trap_second_yield(self):
++        @contextmanager
++        def whoo():
++            yield
++            yield
++        ctx = whoo()
++        ctx.__enter__()
++        with self.assertRaises(RuntimeError):
++            ctx.__exit__(None, None, None)
++        if support.check_impl_detail(cpython=True):
++            # The "gen" attribute is an implementation detail.
++            self.assertFalse(ctx.gen.gi_suspended)
+ 
+     def test_contextmanager_except(self):
+         state = []
+--- a/Lib/test/test_contextlib_async.py
++++ b/Lib/test/test_contextlib_async.py
+@@ -49,15 +49,11 @@ class TestAbstractAsyncContextManager(un
+             async with ctx():
+                 yield 11
+ 
+-        ret = []
+-        exc = ValueError(22)
+-        with self.assertRaises(ValueError):
+-            async with ctx():
+-                async for val in gen():
+-                    ret.append(val)
+-                    raise exc
+-
+-        self.assertEqual(ret, [11])
++        g = gen()
++        async for val in g:
++            self.assertEqual(val, 11)
++            break
++        await g.aclose()
+ 
+     def test_exit_is_abstract(self):
+         class MissingAexit(AbstractAsyncContextManager):
+--- a/Lib/test/test_cppext/__init__.py
++++ b/Lib/test/test_cppext/__init__.py
+@@ -9,7 +9,6 @@ from test import support
+ from test.support import os_helper
+ 
+ 
+-MS_WINDOWS = (sys.platform == 'win32')
+ SETUP = os.path.join(os.path.dirname(__file__), 'setup.py')
+ 
+ 
+@@ -25,7 +24,7 @@ class TestCPPExt(unittest.TestCase):
+ 
+     # With MSVC, the linker fails with: cannot open file 'python311.lib'
+     # https://github.com/python/cpython/pull/32175#issuecomment-1111175897
+-    @unittest.skipIf(MS_WINDOWS, 'test fails on Windows')
++    @unittest.skipIf(support.MS_WINDOWS, 'test fails on Windows')
+     # Building and running an extension in clang sanitizing mode is not
+     # straightforward
+     @unittest.skipIf(
+@@ -53,7 +52,7 @@ class TestCPPExt(unittest.TestCase):
+         python_exe = 'python'
+         if sys.executable.endswith('.exe'):
+             python_exe += '.exe'
+-        if MS_WINDOWS:
++        if support.MS_WINDOWS:
+             python = os.path.join(venv_dir, 'Scripts', python_exe)
+         else:
+             python = os.path.join(venv_dir, 'bin', python_exe)
+--- a/Lib/test/test_cppext/setup.py
++++ b/Lib/test/test_cppext/setup.py
+@@ -4,15 +4,13 @@ import os.path
+ import shlex
+ import sys
+ import sysconfig
++from test import support
+ 
+ from setuptools import setup, Extension
+ 
+ 
+-MS_WINDOWS = (sys.platform == 'win32')
+-
+-
+ SOURCE = os.path.join(os.path.dirname(__file__), 'extension.cpp')
+-if not MS_WINDOWS:
++if not support.MS_WINDOWS:
+     # C++ compiler flags for GCC and clang
+     CPPFLAGS = [
+         # gh-91321: The purpose of _testcppext extension is to check that building
+--- a/Lib/test/test_embed.py
++++ b/Lib/test/test_embed.py
+@@ -1,7 +1,6 @@
+ # Run the tests in Programs/_testembed.c (tests for the CPython embedding APIs)
+ from test import support
+-from test.support import import_helper
+-from test.support import os_helper
++from test.support import import_helper, os_helper, MS_WINDOWS
+ import unittest
+ 
+ from collections import namedtuple
+@@ -20,7 +19,6 @@ import textwrap
+ if not support.has_subprocess_support:
+     raise unittest.SkipTest("test module requires subprocess")
+ 
+-MS_WINDOWS = (os.name == 'nt')
+ MACOS = (sys.platform == 'darwin')
+ Py_DEBUG = hasattr(sys, 'gettotalrefcount')
+ PYMEM_ALLOCATOR_NOT_SET = 0
+--- a/Lib/test/test_faulthandler.py
++++ b/Lib/test/test_faulthandler.py
+@@ -7,8 +7,7 @@ import signal
+ import subprocess
+ import sys
+ from test import support
+-from test.support import os_helper
+-from test.support import script_helper, is_android
++from test.support import os_helper, script_helper, is_android, MS_WINDOWS
+ from test.support import skip_if_sanitizer
+ import tempfile
+ import unittest
+@@ -23,7 +22,6 @@ if not support.has_subprocess_support:
+     raise unittest.SkipTest("test module requires subprocess")
+ 
+ TIMEOUT = 0.5
+-MS_WINDOWS = (os.name == 'nt')
+ 
+ 
+ def expected_traceback(lineno1, lineno2, header, min_count=1):
+--- a/Lib/test/test_gettext.py
++++ b/Lib/test/test_gettext.py
+@@ -2,6 +2,7 @@ import os
+ import base64
+ import gettext
+ import unittest
++from functools import partial
+ 
+ from test import support
+ from test.support import os_helper
+@@ -115,9 +116,16 @@ UMOFILE = os.path.join(LOCALEDIR, 'ugett
+ MMOFILE = os.path.join(LOCALEDIR, 'metadata.mo')
+ 
+ 
++def reset_gettext():
++    gettext._localedirs.clear()
++    gettext._current_domain = 'messages'
++    gettext._translations.clear()
++
++
+ class GettextBaseTest(unittest.TestCase):
+-    def setUp(self):
+-        self.addCleanup(os_helper.rmtree, os.path.split(LOCALEDIR)[0])
++    @classmethod
++    def setUpClass(cls):
++        cls.addClassCleanup(os_helper.rmtree, os.path.split(LOCALEDIR)[0])
+         if not os.path.isdir(LOCALEDIR):
+             os.makedirs(LOCALEDIR)
+         with open(MOFILE, 'wb') as fp:
+@@ -130,9 +138,12 @@ class GettextBaseTest(unittest.TestCase)
+             fp.write(base64.decodebytes(UMO_DATA))
+         with open(MMOFILE, 'wb') as fp:
+             fp.write(base64.decodebytes(MMO_DATA))
++
++    def setUp(self):
+         self.env = self.enterContext(os_helper.EnvironmentVarGuard())
+         self.env['LANGUAGE'] = 'xx'
+-        gettext._translations.clear()
++        reset_gettext()
++        self.addCleanup(reset_gettext)
+ 
+ 
+ GNU_MO_DATA_ISSUE_17898 = b'''\
+@@ -309,55 +320,137 @@ fhccbeg sbe lbhe Clguba cebtenzf ol cebi
+ trggrkg zrffntr pngnybt yvoenel.''')
+ 
+ 
+-class PluralFormsTestCase(GettextBaseTest):
++class PluralFormsTests:
++
++    def _test_plural_forms(self, ngettext, gettext,
++                           singular, plural, tsingular, tplural,
++                           numbers_only=True):
++        x = ngettext(singular, plural, 1)
++        self.assertEqual(x, tsingular)
++        x = ngettext(singular, plural, 2)
++        self.assertEqual(x, tplural)
++        x = gettext(singular)
++        self.assertEqual(x, tsingular)
++
++        if numbers_only:
++            lineno = self._test_plural_forms.__code__.co_firstlineno + 9
++            with self.assertWarns(DeprecationWarning) as cm:
++                x = ngettext(singular, plural, 1.0)
++            self.assertEqual(cm.filename, __file__)
++            self.assertEqual(cm.lineno, lineno + 4)
++            self.assertEqual(x, tsingular)
++            with self.assertWarns(DeprecationWarning) as cm:
++                x = ngettext(singular, plural, 1.1)
++            self.assertEqual(cm.filename, __file__)
++            self.assertEqual(cm.lineno, lineno + 9)
++            self.assertEqual(x, tplural)
++            with self.assertRaises(TypeError):
++                ngettext(singular, plural, None)
++        else:
++            x = ngettext(singular, plural, None)
++            self.assertEqual(x, tplural)
++
++    def test_plural_forms(self):
++        self._test_plural_forms(
++            self.ngettext, self.gettext,
++            'There is %s file', 'There are %s files',
++            'Hay %s fichero', 'Hay %s ficheros')
++        self._test_plural_forms(
++            self.ngettext, self.gettext,
++            '%d file deleted', '%d files deleted',
++            '%d file deleted', '%d files deleted')
++
++    def test_plural_context_forms(self):
++        ngettext = partial(self.npgettext, 'With context')
++        gettext = partial(self.pgettext, 'With context')
++        self._test_plural_forms(
++            ngettext, gettext,
++            'There is %s file', 'There are %s files',
++            'Hay %s fichero (context)', 'Hay %s ficheros (context)')
++        self._test_plural_forms(
++            ngettext, gettext,
++            '%d file deleted', '%d files deleted',
++            '%d file deleted', '%d files deleted')
++
++    def test_plural_wrong_context_forms(self):
++        self._test_plural_forms(
++            partial(self.npgettext, 'Unknown context'),
++            partial(self.pgettext, 'Unknown context'),
++            'There is %s file', 'There are %s files',
++            'There is %s file', 'There are %s files')
++
++
++class GNUTranslationsPluralFormsTestCase(PluralFormsTests, GettextBaseTest):
+     def setUp(self):
+         GettextBaseTest.setUp(self)
+-        self.mofile = MOFILE
++        # Set up the bindings
++        gettext.bindtextdomain('gettext', os.curdir)
++        gettext.textdomain('gettext')
+ 
+-    def test_plural_forms1(self):
+-        eq = self.assertEqual
+-        x = gettext.ngettext('There is %s file', 'There are %s files', 1)
+-        eq(x, 'Hay %s fichero')
+-        x = gettext.ngettext('There is %s file', 'There are %s files', 2)
+-        eq(x, 'Hay %s ficheros')
+-        x = gettext.gettext('There is %s file')
+-        eq(x, 'Hay %s fichero')
+-
+-    def test_plural_context_forms1(self):
+-        eq = self.assertEqual
+-        x = gettext.npgettext('With context',
+-                              'There is %s file', 'There are %s files', 1)
+-        eq(x, 'Hay %s fichero (context)')
+-        x = gettext.npgettext('With context',
+-                              'There is %s file', 'There are %s files', 2)
+-        eq(x, 'Hay %s ficheros (context)')
+-        x = gettext.pgettext('With context', 'There is %s file')
+-        eq(x, 'Hay %s fichero (context)')
++        self.gettext = gettext.gettext
++        self.ngettext = gettext.ngettext
++        self.pgettext = gettext.pgettext
++        self.npgettext = gettext.npgettext
+ 
+-    def test_plural_forms2(self):
+-        eq = self.assertEqual
+-        with open(self.mofile, 'rb') as fp:
+-            t = gettext.GNUTranslations(fp)
+-        x = t.ngettext('There is %s file', 'There are %s files', 1)
+-        eq(x, 'Hay %s fichero')
+-        x = t.ngettext('There is %s file', 'There are %s files', 2)
+-        eq(x, 'Hay %s ficheros')
+-        x = t.gettext('There is %s file')
+-        eq(x, 'Hay %s fichero')
+ 
+-    def test_plural_context_forms2(self):
+-        eq = self.assertEqual
+-        with open(self.mofile, 'rb') as fp:
++class GNUTranslationsWithDomainPluralFormsTestCase(PluralFormsTests, GettextBaseTest):
++    def setUp(self):
++        GettextBaseTest.setUp(self)
++        # Set up the bindings
++        gettext.bindtextdomain('gettext', os.curdir)
++
++        self.gettext = partial(gettext.dgettext, 'gettext')
++        self.ngettext = partial(gettext.dngettext, 'gettext')
++        self.pgettext = partial(gettext.dpgettext, 'gettext')
++        self.npgettext = partial(gettext.dnpgettext, 'gettext')
++
++    def test_plural_forms_wrong_domain(self):
++        self._test_plural_forms(
++            partial(gettext.dngettext, 'unknown'),
++            partial(gettext.dgettext, 'unknown'),
++            'There is %s file', 'There are %s files',
++            'There is %s file', 'There are %s files',
++            numbers_only=False)
++
++    def test_plural_context_forms_wrong_domain(self):
++        self._test_plural_forms(
++            partial(gettext.dnpgettext, 'unknown', 'With context'),
++            partial(gettext.dpgettext, 'unknown', 'With context'),
++            'There is %s file', 'There are %s files',
++            'There is %s file', 'There are %s files',
++            numbers_only=False)
++
++
++class GNUTranslationsClassPluralFormsTestCase(PluralFormsTests, GettextBaseTest):
++    def setUp(self):
++        GettextBaseTest.setUp(self)
++        with open(MOFILE, 'rb') as fp:
+             t = gettext.GNUTranslations(fp)
+-        x = t.npgettext('With context',
+-                        'There is %s file', 'There are %s files', 1)
+-        eq(x, 'Hay %s fichero (context)')
+-        x = t.npgettext('With context',
+-                        'There is %s file', 'There are %s files', 2)
+-        eq(x, 'Hay %s ficheros (context)')
+-        x = gettext.pgettext('With context', 'There is %s file')
+-        eq(x, 'Hay %s fichero (context)')
+ 
++        self.gettext = t.gettext
++        self.ngettext = t.ngettext
++        self.pgettext = t.pgettext
++        self.npgettext = t.npgettext
++
++    def test_plural_forms_null_translations(self):
++        t = gettext.NullTranslations()
++        self._test_plural_forms(
++            t.ngettext, t.gettext,
++            'There is %s file', 'There are %s files',
++            'There is %s file', 'There are %s files',
++            numbers_only=False)
++
++    def test_plural_context_forms_null_translations(self):
++        t = gettext.NullTranslations()
++        self._test_plural_forms(
++            partial(t.npgettext, 'With context'),
++            partial(t.pgettext, 'With context'),
++            'There is %s file', 'There are %s files',
++            'There is %s file', 'There are %s files',
++            numbers_only=False)
++
++
++class PluralFormsInternalTestCase:
+     # Examples from http://www.gnu.org/software/gettext/manual/gettext.html
+ 
+     def test_ja(self):
 --- a/Lib/test/test_importlib/test_locks.py
 +++ b/Lib/test/test_importlib/test_locks.py
 @@ -88,7 +88,8 @@ class DeadlockAvoidanceTests:
@@ -1258,6 +1881,66 @@
  
  results.sort()
  print(start_method, "->", results)
+--- a/Lib/test/test_os.py
++++ b/Lib/test/test_os.py
+@@ -2505,30 +2505,34 @@ class Win32KillTests(unittest.TestCase):
+         tagname = "test_os_%s" % uuid.uuid1()
+         m = mmap.mmap(-1, 1, tagname)
+         m[0] = 0
++
+         # Run a script which has console control handling enabled.
+-        proc = subprocess.Popen([sys.executable,
+-                   os.path.join(os.path.dirname(__file__),
+-                                "win_console_handler.py"), tagname],
+-                   creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+-        # Let the interpreter startup before we send signals. See #3137.
+-        count, max = 0, 100
+-        while count < max and proc.poll() is None:
+-            if m[0] == 1:
+-                break
+-            time.sleep(0.1)
+-            count += 1
+-        else:
+-            # Forcefully kill the process if we weren't able to signal it.
+-            os.kill(proc.pid, signal.SIGINT)
+-            self.fail("Subprocess didn't finish initialization")
+-        os.kill(proc.pid, event)
+-        # proc.send_signal(event) could also be done here.
+-        # Allow time for the signal to be passed and the process to exit.
+-        time.sleep(0.5)
+-        if not proc.poll():
+-            # Forcefully kill the process if we weren't able to signal it.
+-            os.kill(proc.pid, signal.SIGINT)
+-            self.fail("subprocess did not stop on {}".format(name))
++        script = os.path.join(os.path.dirname(__file__),
++                              "win_console_handler.py")
++        cmd = [sys.executable, script, tagname]
++        proc = subprocess.Popen(cmd,
++                                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
++
++        with proc:
++            # Let the interpreter startup before we send signals. See #3137.
++            for _ in support.sleeping_retry(support.SHORT_TIMEOUT):
++                if proc.poll() is None:
++                    break
++            else:
++                # Forcefully kill the process if we weren't able to signal it.
++                proc.kill()
++                self.fail("Subprocess didn't finish initialization")
++
++            os.kill(proc.pid, event)
++
++            try:
++                # proc.send_signal(event) could also be done here.
++                # Allow time for the signal to be passed and the process to exit.
++                proc.wait(timeout=support.SHORT_TIMEOUT)
++            except subprocess.TimeoutExpired:
++                # Forcefully kill the process if we weren't able to signal it.
++                proc.kill()
++                self.fail("subprocess did not stop on {}".format(name))
+ 
+     @unittest.skip("subprocesses aren't inheriting Ctrl+C property")
+     @support.requires_subprocess()
 --- a/Lib/test/test_posix.py
 +++ b/Lib/test/test_posix.py
 @@ -1205,6 +1205,7 @@ class PosixTester(unittest.TestCase):
@@ -1268,6 +1951,18 @@
          if len(mask) > 1:
              # Empty masks are forbidden
              mask.pop()
+--- a/Lib/test/test_re.py
++++ b/Lib/test/test_re.py
+@@ -2725,6 +2725,9 @@ class ImplementationTest(unittest.TestCa
+             _sre.compile("abc", 0, [long_overflow], 0, {}, ())
+         with self.assertRaises(TypeError):
+             _sre.compile({}, 0, [], 0, [], [])
++        # gh-110590: `TypeError` was overwritten with `OverflowError`:
++        with self.assertRaises(TypeError):
++            _sre.compile('', 0, ['abc'], 0, {}, ())
+ 
+     @cpython_only
+     def test_repeat_minmax_overflow_maxrepeat(self):
 --- a/Lib/test/test_signal.py
 +++ b/Lib/test/test_signal.py
 @@ -813,13 +813,14 @@ class ItimerTest(unittest.TestCase):
@@ -1329,6 +2024,79 @@
  
          # All ITIMER_REAL signals should have been delivered to the
          # Python handler
+--- a/Lib/test/test_socket.py
++++ b/Lib/test/test_socket.py
+@@ -204,8 +204,13 @@ class SocketUDPLITETest(SocketUDPTest):
+ class ThreadSafeCleanupTestCase:
+     """Subclass of unittest.TestCase with thread-safe cleanup methods.
+ 
+-    This subclass protects the addCleanup() and doCleanups() methods
+-    with a recursive lock.
++    This subclass protects the addCleanup() method with a recursive lock.
++
++    doCleanups() is called when the server completed, but the client can still
++    be running in its thread especially if the server failed with a timeout.
++    Don't put a lock on doCleanups() to prevent deadlock between addCleanup()
++    called in the client and doCleanups() waiting for self.done.wait of
++    ThreadableTest._setUp() (gh-110167)
+     """
+ 
+     def __init__(self, *args, **kwargs):
+@@ -216,9 +221,6 @@ class ThreadSafeCleanupTestCase:
+         with self._cleanup_lock:
+             return super().addCleanup(*args, **kwargs)
+ 
+-    def doCleanups(self, *args, **kwargs):
+-        with self._cleanup_lock:
+-            return super().doCleanups(*args, **kwargs)
+ 
+ class SocketCANTest(unittest.TestCase):
+ 
+@@ -5239,6 +5241,7 @@ class NetworkConnectionNoServer(unittest
+ 
+ 
+ class NetworkConnectionAttributesTest(SocketTCPTest, ThreadableTest):
++    cli = None
+ 
+     def __init__(self, methodName='runTest'):
+         SocketTCPTest.__init__(self, methodName=methodName)
+@@ -5248,7 +5251,8 @@ class NetworkConnectionAttributesTest(So
+         self.source_port = socket_helper.find_unused_port()
+ 
+     def clientTearDown(self):
+-        self.cli.close()
++        if self.cli is not None:
++            self.cli.close()
+         self.cli = None
+         ThreadableTest.clientTearDown(self)
+ 
+--- a/Lib/test/test_socketserver.py
++++ b/Lib/test/test_socketserver.py
+@@ -33,11 +33,6 @@ requires_unix_sockets = unittest.skipUnl
+ HAVE_FORKING = test.support.has_fork_support
+ requires_forking = unittest.skipUnless(HAVE_FORKING, 'requires forking')
+ 
+-def signal_alarm(n):
+-    """Call signal.alarm when it exists (i.e. not on Windows)."""
+-    if hasattr(signal, 'alarm'):
+-        signal.alarm(n)
+-
+ # Remember real select() to avoid interferences with mocking
+ _real_select = select.select
+ 
+@@ -77,12 +72,10 @@ class SocketServerTest(unittest.TestCase
+     """Test all socket servers."""
+ 
+     def setUp(self):
+-        signal_alarm(60)  # Kill deadlocks after 60 seconds.
+         self.port_seed = 0
+         self.test_files = []
+ 
+     def tearDown(self):
+-        signal_alarm(0)  # Didn't deadlock.
+         reap_children()
+ 
+         for fn in self.test_files:
 --- a/Lib/test/test_ssl.py
 +++ b/Lib/test/test_ssl.py
 @@ -2279,11 +2279,8 @@ class SimpleBackgroundTests(unittest.Tes
@@ -1434,6 +2202,63 @@
  
      def test_extended_getslice(self):
          # Test extended slicing by comparing with list slicing.
+--- a/Lib/test/test_subprocess.py
++++ b/Lib/test/test_subprocess.py
+@@ -747,31 +747,36 @@ class ProcessTestCase(BaseTestCase):
+     @unittest.skipUnless(fcntl and hasattr(fcntl, 'F_GETPIPE_SZ'),
+                          'fcntl.F_GETPIPE_SZ required for test.')
+     def test_pipesize_default(self):
+-        p = subprocess.Popen(
++        proc = subprocess.Popen(
+             [sys.executable, "-c",
+              'import sys; sys.stdin.read(); sys.stdout.write("out"); '
+              'sys.stderr.write("error!")'],
+             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+             stderr=subprocess.PIPE, pipesize=-1)
+-        try:
+-            fp_r, fp_w = os.pipe()
++
++        with proc:
+             try:
+-                default_pipesize = fcntl.fcntl(fp_w, fcntl.F_GETPIPE_SZ)
+-                for fifo in [p.stdin, p.stdout, p.stderr]:
+-                    self.assertEqual(
+-                        fcntl.fcntl(fifo.fileno(), fcntl.F_GETPIPE_SZ),
+-                        default_pipesize)
++                fp_r, fp_w = os.pipe()
++                try:
++                    default_read_pipesize = fcntl.fcntl(fp_r, fcntl.F_GETPIPE_SZ)
++                    default_write_pipesize = fcntl.fcntl(fp_w, fcntl.F_GETPIPE_SZ)
++                finally:
++                    os.close(fp_r)
++                    os.close(fp_w)
++
++                self.assertEqual(
++                    fcntl.fcntl(proc.stdin.fileno(), fcntl.F_GETPIPE_SZ),
++                    default_read_pipesize)
++                self.assertEqual(
++                    fcntl.fcntl(proc.stdout.fileno(), fcntl.F_GETPIPE_SZ),
++                    default_write_pipesize)
++                self.assertEqual(
++                    fcntl.fcntl(proc.stderr.fileno(), fcntl.F_GETPIPE_SZ),
++                    default_write_pipesize)
++                # On other platforms we cannot test the pipe size (yet). But above
++                # code using pipesize=-1 should not crash.
+             finally:
+-                os.close(fp_r)
+-                os.close(fp_w)
+-            # On other platforms we cannot test the pipe size (yet). But above
+-            # code using pipesize=-1 should not crash.
+-            p.stdin.close()
+-            p.stdout.close()
+-            p.stderr.close()
+-        finally:
+-            p.kill()
+-            p.wait()
++                proc.kill()
+ 
+     def test_env(self):
+         newenv = os.environ.copy()
 --- a/Lib/test/test_support.py
 +++ b/Lib/test/test_support.py
 @@ -10,7 +10,6 @@ import sys
@@ -1474,6 +2299,292 @@
              msg = "Warning -- reap_children() reaped child process %s" % pid
              self.assertIn(msg, stderr.getvalue())
              self.assertTrue(support.environment_altered)
+--- /dev/null
++++ b/Lib/test/test_termios.py
+@@ -0,0 +1,220 @@
++import errno
++import os
++import sys
++import tempfile
++import unittest
++from test.support.import_helper import import_module
++
++termios = import_module('termios')
++
++
++@unittest.skipUnless(hasattr(os, 'openpty'), "need os.openpty()")
++class TestFunctions(unittest.TestCase):
++
++    def setUp(self):
++        master_fd, self.fd = os.openpty()
++        self.addCleanup(os.close, master_fd)
++        self.stream = self.enterContext(open(self.fd, 'wb', buffering=0))
++        tmp = self.enterContext(tempfile.TemporaryFile(mode='wb', buffering=0))
++        self.bad_fd = tmp.fileno()
++
++    def assertRaisesTermiosError(self, errno, callable, *args):
++        with self.assertRaises(termios.error) as cm:
++            callable(*args)
++        self.assertEqual(cm.exception.args[0], errno)
++
++    def test_tcgetattr(self):
++        attrs = termios.tcgetattr(self.fd)
++        self.assertIsInstance(attrs, list)
++        self.assertEqual(len(attrs), 7)
++        for i in range(6):
++            self.assertIsInstance(attrs[i], int)
++        iflag, oflag, cflag, lflag, ispeed, ospeed, cc = attrs
++        self.assertIsInstance(cc, list)
++        self.assertEqual(len(cc), termios.NCCS)
++        for i, x in enumerate(cc):
++            if ((lflag & termios.ICANON) == 0 and
++                (i == termios.VMIN or i == termios.VTIME)):
++                self.assertIsInstance(x, int)
++            else:
++                self.assertIsInstance(x, bytes)
++                self.assertEqual(len(x), 1)
++        self.assertEqual(termios.tcgetattr(self.stream), attrs)
++
++    def test_tcgetattr_errors(self):
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcgetattr, self.bad_fd)
++        self.assertRaises(ValueError, termios.tcgetattr, -1)
++        self.assertRaises(OverflowError, termios.tcgetattr, 2**1000)
++        self.assertRaises(TypeError, termios.tcgetattr, object())
++        self.assertRaises(TypeError, termios.tcgetattr)
++
++    def test_tcsetattr(self):
++        attrs = termios.tcgetattr(self.fd)
++        termios.tcsetattr(self.fd, termios.TCSANOW, attrs)
++        termios.tcsetattr(self.fd, termios.TCSADRAIN, attrs)
++        termios.tcsetattr(self.fd, termios.TCSAFLUSH, attrs)
++        termios.tcsetattr(self.stream, termios.TCSANOW, attrs)
++
++    def test_tcsetattr_errors(self):
++        attrs = termios.tcgetattr(self.fd)
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, tuple(attrs))
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs[:-1])
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs + [0])
++        for i in range(6):
++            attrs2 = attrs[:]
++            attrs2[i] = 2**1000
++            self.assertRaises(OverflowError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs2)
++            attrs2[i] = object()
++            self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs2)
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs[:-1] + [attrs[-1][:-1]])
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs[:-1] + [attrs[-1] + [b'\0']])
++        for i in range(len(attrs[-1])):
++            attrs2 = attrs[:]
++            attrs2[-1] = attrs2[-1][:]
++            attrs2[-1][i] = 2**1000
++            self.assertRaises(OverflowError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs2)
++            attrs2[-1][i] = object()
++            self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs2)
++            attrs2[-1][i] = b''
++            self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs2)
++            attrs2[-1][i] = b'\0\0'
++            self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, attrs2)
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW, object())
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW)
++        self.assertRaisesTermiosError(errno.EINVAL, termios.tcsetattr, self.fd, -1, attrs)
++        self.assertRaises(OverflowError, termios.tcsetattr, self.fd, 2**1000, attrs)
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, object(), attrs)
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcsetattr, self.bad_fd, termios.TCSANOW, attrs)
++        self.assertRaises(ValueError, termios.tcsetattr, -1, termios.TCSANOW, attrs)
++        self.assertRaises(OverflowError, termios.tcsetattr, 2**1000, termios.TCSANOW, attrs)
++        self.assertRaises(TypeError, termios.tcsetattr, object(), termios.TCSANOW, attrs)
++        self.assertRaises(TypeError, termios.tcsetattr, self.fd, termios.TCSANOW)
++
++    def test_tcsendbreak(self):
++        try:
++            termios.tcsendbreak(self.fd, 1)
++        except termios.error as exc:
++            if exc.args[0] == errno.ENOTTY and sys.platform.startswith('freebsd'):
++                self.skipTest('termios.tcsendbreak() is not supported '
++                              'with pseudo-terminals (?) on this platform')
++            raise
++        termios.tcsendbreak(self.stream, 1)
++
++    def test_tcsendbreak_errors(self):
++        self.assertRaises(OverflowError, termios.tcsendbreak, self.fd, 2**1000)
++        self.assertRaises(TypeError, termios.tcsendbreak, self.fd, 0.0)
++        self.assertRaises(TypeError, termios.tcsendbreak, self.fd, object())
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcsendbreak, self.bad_fd, 0)
++        self.assertRaises(ValueError, termios.tcsendbreak, -1, 0)
++        self.assertRaises(OverflowError, termios.tcsendbreak, 2**1000, 0)
++        self.assertRaises(TypeError, termios.tcsendbreak, object(), 0)
++        self.assertRaises(TypeError, termios.tcsendbreak, self.fd)
++
++    def test_tcdrain(self):
++        termios.tcdrain(self.fd)
++        termios.tcdrain(self.stream)
++
++    def test_tcdrain_errors(self):
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcdrain, self.bad_fd)
++        self.assertRaises(ValueError, termios.tcdrain, -1)
++        self.assertRaises(OverflowError, termios.tcdrain, 2**1000)
++        self.assertRaises(TypeError, termios.tcdrain, object())
++        self.assertRaises(TypeError, termios.tcdrain)
++
++    def test_tcflush(self):
++        termios.tcflush(self.fd, termios.TCIFLUSH)
++        termios.tcflush(self.fd, termios.TCOFLUSH)
++        termios.tcflush(self.fd, termios.TCIOFLUSH)
++
++    def test_tcflush_errors(self):
++        self.assertRaisesTermiosError(errno.EINVAL, termios.tcflush, self.fd, -1)
++        self.assertRaises(OverflowError, termios.tcflush, self.fd, 2**1000)
++        self.assertRaises(TypeError, termios.tcflush, self.fd, object())
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcflush, self.bad_fd, termios.TCIFLUSH)
++        self.assertRaises(ValueError, termios.tcflush, -1, termios.TCIFLUSH)
++        self.assertRaises(OverflowError, termios.tcflush, 2**1000, termios.TCIFLUSH)
++        self.assertRaises(TypeError, termios.tcflush, object(), termios.TCIFLUSH)
++        self.assertRaises(TypeError, termios.tcflush, self.fd)
++
++    def test_tcflow(self):
++        termios.tcflow(self.fd, termios.TCOOFF)
++        termios.tcflow(self.fd, termios.TCOON)
++        termios.tcflow(self.fd, termios.TCIOFF)
++        termios.tcflow(self.fd, termios.TCION)
++
++    def test_tcflow_errors(self):
++        self.assertRaisesTermiosError(errno.EINVAL, termios.tcflow, self.fd, -1)
++        self.assertRaises(OverflowError, termios.tcflow, self.fd, 2**1000)
++        self.assertRaises(TypeError, termios.tcflow, self.fd, object())
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcflow, self.bad_fd, termios.TCOON)
++        self.assertRaises(ValueError, termios.tcflow, -1, termios.TCOON)
++        self.assertRaises(OverflowError, termios.tcflow, 2**1000, termios.TCOON)
++        self.assertRaises(TypeError, termios.tcflow, object(), termios.TCOON)
++        self.assertRaises(TypeError, termios.tcflow, self.fd)
++
++    def test_tcgetwinsize(self):
++        size = termios.tcgetwinsize(self.fd)
++        self.assertIsInstance(size, tuple)
++        self.assertEqual(len(size), 2)
++        self.assertIsInstance(size[0], int)
++        self.assertIsInstance(size[1], int)
++        self.assertEqual(termios.tcgetwinsize(self.stream), size)
++
++    def test_tcgetwinsize_errors(self):
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcgetwinsize, self.bad_fd)
++        self.assertRaises(ValueError, termios.tcgetwinsize, -1)
++        self.assertRaises(OverflowError, termios.tcgetwinsize, 2**1000)
++        self.assertRaises(TypeError, termios.tcgetwinsize, object())
++        self.assertRaises(TypeError, termios.tcgetwinsize)
++
++    def test_tcsetwinsize(self):
++        size = termios.tcgetwinsize(self.fd)
++        termios.tcsetwinsize(self.fd, size)
++        termios.tcsetwinsize(self.fd, list(size))
++        termios.tcsetwinsize(self.stream, size)
++
++    def test_tcsetwinsize_errors(self):
++        size = termios.tcgetwinsize(self.fd)
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd, size[:-1])
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd, size + (0,))
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd, object())
++        self.assertRaises(OverflowError, termios.tcsetwinsize, self.fd, (size[0], 2**1000))
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd, (size[0], float(size[1])))
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd, (size[0], object()))
++        self.assertRaises(OverflowError, termios.tcsetwinsize, self.fd, (2**1000, size[1]))
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd, (float(size[0]), size[1]))
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd, (object(), size[1]))
++        self.assertRaisesTermiosError(errno.ENOTTY, termios.tcsetwinsize, self.bad_fd, size)
++        self.assertRaises(ValueError, termios.tcsetwinsize, -1, size)
++        self.assertRaises(OverflowError, termios.tcsetwinsize, 2**1000, size)
++        self.assertRaises(TypeError, termios.tcsetwinsize, object(), size)
++        self.assertRaises(TypeError, termios.tcsetwinsize, self.fd)
++
++
++class TestModule(unittest.TestCase):
++    def test_constants(self):
++        self.assertIsInstance(termios.B0, int)
++        self.assertIsInstance(termios.B38400, int)
++        self.assertIsInstance(termios.TCSANOW, int)
++        self.assertIsInstance(termios.TCSADRAIN, int)
++        self.assertIsInstance(termios.TCSAFLUSH, int)
++        self.assertIsInstance(termios.TCIFLUSH, int)
++        self.assertIsInstance(termios.TCOFLUSH, int)
++        self.assertIsInstance(termios.TCIOFLUSH, int)
++        self.assertIsInstance(termios.TCOOFF, int)
++        self.assertIsInstance(termios.TCOON, int)
++        self.assertIsInstance(termios.TCIOFF, int)
++        self.assertIsInstance(termios.TCION, int)
++        self.assertIsInstance(termios.VTIME, int)
++        self.assertIsInstance(termios.VMIN, int)
++        self.assertIsInstance(termios.NCCS, int)
++        self.assertLess(termios.VTIME, termios.NCCS)
++        self.assertLess(termios.VMIN, termios.NCCS)
++
++    def test_exception(self):
++        self.assertTrue(issubclass(termios.error, Exception))
++        self.assertFalse(issubclass(termios.error, OSError))
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/Lib/test/test_tty.py
+@@ -0,0 +1,60 @@
++import os
++import unittest
++from test.support.import_helper import import_module
++
++termios = import_module('termios')
++tty = import_module('tty')
++
++
++@unittest.skipUnless(hasattr(os, 'openpty'), "need os.openpty()")
++class TestTty(unittest.TestCase):
++
++    def setUp(self):
++        master_fd, self.fd = os.openpty()
++        self.addCleanup(os.close, master_fd)
++        self.stream = self.enterContext(open(self.fd, 'wb', buffering=0))
++        self.fd = self.stream.fileno()
++        self.mode = termios.tcgetattr(self.fd)
++        self.addCleanup(termios.tcsetattr, self.fd, termios.TCSANOW, self.mode)
++        self.addCleanup(termios.tcsetattr, self.fd, termios.TCSAFLUSH, self.mode)
++
++    def check_cbreak(self, mode):
++        self.assertEqual(mode[3] & termios.ECHO, 0)
++        self.assertEqual(mode[3] & termios.ICANON, 0)
++        self.assertEqual(mode[6][termios.VMIN], 1)
++        self.assertEqual(mode[6][termios.VTIME], 0)
++
++    def check_raw(self, mode):
++        self.assertEqual(mode[0] & termios.ICRNL, 0)
++        self.check_cbreak(mode)
++        self.assertEqual(mode[0] & termios.ISTRIP, 0)
++        self.assertEqual(mode[0] & termios.ICRNL, 0)
++        self.assertEqual(mode[1] & termios.OPOST, 0)
++        self.assertEqual(mode[2] & termios.PARENB, termios.CS8 & termios.PARENB)
++        self.assertEqual(mode[2] & termios.CSIZE, termios.CS8 & termios.CSIZE)
++        self.assertEqual(mode[2] & termios.CS8, termios.CS8)
++        self.assertEqual(mode[3] & termios.ECHO, 0)
++        self.assertEqual(mode[3] & termios.ICANON, 0)
++        self.assertEqual(mode[3] & termios.ISIG, 0)
++        self.assertEqual(mode[6][termios.VMIN], 1)
++        self.assertEqual(mode[6][termios.VTIME], 0)
++
++    def test_setraw(self):
++        tty.setraw(self.fd)
++        mode = termios.tcgetattr(self.fd)
++        self.check_raw(mode)
++        tty.setraw(self.fd, termios.TCSANOW)
++        tty.setraw(self.stream)
++        tty.setraw(fd=self.fd, when=termios.TCSANOW)
++
++    def test_setcbreak(self):
++        tty.setcbreak(self.fd)
++        mode = termios.tcgetattr(self.fd)
++        self.check_cbreak(mode)
++        tty.setcbreak(self.fd, termios.TCSANOW)
++        tty.setcbreak(self.stream)
++        tty.setcbreak(fd=self.fd, when=termios.TCSANOW)
++
++
++if __name__ == '__main__':
++    unittest.main()
 --- a/Lib/test/test_typing.py
 +++ b/Lib/test/test_typing.py
 @@ -183,7 +183,7 @@ class BottomTypeTestsMixin:
@@ -1721,6 +2832,20 @@
                  pass
  
      def test_cannot_init(self):
+--- a/Lib/test/test_utf8_mode.py
++++ b/Lib/test/test_utf8_mode.py
+@@ -9,10 +9,9 @@ import textwrap
+ import unittest
+ from test import support
+ from test.support.script_helper import assert_python_ok, assert_python_failure
+-from test.support import os_helper
++from test.support import os_helper, MS_WINDOWS
+ 
+ 
+-MS_WINDOWS = (sys.platform == 'win32')
+ POSIX_LOCALES = ('C', 'POSIX')
+ VXWORKS = (sys.platform == "vxworks")
+ 
 --- a/Lib/test/test_wait3.py
 +++ b/Lib/test/test_wait3.py
 @@ -4,7 +4,6 @@
@@ -1823,6 +2948,66 @@
                      with self.assertRaises(TypeError) as cm:
                          loader.discover('package')
                      self.assertEqual(str(cm.exception),
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -592,7 +592,8 @@ build_wasm: check-clean-src $(BUILDPYTHO
+ # Check that the source is clean when building out of source.
+ check-clean-src:
+ 	@if test -n "$(VPATH)" -a \( \
+-	    -f "$(srcdir)/Programs/python.o" \
++	    -f "$(srcdir)/$(BUILDPYTHON)" \
++	    -o -f "$(srcdir)/Programs/python.o" \
+ 	    -o -f "$(srcdir)\Python/frozen_modules/importlib._bootstrap.h" \
+ 	\); then \
+ 		echo "Error: The source directory ($(srcdir)) is not clean" ; \
+@@ -1301,8 +1302,8 @@ regen-pegen:
+ 	PYTHONPATH=$(srcdir)/Tools/peg_generator $(PYTHON_FOR_REGEN) -m pegen -q c \
+ 		$(srcdir)/Grammar/python.gram \
+ 		$(srcdir)/Grammar/Tokens \
+-		-o $(srcdir)/Parser/parser.new.c
+-	$(UPDATE_FILE) $(srcdir)/Parser/parser.c $(srcdir)/Parser/parser.new.c
++		-o $(srcdir)/Parser/parser.c.new
++	$(UPDATE_FILE) $(srcdir)/Parser/parser.c $(srcdir)/Parser/parser.c.new
+ 
+ .PHONY=regen-ast
+ regen-ast:
+--- a/Modules/_sre/sre.c
++++ b/Modules/_sre/sre.c
+@@ -1437,6 +1437,9 @@ _sre_compile_impl(PyObject *module, PyOb
+     for (i = 0; i < n; i++) {
+         PyObject *o = PyList_GET_ITEM(code, i);
+         unsigned long value = PyLong_AsUnsignedLong(o);
++        if (value == (unsigned long)-1 && PyErr_Occurred()) {
++            break;
++        }
+         self->code[i] = (SRE_CODE) value;
+         if ((unsigned long) self->code[i] != value) {
+             PyErr_SetString(PyExc_OverflowError,
+--- a/Modules/readline.c
++++ b/Modules/readline.c
+@@ -440,7 +440,7 @@ readline_set_completion_display_matches_
+        default completion display. */
+     rl_completion_display_matches_hook =
+         readlinestate_global->completion_display_matches_hook ?
+-#if defined(_RL_FUNCTION_TYPEDEF)
++#if defined(HAVE_RL_COMPDISP_FUNC_T)
+         (rl_compdisp_func_t *)on_completion_display_matches_hook : 0;
+ #else
+         (VFunction *)on_completion_display_matches_hook : 0;
+--- a/Modules/socketmodule.c
++++ b/Modules/socketmodule.c
+@@ -5534,8 +5534,9 @@ socket_sethostname(PyObject *self, PyObj
+     Py_buffer buf;
+     int res, flag = 0;
+ 
+-#ifdef _AIX
+-/* issue #18259, not declared in any useful header file */
++#if defined(_AIX) || (defined(__sun) && defined(__SVR4) && Py_SUNOS_VERSION <= 510)
++/* issue #18259, sethostname is not declared in any useful header file on AIX
++ * the same is true for Solaris 10 */
+ extern int sethostname(const char *, size_t);
+ #endif
+ 
 --- a/Modules/termios.c
 +++ b/Modules/termios.c
 @@ -183,17 +183,25 @@ termios_tcsetattr_impl(PyObject *module,
@@ -1877,3 +3062,196 @@
          else {
              PyErr_SetString(PyExc_TypeError,
       "tcsetattr: elements of attributes must be characters or integers");
+--- a/Python/ceval.c
++++ b/Python/ceval.c
+@@ -1060,7 +1060,9 @@ match_class(PyThreadState *tstate, PyObj
+         }
+         if (match_self) {
+             // Easy. Copy the subject itself, and move on to kwargs.
+-            PyList_Append(attrs, subject);
++            if (PyList_Append(attrs, subject) < 0) {
++                goto fail;
++            }
+         }
+         else {
+             for (Py_ssize_t i = 0; i < nargs; i++) {
+@@ -1076,7 +1078,10 @@ match_class(PyThreadState *tstate, PyObj
+                 if (attr == NULL) {
+                     goto fail;
+                 }
+-                PyList_Append(attrs, attr);
++                if (PyList_Append(attrs, attr) < 0) {
++                    Py_DECREF(attr);
++                    goto fail;
++                }
+                 Py_DECREF(attr);
+             }
+         }
+@@ -1089,7 +1094,10 @@ match_class(PyThreadState *tstate, PyObj
+         if (attr == NULL) {
+             goto fail;
+         }
+-        PyList_Append(attrs, attr);
++        if (PyList_Append(attrs, attr) < 0) {
++            Py_DECREF(attr);
++            goto fail;
++        }
+         Py_DECREF(attr);
+     }
+     Py_SETREF(attrs, PyList_AsTuple(attrs));
+--- a/Python/import.c
++++ b/Python/import.c
+@@ -951,11 +951,22 @@ PyImport_GetImporter(PyObject *path)
+ {
+     PyThreadState *tstate = _PyThreadState_GET();
+     PyObject *path_importer_cache = PySys_GetObject("path_importer_cache");
++    if (path_importer_cache == NULL) {
++        PyErr_SetString(PyExc_RuntimeError, "lost sys.path_importer_cache");
++        return NULL;
++    }
++    Py_INCREF(path_importer_cache);
+     PyObject *path_hooks = PySys_GetObject("path_hooks");
+-    if (path_importer_cache == NULL || path_hooks == NULL) {
++    if (path_hooks == NULL) {
++        PyErr_SetString(PyExc_RuntimeError, "lost sys.path_hooks");
++        Py_DECREF(path_importer_cache);
+         return NULL;
+     }
+-    return get_path_importer(tstate, path_importer_cache, path_hooks, path);
++    Py_INCREF(path_hooks);
++    PyObject *importer = get_path_importer(tstate, path_importer_cache, path_hooks, path);
++    Py_DECREF(path_hooks);
++    Py_DECREF(path_importer_cache);
++    return importer;
+ }
+ 
+ #if defined(__EMSCRIPTEN__) && defined(PY_CALL_TRAMPOLINE)
+--- a/Tools/freeze/test/freeze.py
++++ b/Tools/freeze/test/freeze.py
+@@ -27,8 +27,10 @@ class UnsupportedError(Exception):
+     """The operation isn't supported."""
+ 
+ 
+-def _run_quiet(cmd, cwd=None):
+-    #print(f'# {" ".join(shlex.quote(a) for a in cmd)}')
++def _run_quiet(cmd, *, cwd=None):
++    if cwd:
++        print('+', 'cd', cwd, flush=True)
++    print('+', shlex.join(cmd), flush=True)
+     try:
+         return subprocess.run(
+             cmd,
+@@ -48,8 +50,8 @@ def _run_quiet(cmd, cwd=None):
+         raise
+ 
+ 
+-def _run_stdout(cmd, cwd=None):
+-    proc = _run_quiet(cmd, cwd)
++def _run_stdout(cmd):
++    proc = _run_quiet(cmd)
+     return proc.stdout.strip()
+ 
+ 
+@@ -91,13 +93,18 @@ def copy_source_tree(newroot, oldroot):
+ 
+     shutil.copytree(oldroot, newroot, ignore=support.copy_python_src_ignore)
+     if os.path.exists(os.path.join(newroot, 'Makefile')):
+-        _run_quiet([MAKE, 'clean'], newroot)
++        # Out-of-tree builds require a clean srcdir. "make clean" keeps
++        # the "python" program, so use "make distclean" instead.
++        _run_quiet([MAKE, 'distclean'], cwd=newroot)
+ 
+ 
+ ##################################
+ # freezing
+ 
+ def prepare(script=None, outdir=None):
++    print()
++    print("cwd:", os.getcwd())
++
+     if not outdir:
+         outdir = OUTDIR
+     os.makedirs(outdir, exist_ok=True)
+@@ -125,7 +132,7 @@ def prepare(script=None, outdir=None):
+     ensure_opt(cmd, 'cache-file', os.path.join(outdir, 'python-config.cache'))
+     prefix = os.path.join(outdir, 'python-installation')
+     ensure_opt(cmd, 'prefix', prefix)
+-    _run_quiet(cmd, builddir)
++    _run_quiet(cmd, cwd=builddir)
+ 
+     if not MAKE:
+         raise UnsupportedError('make')
+@@ -135,20 +142,18 @@ def prepare(script=None, outdir=None):
+         # this test is most often run as part of the whole suite with a lot
+         # of other tests running in parallel, from 1-2 vCPU systems up to
+         # people's NNN core beasts. Don't attempt to use it all.
+-        parallel = f'-j{cores*2//3}'
++        jobs = cores * 2 // 3
++        parallel = f'-j{jobs}'
+     else:
+         parallel = '-j2'
+ 
+     # Build python.
+     print(f'building python {parallel=} in {builddir}...')
+-    if os.path.exists(os.path.join(srcdir, 'Makefile')):
+-        # Out-of-tree builds require a clean srcdir.
+-        _run_quiet([MAKE, '-C', srcdir, 'clean'])
+-    _run_quiet([MAKE, '-C', builddir, parallel])
++    _run_quiet([MAKE, parallel], cwd=builddir)
+ 
+     # Install the build.
+     print(f'installing python into {prefix}...')
+-    _run_quiet([MAKE, '-C', builddir, 'install'])
++    _run_quiet([MAKE, 'install'], cwd=builddir)
+     python = os.path.join(prefix, 'bin', 'python3')
+ 
+     return outdir, scriptfile, python
+@@ -161,8 +166,8 @@ def freeze(python, scriptfile, outdir):
+     print(f'freezing {scriptfile}...')
+     os.makedirs(outdir, exist_ok=True)
+     # Use -E to ignore PYTHONSAFEPATH
+-    _run_quiet([python, '-E', FREEZE, '-o', outdir, scriptfile], outdir)
+-    _run_quiet([MAKE, '-C', os.path.dirname(scriptfile)])
++    _run_quiet([python, '-E', FREEZE, '-o', outdir, scriptfile], cwd=outdir)
++    _run_quiet([MAKE], cwd=os.path.dirname(scriptfile))
+ 
+     name = os.path.basename(scriptfile).rpartition('.')[0]
+     executable = os.path.join(outdir, name)
+--- a/configure.ac
++++ b/configure.ac
+@@ -582,6 +582,14 @@ then
+ 	darwin*) MACHDEP="darwin";;
+ 	'')	MACHDEP="unknown";;
+     esac
++
++    if test "$ac_sys_system" = "SunOS"; then
++	# For Solaris, there isn't an OS version specific macro defined
++	# in most compilers, so we define one here.
++	SUNOS_VERSION=`echo $ac_sys_release | sed -e 's!\.\([0-9]\)$!.0\1!g' | tr -d '.'`
++	AC_DEFINE_UNQUOTED([Py_SUNOS_VERSION], [$SUNOS_VERSION],
++	                   [The version of SunOS/Solaris as reported by `uname -r' without the dot.])
++    fi
+ fi
+ AC_MSG_RESULT("$MACHDEP")
+ 
+@@ -5918,6 +5926,20 @@ if test "$py_cv_lib_readline" = yes; the
+   AC_CHECK_LIB($LIBREADLINE, append_history,
+     AC_DEFINE(HAVE_RL_APPEND_HISTORY, 1,
+       [Define if readline supports append_history]),,$READLINE_LIBS)
++
++  # in readline as well as newer editline (April 2023)
++  AC_CHECK_TYPE([rl_compdisp_func_t],
++                [AC_DEFINE([HAVE_RL_COMPDISP_FUNC_T], [1],
++                           [Define if readline supports rl_compdisp_func_t])],
++                [],
++                [
++#include <stdio.h> /* Must be first for Gnu Readline */
++#ifdef WITH_EDITLINE
++# include <editline/readline.h>
++#else
++# include <readline/readline.h>
++#endif
++                ])
+ fi
+ 
+ # End of readline checks: restore LIBS

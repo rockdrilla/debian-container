@@ -14,12 +14,11 @@ configure )
 	find /@{PYTHON_MODULES}/dist-packages/ -mindepth 1 | sort -V > "${tmpinfo}/dist.0"
 
 	# install packages into /@{PYTHON_MODULES}/dist-packages/
-	K2_PYTHON_DISTINSTALL=1 \
-	"${python_bin}/python" /@{PYTHON_PREFIX}/share/ensurepip-simple.py /@{PYTHON_PREFIX}/share/wheels
-
-	# remove package information except for pip, virtualenv and wheel
-	find /@{PYTHON_MODULES}/dist-packages/ -mindepth 1 -maxdepth 1 -name '*.dist-info' -print0 \
-	| grep -zEv '/(pip|virtualenv|wheel)-' | xargs -0r rm -rf {} +
+	(
+		unset K2_PYTHON_COMPAT K2_PYTHON_VENV K2_PYTHON_ALLSITES
+		K2_PYTHON_INSTALL=dist \
+		${python_bin}/python /@{PYTHON_PREFIX}/share/ensurepip-simple.py /@{PYTHON_PREFIX}/share/wheels
+	)
 
 	# remove versioned scripts
 	env -C ${python_bin} rm -f pip@{PYTHON_MAJOR_VERSION} pip@{PYTHON_BASE_VERSION}
@@ -31,7 +30,7 @@ configure )
 		ln -s "/@{PYTHON_PREFIX}/share/wheels/$(basename "$f")" "$f"
 	done
 
-	for n in pip virtualenv wheel ; do
+	for n in pip venv wheel ; do
 		for suffix in '' '-@{PYTHON_BASE_VERSION}' '@{PYTHON_MAJOR_VERSION}' '@{PYTHON_BASE_VERSION}' ; do
 			update-alternatives --install \
 			  ${bin}/$n${suffix} \
@@ -49,17 +48,18 @@ configure )
 	find /@{PYTHON_MODULES}/dist-packages/ -mindepth 1 | sort -V > "${tmpinfo}/dist.1"
 
 	self_list="${DPKG_ADMINDIR:=/var/lib/dpkg}/info/#PACKAGE#.list"
+	if [ -s "${self_list}" ] ; then
+		# calculate list diffs
+		set +e
+		grep -Fxv -f "${tmpinfo}/bin.0"  "${tmpinfo}/bin.1"  > "${tmpinfo}/bin.diff"
+		grep -Fxv -f "${tmpinfo}/dist.0" "${tmpinfo}/dist.1" > "${tmpinfo}/dist.diff"
+		cat "${tmpinfo}/bin.diff" "${tmpinfo}/dist.diff" | sort -uV > "${tmpinfo}/diff.0"
+		grep -Fxv -f "${self_list}" "${tmpinfo}/diff.0" > "${tmpinfo}/diff.1"
+		set -e
 
-	# calculate list diffs
-	set +e
-	grep -Fxv -f "${tmpinfo}/bin.0"  "${tmpinfo}/bin.1"  > "${tmpinfo}/bin.diff"
-	grep -Fxv -f "${tmpinfo}/dist.0" "${tmpinfo}/dist.1" > "${tmpinfo}/dist.diff"
-	cat "${tmpinfo}/bin.diff" "${tmpinfo}/dist.diff" | sort -uV > "${tmpinfo}/diff.0"
-	grep -Fxv -f "${self_list}" "${tmpinfo}/diff.0" > "${tmpinfo}/diff.1"
-	set -e
-
-	# adjust dpkg info: let dpkg maintain these files
-	cat "${tmpinfo}/diff.1" >> "${self_list}"
+		# adjust dpkg info: let dpkg maintain these files
+		cat "${tmpinfo}/diff.1" >> "${self_list}"
+	fi
 
 	rm -rf "${tmpinfo}"
 ;;
