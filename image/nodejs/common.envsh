@@ -3,7 +3,7 @@ nodejs_versions='
 	12.22.12
 	14.21.3
 	16.20.2
-	18.18.0
+	18.18.1
 '
 
 set_default_distro_suite
