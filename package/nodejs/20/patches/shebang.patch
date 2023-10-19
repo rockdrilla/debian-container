@@ -1,0 +1,36 @@
+--- a/configure.py
++++ b/configure.py
+@@ -100,6 +100,12 @@ parser.add_argument('--arch-triplet',
+     default=None,
+     help='arch triplet used by distro')
+ 
++parser.add_argument('--shebang',
++    action='store',
++    dest='shebang',
++    default=None,
++    help='shebang to be used by package managers')
++
+ parser.add_argument('--debug',
+     action='store_true',
+     dest='debug',
+@@ -1460,6 +1466,12 @@ def configure_debian(output):
+   else:
+     output['variables']['arch_triplet'] = 'unknown-unknown-unknown'
+ 
++def configure_shebang(output):
++  if options.shebang:
++    output['variables']['shebang'] = options.shebang
++  else:
++    output['variables']['shebang'] = '/usr/bin/env node'
++
+ def configure_library(lib, output, pkgname=None):
+   shared_lib = 'shared_' + lib
+   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+@@ -2040,6 +2052,7 @@ configure_node(output)
+ configure_node_lib_files(output)
+ configure_napi(output)
+ configure_debian(output)
++configure_shebang(output)
+ configure_library('zlib', output)
+ configure_library('http_parser', output)
+ configure_library('libuv', output)

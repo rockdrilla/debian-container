@@ -1,0 +1,53 @@
+--- a/configure.py
++++ b/configure.py
+@@ -94,6 +94,12 @@ parser.add_argument('--coverage',
+     default=None,
+     help='Build node with code coverage enabled')
+ 
++parser.add_argument('--arch-triplet',
++    action='store',
++    dest='arch_triplet',
++    default=None,
++    help='arch triplet used by distro')
++
+ parser.add_argument('--debug',
+     action='store_true',
+     dest='debug',
+@@ -1448,6 +1454,12 @@ def configure_napi(output):
+   version = getnapibuildversion.get_napi_version()
+   output['variables']['napi_build_version'] = version
+ 
++def configure_debian(output):
++  if options.arch_triplet:
++    output['variables']['arch_triplet'] = options.arch_triplet
++  else:
++    output['variables']['arch_triplet'] = 'unknown-unknown-unknown'
++
+ def configure_library(lib, output, pkgname=None):
+   shared_lib = 'shared_' + lib
+   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
+@@ -2027,6 +2039,7 @@ flavor = GetFlavor(flavor_params)
+ configure_node(output)
+ configure_node_lib_files(output)
+ configure_napi(output)
++configure_debian(output)
+ configure_library('zlib', output)
+ configure_library('http_parser', output)
+ configure_library('libuv', output)
+--- a/lib/internal/modules/cjs/loader.js
++++ b/lib/internal/modules/cjs/loader.js
+@@ -1378,7 +1378,13 @@ Module._initPaths = function() {
+     path.resolve(process.execPath, '..') :
+     path.resolve(process.execPath, '..', '..');
+ 
+-  const paths = [path.resolve(prefixDir, 'lib', 'node')];
++  const paths = [
++    path.resolve(prefixDir, 'lib', 'node_modules'),
++    path.resolve(prefixDir, 'lib', 'yarn_modules', 'link'),
++    path.resolve(prefixDir, 'lib', 'yarn_modules', 'global', 'node_modules'),
++    path.resolve('/usr/lib', process.config.variables.arch_triplet, 'nodejs'),
++    path.resolve('/usr/share/nodejs'),
++  ];
+ 
+   if (homeDir) {
+     ArrayPrototypeUnshift(paths, path.resolve(homeDir, '.node_libraries'));

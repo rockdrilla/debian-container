@@ -1,0 +1,136 @@
+--- a/Makefile
++++ b/Makefile
+@@ -186,7 +186,7 @@ config.gypi: configure configure.py src/
+ 	fi
+ 
+ .PHONY: install
+-install: all ## Installs node into $PREFIX (default=/usr/local).
++install: ## Installs node into $PREFIX (default=/usr/local).
+ 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+ 
+ .PHONY: uninstall
+--- a/common.gypi
++++ b/common.gypi
+@@ -174,7 +174,7 @@
+               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
+             }],
+             ['llvm_version=="0.0"', {
+-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
++              'lto': ' -flto=2 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none ', # GCC
+             }, {
+               'lto': ' -flto ', # Clang
+             }],
+--- a/node.gyp
++++ b/node.gyp
+@@ -1026,6 +1026,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # fuzz_env
+     {
+@@ -1105,6 +1109,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # cctest
+ 
+@@ -1162,6 +1170,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # embedtest
+ 
+@@ -1184,6 +1196,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ]
+     }, # overlapped-checker
+     {
+@@ -1280,6 +1296,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     }, # node_mksnapshot
+   ], # end targets
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -1502,6 +1502,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'defines!': [
+         'BUILDING_V8_SHARED=1',
+@@ -1544,6 +1548,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+     },  # mksnapshot
+     {
+@@ -1561,6 +1569,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'defines!': [
+         '_HAS_EXCEPTIONS=0',
+@@ -1599,6 +1611,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'dependencies': [
+         'torque_base',
+@@ -1635,6 +1651,10 @@
+         ['enable_lto=="true"', {
+           'ldflags': [ '-fno-lto' ],
+         }],
++        # Avoid extra debug information
++        ['v8_enable_handle_zapping==0', {
++          'ldflags': [ '-s' ],
++        }],
+       ],
+       'sources': [
+         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",

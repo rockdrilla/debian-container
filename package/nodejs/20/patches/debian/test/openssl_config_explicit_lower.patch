@@ -1,0 +1,36 @@
+From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Date: Fri, 23 Sep 2022 22:39:50 +0200
+Subject: [PATCH] Add a CipherString for nodejs
+
+If the default security level is overwritten at build time of openssl
+then it is needed to lower it again for nodejs in order to pass the
+testsuite because it is using smoil keys.
+
+Signed-off-by: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+---
+ deps/openssl/openssl/apps/openssl.cnf | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+--- a/deps/openssl/openssl/apps/openssl.cnf
++++ b/deps/openssl/openssl/apps/openssl.cnf
+@@ -15,6 +15,7 @@ HOME			= .
+ 
+  # Use this in order to automatically load providers.
+ openssl_conf = openssl_init
++nodejs_conf = nodejs_init
+ 
+ # Comment out the next line to ignore configuration errors
+ config_diagnostics = 1
+@@ -388,3 +389,12 @@ oldcert = $insta::certout # insta.cert.p
+ # Certificate revocation
+ cmd = rr
+ oldcert = $insta::certout # insta.cert.pem
++
++[nodejs_init]
++ssl_conf = ssl_sect
++
++[ssl_sect]
++system_default = system_default_sect
++
++[system_default_sect]
++CipherString = DEFAULT:@SECLEVEL=1

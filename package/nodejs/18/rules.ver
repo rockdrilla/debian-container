@@ -1,6 +1,4 @@
 #!/usr/bin/make -f
 
-NODEJS_API_VERSION = 108
-
 NPM_VERSION = 9.8.1
 YARN_VERSION = 1.22.19
