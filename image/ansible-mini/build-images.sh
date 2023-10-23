@@ -19,7 +19,7 @@ build_single() {
 
 	export ANSIBLE_VERSION="$1"
 
-	export BUILD_IMAGE_ENV="ANSIBLE_VERSION"
+	export BUILD_IMAGE_ENVS="ANSIBLE_VERSION"
 
 	export BUILD_IMAGE_VOLUMES="
 		$(ci_apt_volumes)

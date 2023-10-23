@@ -55,7 +55,7 @@ build_single() {
 	fi
 
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
-	BUILD_IMAGE_ENV="GOLANG_VERSION GOLANG_BASE_VERSION" \
+	BUILD_IMAGE_ENVS="GOLANG_VERSION GOLANG_BASE_VERSION" \
 	build-image.sh image/golang/ "${IMAGE_PATH}/${GOLANG_MIN_IMAGE}" ${extra_tags}
 
 	# "golang" derives env from "golang-min"

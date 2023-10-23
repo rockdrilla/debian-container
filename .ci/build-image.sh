@@ -10,10 +10,14 @@ arg0="${0##*/}"
 
 log() {
 	if [ $# = 0 ] ; then
-		echo "# ${arg0}: $(date +'%Y-%m-%d %H:%M:%S %z')"
+		echo
 	else
 		echo "# ${arg0}: $*"
 	fi >&2
+}
+
+log_date() {
+	log "$(date +'%Y-%m-%d %H:%M:%S %z')"
 }
 
 log_verbose() {
@@ -89,13 +93,9 @@ append_secret() {
 	unset _secret_arg _secret_path
 }
 
-append_build_ctx() {
-	append --build-context "$1"
-}
+append_build_ctx() { append --build-context "$1" ; }
 
-append_ulimit() {
-	append --ulimit "$1"
-}
+append_ulimit() { append --ulimit "$1" ; }
 
 append_cap() {
 	case "$1" in
@@ -122,12 +122,26 @@ append_env() {
 
 append_label() { append --label "${BUILD_IMAGE_LABEL_PREFIX}$1"; }
 
-append_annotation() {
-	append --annotation "$1"
-}
+append_annotation() { append --annotation "$1" ; }
 
 process_file_sh_style() {
 	sed -E -e '/^\s*(#|$)/d' "$@"
+}
+
+deprecation_msg() {
+	log
+	log "$1 is deprecated - use $2 instead"
+}
+
+deprecation_clash_msg() {
+	log
+	log "$1 is deprecated but $2 presents too - this is ERROR"
+	log
+}
+
+layers_required_msg() {
+	log "$1: layers are NOT enabled"
+	log "$1: enable via env 'BUILD_IMAGE_LAYERS=1' or 'BUILD_IMAGE_LAYERS=true' or even 'BUILDAH_LAYERS=true'"
 }
 
 build_image_cleanup() {
@@ -143,14 +157,99 @@ build_image_cleanup() {
 }
 build_image() {
 
-	case "${BUILD_IMAGE_PULL}" in
-	0 )
-		append --pull=false
-	;;
-	always | missing | never | true | false )
-		append "--pull=${BUILD_IMAGE_PULL}"
-	;;
-	esac
+	if [ -n "${BUILD_IMAGE_ENV}" ] ; then
+		deprecation_msg  BUILD_IMAGE_ENV  BUILD_IMAGE_ENVS
+		if [ -n "${BUILD_IMAGE_ENVS}" ] ; then
+			deprecation_clash_msg  BUILD_IMAGE_ENV  BUILD_IMAGE_ENVS
+			return 1
+		fi
+		log
+		export BUILD_IMAGE_ENVS="${BUILD_IMAGE_ENV}"
+	fi
+
+	if [ -n "${BUILD_IMAGE_ENV_FILE}" ] ; then
+		deprecation_msg  BUILD_IMAGE_ENV_FILE  BUILD_IMAGE_ENV_FILES
+		if [ -n "${BUILD_IMAGE_ENV_FILES}" ] ; then
+			deprecation_clash_msg  BUILD_IMAGE_ENV_FILE  BUILD_IMAGE_ENV_FILES
+			return 1
+		fi
+		log
+		export BUILD_IMAGE_ENV_FILES="${BUILD_IMAGE_ENV_FILE}"
+	fi
+
+	if [ -n "${BUILD_IMAGE_LABELS_FILE}" ] ; then
+		deprecation_msg  BUILD_IMAGE_LABELS_FILE  BUILD_IMAGE_LABEL_FILES
+		if [ -n "${BUILD_IMAGE_LABEL_FILES}" ] ; then
+			deprecation_clash_msg  BUILD_IMAGE_LABELS_FILE  BUILD_IMAGE_LABEL_FILES
+			return 1
+		fi
+		log
+		export BUILD_IMAGE_LABEL_FILES="${BUILD_IMAGE_LABELS_FILE}"
+	fi
+
+	if [ -n "${BUILD_IMAGE_ANNOTATIONS_FILE}" ] ; then
+		deprecation_msg  BUILD_IMAGE_ANNOTATIONS_FILE  BUILD_IMAGE_ANNOTATION_FILES
+		if [ -n "${BUILD_IMAGE_ANNOTATION_FILES}" ] ; then
+			deprecation_clash_msg  BUILD_IMAGE_ANNOTATIONS_FILE  BUILD_IMAGE_ANNOTATION_FILES
+			return 1
+		fi
+		log
+		export BUILD_IMAGE_ANNOTATION_FILES="${BUILD_IMAGE_ANNOTATIONS_FILE}"
+	fi
+
+	if [ -n "${BUILD_IMAGE_PULL}" ] ; then
+		case "${BUILD_IMAGE_PULL}" in
+		0 ) append --pull=false ;;
+		* ) append "--pull=${BUILD_IMAGE_PULL}" ;;
+		esac
+	fi
+
+	_layers="${BUILDAH_LAYERS:-false}"
+	if [ -n "${BUILD_IMAGE_LAYERS}" ] ; then
+		case "${BUILD_IMAGE_LAYERS}" in
+		0 ) BUILD_IMAGE_LAYERS=false ;;
+		1 ) BUILD_IMAGE_LAYERS=true ;;
+		esac
+		export BUILD_IMAGE_LAYERS
+
+		case "${BUILD_IMAGE_LAYERS}" in
+		false | true )
+			_layers=${BUILD_IMAGE_LAYERS}
+			append "--layers=${BUILD_IMAGE_LAYERS}"
+		;;
+		* )
+			log "layers: unrecognized value: ${BUILD_IMAGE_LAYERS}"
+			return 1
+		;;
+		esac
+	fi
+
+	if [ -n "${BUILD_IMAGE_CACHE_FROM}" ] ; then
+		if [ "${_layers}" = true ] ; then
+			append --cache-from "${BUILD_IMAGE_CACHE_FROM}"
+		else
+			layers_required_msg cache-from
+			return 1
+		fi
+	fi
+
+	if [ -n "${BUILD_IMAGE_CACHE_TO}" ] ; then
+		if [ "${_layers}" = true ] ; then
+			append --cache-to "${BUILD_IMAGE_CACHE_TO}"
+		else
+			layers_required_msg cache-to
+			return 1
+		fi
+	fi
+
+	if [ -n "${BUILD_IMAGE_CACHE_TTL}" ] ; then
+		if [ "${_layers}" = true ] ; then
+			append "--cache-ttl=${BUILD_IMAGE_CACHE_TTL}"
+		else
+			layers_required_msg cache-ttl
+			return 1
+		fi
+	fi
 
 	if [ -n "${BUILD_IMAGE_PLATFORM}" ] ; then
 		append --platform "${BUILD_IMAGE_PLATFORM}"
@@ -160,9 +259,11 @@ build_image() {
 		[ -z "${BUILD_IMAGE_VARIANT}" ] || append --variant "${BUILD_IMAGE_VARIANT}"
 	fi
 
+	_net=private
 	if [ -n "${BUILD_IMAGE_NETWORK}" ] ; then
-		case "${BUILD_IMAGE_NETWORK}" in
-		none) append --http-proxy=false ;;
+		_net="${BUILD_IMAGE_NETWORK%%:*}"
+		case "${_net}" in
+		none ) append --http-proxy=false ;;
 		esac
 		append "--net=${BUILD_IMAGE_NETWORK}"
 	fi
@@ -193,65 +294,47 @@ build_image() {
 		break
 	done
 
-	for _i in ${BUILD_IMAGE_ARGS} ; do
+	for _i in ${BUILD_IMAGE_ARGS:-} ; do
 		[ -n "${_i}" ] || continue
 		append_arg "${_i}"
 	done ; unset _i
 
-	for _i in ${BUILD_IMAGE_SECRETS} ; do
+	for _i in ${BUILD_IMAGE_ARG_FILES:-} ; do
+		[ -n "${_i}" ] || continue
+		append "--build-arg-file=${_i}"
+	done ; unset _i
+
+	for _i in ${BUILD_IMAGE_SECRETS:-} ; do
 		[ -n "${_i}" ] || continue
 		append_secret "${_i}"
 	done ; unset _i
 
-	for _i in ${BUILD_IMAGE_CONTEXTS} ; do
+	for _i in ${BUILD_IMAGE_CONTEXTS:-} ; do
 		[ -n "${_i}" ] || continue
 		append_build_ctx "${_i}"
 	done ; unset _i
 
-	for _i in ${BUILD_IMAGE_ULIMITS} ; do
+	for _i in ${BUILD_IMAGE_ULIMITS:-} ; do
 		[ -n "${_i}" ] || continue
 		append_ulimit "${_i}"
 	done ; unset _i
 
-	for _i in ${BUILD_IMAGE_CAPABILITIES} ; do
+	for _i in ${BUILD_IMAGE_CAPABILITIES:-} ; do
 		[ -n "${_i}" ] || continue
 		append_cap "${_i}"
 	done ; unset _i
 
-	for _i in ${BUILD_IMAGE_VOLUMES} ; do
+	for _i in ${BUILD_IMAGE_VOLUMES:-} ; do
 		[ -n "${_i}" ] || continue
 		append_volume "${_i}"
 	done ; unset _i
 
-	# append arguments
-	[ $# = 0 ] || append "$@"
-
-	if [ -z "${BUILD_IMAGE_ARG0_FILE}" ] ; then
-		log "nothing to do: arg0_file was not created"
-		return 1
-	fi
-	if ! [ -s "${BUILD_IMAGE_ARG0_FILE}" ] ; then
-		log "nothing to do: arg0_file is empty"
-		return 1
-	fi
-
-	set +e
-	xargs -0 -r ${BUILD_IMAGE_VERBOSE:+-t} -a "${BUILD_IMAGE_ARG0_FILE}" \
-	buildah bud
-	_r=$?
-
-	build_image_cleanup
-
-	return ${_r}
-}
-
-build_image_ex() {
-	for _i in ${BUILD_IMAGE_ENV} ; do
+	for _i in ${BUILD_IMAGE_ENVS:-} ; do
 		[ -n "${_i}" ] || continue
 		append_env "${_i}"
 	done ; unset _i
 
-	for _n in ${BUILD_IMAGE_ENV_FILE} ; do
+	for _n in ${BUILD_IMAGE_ENV_FILES:-} ; do
 		[ -n "${_n}" ] || continue
 
 		for _f in "${_n}" ${BUILD_IMAGE_WORKDIR:+"${BUILD_IMAGE_WORKDIR}${_n}"} ; do
@@ -274,12 +357,12 @@ build_image_ex() {
 		done ; unset _f
 	done ; unset _n
 
-	for _i in ${BUILD_IMAGE_LABELS} ; do
+	for _i in ${BUILD_IMAGE_LABELS:-} ; do
 		[ -n "${_i}" ] || continue
 		append_label "${_i}"
 	done ; unset _i
 
-	for _n in ${BUILD_IMAGE_LABELS_FILE} ; do
+	for _n in ${BUILD_IMAGE_LABEL_FILES:-} ; do
 		[ -n "${_n}" ] || continue
 
 		for _f in "${_n}" ${BUILD_IMAGE_WORKDIR:+"${BUILD_IMAGE_WORKDIR}${_n}"} ; do
@@ -302,12 +385,12 @@ build_image_ex() {
 		done ; unset _f
 	done ; unset _n
 
-	for _i in ${BUILD_IMAGE_ANNOTATIONS} ; do
+	for _i in ${BUILD_IMAGE_ANNOTATIONS:-} ; do
 		[ -n "${_i}" ] || continue
 		append_annotation "${_i}"
 	done ; unset _i
 
-	for _n in ${BUILD_IMAGE_ANNOTATIONS_FILE} ; do
+	for _n in ${BUILD_IMAGE_ANNOTATION_FILES:-} ; do
 		[ -n "${_n}" ] || continue
 
 		for _f in "${_n}" ${BUILD_IMAGE_WORKDIR:+"${BUILD_IMAGE_WORKDIR}${_n}"} ; do
@@ -330,22 +413,119 @@ build_image_ex() {
 		done ; unset _f
 	done ; unset _n
 
-	build_image "$@"
+	unset _layers _net
+
+	for _i in ${BUILD_IMAGE_EXTRA_ARGUMENTS:-} ; do
+		[ -n "${_i}" ] || continue
+		append "${_i}"
+	done ; unset _i
+
+	# append arguments
+	[ $# = 0 ] || append "$@"
+
+	if [ -z "${BUILD_IMAGE_ARG0_FILE}" ] ; then
+		log "nothing to do: arg0_file was not created"
+		return 1
+	fi
+	if ! [ -s "${BUILD_IMAGE_ARG0_FILE}" ] ; then
+		log "nothing to do: arg0_file is empty"
+		return 1
+	fi
+
+	set +e
+	xargs -0 -r \
+	  ${BUILD_IMAGE_VERBOSE:+-t} \
+	  -a "${BUILD_IMAGE_ARG0_FILE}" \
+	  buildah bud
+	_r=$?
+
+	build_image_cleanup
+
+	return ${_r}
 }
 
 push_image_by_ref() {
-	log "push: ${1:?}"
-	podman push "$1" || return 1
+	[ $# != 0 ] || return 1
+	[ -n "$1" ] || return 1
+	
+	_w=$(mktemp -d) ; : "${_w:?}"
 
-	while read -r _image ; do
-		[ -n "${_image}" ] || continue
+	podman images --format='{{.Repository}}' --filter "reference=$1" | sort -uV > "${_w}/repo" || {
+		rm -rf "${_w}"
+		unset _w
+		return 1
+	}
+	podman images --format='{{.Repository}}:{{.Tag}}' --filter "reference=$1" > "${_w}/name" || {
+		rm -rf "${_w}"
+		unset _w
+		return 1
+	}
 
-		log "copy: $1 -> ${_image}"
-		skopeo copy "docker://$1" "docker://${_image}" || continue
-	done <<-EOF
-	$(podman images --format='{{.Repository}}:{{.Tag}}' --filter "reference=$1" | grep -Fxv -e "$1" || :)
-	EOF
-	unset _image
+	# push images from arguments
+	for _i ; do
+		_repo="${_i%:*}"
+		grep -Fxq -e "${_repo}" "${_w}/repo" || continue
+
+		log "push: ${_i}"
+		podman push "${_i}" || {
+			rm -rf "${_w}"
+			unset _w _i _repo
+			return 1
+		}
+		
+		echo "${_i}" >> "${_w}/name.done"
+
+		grep -Fxv -e "${_repo}" "${_w}/repo" > "${_w}/tbuf" || :
+		cat < "${_w}/tbuf" > "${_w}/repo" ; rm -f "${_w}/tbuf"
+
+		grep -Fxv -e "${_i}" "${_w}/name" > "${_w}/tbuf" || :
+		cat < "${_w}/tbuf" > "${_w}/name" ; rm -f "${_w}/tbuf"
+	done ; unset _i _repo
+
+	# push remaining (unique) images
+	while read -r _repo ; do
+		[ -n "${_repo}" ] || continue
+
+		_i=$(grep -m 1 -F -e "${_repo}:" "${_w}/name" || : )
+		[ -n "${_i}" ] || {
+			log "push: unable to find image name for repository ${_repo}"
+			continue
+		}
+
+		log "push: ${_i}"
+		podman push "${_i}" || {
+			rm -rf "${_w}"
+			unset _w _repo _i
+			return 1
+		}
+
+		echo "${_i}" >> "${_w}/name.done"
+
+		grep -Fxv -e "${_i}" "${_w}/name" > "${_w}/tbuf" || :
+		cat < "${_w}/tbuf" > "${_w}/name" ; rm -f "${_w}/tbuf"
+	done < "${_w}/repo" ; unset _repo _i
+
+	# copy remaining images
+	while read -r _i ; do
+		[ -n "${_i}" ] || continue
+
+		_repo="${_i%:*}"
+		_src=$(grep -m 1 -F -e "${_repo}:" "${_w}/name.done" || : )
+		[ -n "${_src}" ] || {
+			log "copy: unable to find source image name for image ${_i}"
+			continue
+		}
+
+		log "copy: src: ${_src}"
+		log "copy: dst: ${_i}"
+		skopeo copy "docker://${_src}" "docker://${_i}" || {
+			rm -rf "${_w}"
+			unset _w _i _repo _src
+			return 1
+		}
+	done < "${_w}/name" ; unset _i _repo _src
+
+	rm -rf "${_w}"
 }
 
 # TODO: push_image_by_id() is needed or not?
@@ -397,8 +577,8 @@ fi
 # in case of sourcing
 
 case "${0##*/}" in
-build-image.sh) ;;
-*)
+build-image.sh ) ;;
+* )
 	unset __BUILD_IMAGE_X
 	__BUILD_IMAGE_X=1
 ;;
@@ -414,7 +594,7 @@ usage() {
 	cat >&2 <<-EOF
 		Usage: ${arg0} <script/directory> [.. <image name>]
 	EOF
-	exit ${1:-1}
+	exit "${1:-1}"
 }
 
 if [ $# -eq 0 ] ; then
@@ -510,7 +690,7 @@ export BUILD_IMAGE_NAME BUILD_IMAGE_NAME_AUTO BUILD_IMAGE_PUSH
 
 # detect "base image" script/files (if any)
 
-: "${BUILD_IMAGE_BASE:=1}"
+: "${BUILD_IMAGE_BASE:-1}"
 export BUILD_IMAGE_BASE
 
 if [ "${BUILD_IMAGE_BASE}" = 1 ] ; then
@@ -570,9 +750,9 @@ fi
 # detect changes in "base image" (if any)
 while [ "${BUILD_IMAGE_BASE}" = 1 ] ; do
 	case "${BUILD_IMAGE_BASE_REBUILD}" in
-	skip | force) break ;;
-	0) BUILD_IMAGE_BASE_REBUILD=skip  ; break ;;
-	1) BUILD_IMAGE_BASE_REBUILD=force ; break ;;
+	skip | force ) break ;;
+	0 ) BUILD_IMAGE_BASE_REBUILD=skip  ; break ;;
+	1 ) BUILD_IMAGE_BASE_REBUILD=force ; break ;;
 	esac
 
 	export BUILD_IMAGE_BASE_REBUILD=skip
@@ -685,7 +865,8 @@ BUILD_IMAGE_SCRIPT_POST=$(adjust_script_name "${BUILD_IMAGE_SCRIPT_POST}")
 unset BUILD_IMAGE_LABEL_PREFIX
 
 if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
-	export BUILD_IMAGE_LABEL_PREFIX='base.'
+	__BUILD_IMAGE_LABEL_PREFIX="${BUILD_IMAGE_LABEL_PREFIX:-}"
+	export BUILD_IMAGE_LABEL_PREFIX="base.${BUILD_IMAGE_LABEL_PREFIX}"
 
 	run_script "${BUILD_IMAGE_SCRIPT_POST}" pre base || {
 		build_image_cleanup
@@ -700,7 +881,7 @@ if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
 		result=$?
 	else
 		BUILD_IMAGE_SCRIPT="${BUILD_IMAGE_BASE_SCRIPT}" \
-		build_image_ex \
+		build_image \
 		  -t "${BUILD_IMAGE_BASE_NAME}" \
 		  -f "${BUILD_IMAGE_BASE_SCRIPT}" \
 		"${BUILD_IMAGE_CONTEXT:-.}"
@@ -713,11 +894,17 @@ if [ "${BUILD_IMAGE_BASE_REBUILD}" = force ] ; then
 	fi
 
 	unset BUILD_IMAGE_LABEL_PREFIX
+	if [ -n "${__BUILD_IMAGE_LABEL_PREFIX}" ] ; then
+		export BUILD_IMAGE_LABEL_PREFIX="${__BUILD_IMAGE_LABEL_PREFIX}"
+	fi
+	unset __BUILD_IMAGE_LABEL_PREFIX
 
-	# replace first "FROM" image with current base image
-	# this is 1st argument in file "${BUILD_IMAGE_ARG0_FILE}"
-	# since file is removed after build in build_image()/build_image_ex()
-	append --from "${BUILD_IMAGE_BASE_NAME}"
+	if [ "${BUILD_IMAGE_BASE_AUTO_FROM:-1}" = 1 ] ; then
+		# replace first "FROM" image with current base image
+		# this is 1st argument in file "${BUILD_IMAGE_ARG0_FILE}"
+		# since file is removed after build in build_image()
+		append --from "${BUILD_IMAGE_BASE_NAME}"
+	fi
 
 	run_script "${BUILD_IMAGE_SCRIPT_POST}" post base || {
 		build_image_cleanup
@@ -746,7 +933,7 @@ else
 		"${BUILD_IMAGE_CONTEXT:-.}"
 		result=$?
 	else
-		build_image_ex \
+		build_image \
 		  -t "${BUILD_IMAGE_NAME}" \
 		  -f "${BUILD_IMAGE_SCRIPT}" \
 		"${BUILD_IMAGE_CONTEXT:-.}"
@@ -765,15 +952,18 @@ run_script "${BUILD_IMAGE_SCRIPT_POST}" post main || {
 	exit 1
 }
 
-# implicit iteration over "$@""
+if [ $# != 0 ] ; then
+	log "tag: src: ${BUILD_IMAGE_NAME}"
+fi
+# implicit iteration over "$@"
 for _arg ; do
 	case "${_arg}" in
-	:*) _image="${BUILD_IMAGE_NAME%:*}${_arg}" ;;
-	*:) _image="${_arg}${BUILD_IMAGE_NAME#*:}" ;;
-	*) _image="${_arg}" ;;
+	:* ) _image="${BUILD_IMAGE_NAME%:*}${_arg}" ;;
+	*: ) _image="${_arg}${BUILD_IMAGE_NAME#*:}" ;;
+	* )  _image="${_arg}" ;;
 	esac
 
-	log "tag: ${BUILD_IMAGE_NAME} -> ${_image}"
+	log "tag: dst: ${_image}"
 	podman tag "${BUILD_IMAGE_NAME}" "${_image}"
 done ; unset _arg _image
 
@@ -784,7 +974,7 @@ if [ "${BUILD_IMAGE_PUSH}" = 1 ] ; then
 
 	push_image_by_ref "${BUILD_IMAGE_NAME}"
 else
-	log "NOT pushing image${*:+(s)}: ${BUILD_IMAGE_BASE_NAME:+${BUILD_IMAGE_BASE_NAME} }${BUILD_IMAGE_NAME}${*:+ $*}"
+	log "NOT pushing image(s): ${BUILD_IMAGE_BASE_NAME:+${BUILD_IMAGE_BASE_NAME} }${BUILD_IMAGE_NAME}${*:+ $*}"
 fi
 
 # list images

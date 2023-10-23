@@ -55,7 +55,7 @@ build_single() {
 	fi
 
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
-	BUILD_IMAGE_ENV="NODEJS_VERSION NODEJS_MAJOR_VERSION" \
+	BUILD_IMAGE_ENVS="NODEJS_VERSION NODEJS_MAJOR_VERSION" \
 	build-image.sh image/nodejs/ "${IMAGE_PATH}/${NODEJS_MIN_IMAGE}" ${extra_tags}
 
 	# "nodejs" derives env from "nodejs-min"

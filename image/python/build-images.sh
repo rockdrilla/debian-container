@@ -55,7 +55,7 @@ build_single() {
 	fi
 
 	BUILD_IMAGE_TARGET="minimal${CI:+-ci}" \
-	BUILD_IMAGE_ENV="PYTHON_VERSION PYTHON_BASE_VERSION" \
+	BUILD_IMAGE_ENVS="PYTHON_VERSION PYTHON_BASE_VERSION" \
 	build-image.sh image/python/ "${IMAGE_PATH}/${PYTHON_MIN_IMAGE}" ${extra_tags}
 
 	# "python" derives env from "python-min"
