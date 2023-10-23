@@ -1,0 +1,3 @@
+lib/k2/persistence/ca-bundle-openssl.sh etc/ca-certificates/update.d/k2-ca-bundle-openssl-hook
+lib/k2/persistence/ca-bundle-openssl.sh sbin/k2-ca-bundle-openssl-restore
+lib/k2/persistence/ca-bundle-openssl.sh sbin/k2-ca-bundle-openssl-update

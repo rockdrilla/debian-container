@@ -1,4 +1,4 @@
-interest-noawait k2-verify-persistent-ca-bundle-java
+interest-noawait k2-ca-bundle-java-verify
 
 interest-await   /etc/ssl
 interest-await   /usr/share/ca-certificates

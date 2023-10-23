@@ -132,9 +132,13 @@ done
 
 rm -rf "${bootstrap}"
 
+# install dumb-init
+# TODO: write own one
+apt-install dumb-init
+
 # fixtures
-k2-update-persistent-ca-bundle
-k2-update-persistent-ca-bundle-java
+k2-ca-bundle-openssl-update
+k2-ca-bundle-java-update
 
 # remove bootstrap package
 dpkg -P k2-bootstrap || :

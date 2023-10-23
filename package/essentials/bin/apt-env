@@ -4,9 +4,11 @@
 
 set -ef
 
-export DEBCONF_NONINTERACTIVE_SEEN=true
-export DEBIAN_FRONTEND=noninteractive
-export DEBIAN_PRIORITY=critical
-export TERM=linux
+set -a
+DEBCONF_NONINTERACTIVE_SEEN=true
+DEBIAN_FRONTEND=noninteractive
+DEBIAN_PRIORITY=critical
+TERM=linux
+set +a
 
 exec "$@"

@@ -1,0 +1,18 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2021-2023, Konstantin Demin
+
+set -ef
+
+w=$(mktemp -d) ; : "${w:?}"
+
+dpkg-list-installed > "$w/all"
+dpkg-list-auto > "$w/auto"
+
+if [ -s "$w/auto" ] ; then
+	grep -Fxv -f "$w/auto"
+else
+	cat
+fi < "$w/all"
+
+rm -rf "$w"

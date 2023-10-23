@@ -7,8 +7,8 @@ _deb_control_templates +=$(sort $(wildcard debian/*.in))
 _deb_rename ?=$(1)
 _deb_rename_real =$(patsubst %.in,%,$(call _deb_rename,$(strip $(1))))
 
-_safe_var_rx :=^[a-zA-Z][a-zA-Z0-9_]+$$
-_safe_vars =$(shell printf '%s' '$(.VARIABLES)' | tr -s '[:space:]' '\0' | sed -zEn '/$(_safe_var_rx)/p' | tr -s '\0' ' ')
+# _safe_var_rx :=^[a-zA-Z][a-zA-Z0-9_]+$$
+_safe_vars =$(shell printf '%s' '$(.VARIABLES)' | tr -s '[:space:]' '\0' | sed -zEn '/^[a-zA-Z][a-zA-Z0-9_]+$$/p' | tr -s '\0' ' ')
 
 # '@' + '{'
 _var_prefix :=$(shell printf '\100\173')

@@ -1,9 +1,9 @@
 Source: k2-essentials
-Section: metapackages
+Section: misc
 Priority: optional
 Maintainer: Konstantin Demin <rockdrilla@gmail.com>
 Build-Depends: debhelper-compat (= 13),
-Build-Depends-Arch: g++-@{gcc_latest},
+Build-Depends-Arch: g++-@{latest_gcc_ver},
 Rules-Requires-Root: no
 Standards-Version: 4.6.2
 Homepage: https://github.com/rockdrilla/debian-container
@@ -11,23 +11,34 @@ Vcs-Git: https://github.com/rockdrilla/debian-container.git
 Vcs-Browser: https://github.com/rockdrilla/debian-container/tree/main/package/essentials
 
 Package: k2-essentials
+Section: metapackages
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
          k2-cleanup,
-         k2-common-scripts,
          k2-common-bin,
-         k2-fs-filter,
-         k2-exe-filter,
+         k2-common-scripts,
+         k2-empty,
          k2-entrypoint,
-         k2-persistent-ca-bundle,
-         k2-persistent-ca-bundle-java,
+         k2-exe-filter,
+         k2-fs-filter,
          k2-sodeps,
-Recommends: k2-common-dev-scripts,
+Recommends: k2-ca-bundle-openssl,
+            k2-ca-bundle-java,
+Suggests: k2-common-dev-scripts,
 Description: K2 - essentials (meta-package)
  This package installs all container-related packages.
 
+Package: k2-empty
+Section: metapackages
+Architecture: all
+Multi-Arch: allowed
+Depends: ${misc:Depends},
+Description: K2 - empty package
+ This package is provided for compatibility.
+
 Package: k2-bootstrap
+Section: oldlibs
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
@@ -38,37 +49,40 @@ Description: K2 - bootstrap settings
  This package performs generic container configuration and only useful
  for bootstrapping.
 
-Package: k2-persistent-ca-bundle
+Package: k2-ca-bundle-openssl
+Section: admin
 Architecture: all
 Multi-Arch: allowed
 Enhances: ca-certificates,
-Description: K2 - persistence (OpenSSL CA bundle)
- This package maintains persistence of CA certificate bundle, namely:
+Description: K2 - CA bundle persistence (OpenSSL)
+ This package maintains persistence of OpenSSL CA certificate bundle, namely:
  .
  - /etc/ssl/certs/ca-certificates.crt
  .
- Normally, this package tracks this file via deb-triggers(5).
- Hovewer, the one may run `k2-update-persistent-ca-bundle'
+ Normally, this file is tracked via deb-triggers(5).
+ Hovewer, the one may run `k2-ca-bundle-openssl-update'
  to ensure that stored CA bundles are in sync, or
- `k2-restore-persistent-ca-bundle' to restore previous state
+ `k2-ca-bundle-openssl-restore' to restore previous state
  of CA bundles.
 
-Package: k2-persistent-ca-bundle-java
+Package: k2-ca-bundle-java
+Section: admin
 Architecture: all
 Multi-Arch: allowed
 Enhances: ca-certificates-java,
-Description: K2 - persistence (Java CA bundle)
+Description: K2 - CA bundle persistence (Java)
  This package maintains persistence of Java CA certificate bundle, namely:
  .
  - /etc/ssl/certs/java/cacerts
  .
- Normally, this package tracks this file via deb-triggers(5).
- Hovewer, the one may run `k2-update-persistent-ca-bundle-java'
+ Normally, this file is tracked via deb-triggers(5).
+ Hovewer, the one may run `k2-ca-bundle-java-update'
  to ensure that stored CA bundles are in sync, or
- `k2-restore-persistent-ca-bundle-java' to restore previous state
+ `k2-ca-bundle-java-restore' to restore previous state
  of CA bundles.
 
 Package: k2-common-scripts
+Section: utils
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
@@ -76,10 +90,11 @@ Recommends: k2-common-bin,
             apt,
 Suggests: curl,
           gnupg,
-Description: K2 - common tools
- This package contains common scripts and tools for containers.
+Description: K2 - common scripts
+ This package contains common scripts for containers.
 
 Package: k2-common-bin
+Section: utils
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
@@ -88,6 +103,7 @@ Description: K2 - common tools (binaries and shared libraries)
  This package contains extra binaries and shared libraries for containers.
 
 Package: k2-cleanup
+Section: admin
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
@@ -97,6 +113,7 @@ Description: K2 - cleanup scripts
  This package contains cleanup facility for containers.
 
 Package: k2-common-dev-scripts
+Section: devel
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
@@ -109,21 +126,23 @@ Suggests: build-essential,
           gcc,
           git,
           gnupg,
-Description: K2 - dev tools
+Description: K2 - development scripts
  This package contains development scripts and tools for containers.
 
 Package: k2-fs-filter
+Section: admin
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          k2-common-scripts,
-Description: K2 - fs-filter
+Description: K2 - generic FS filter
  This package contains generic file system filter script for containers.
  .
  This is more robust solution than "path-include" / "path-exclude"
  stanzas in dpkg configuration.
 
 Package: k2-exe-filter
+Section: admin
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
@@ -135,16 +154,18 @@ Description: K2 - "exe" filter
  of executables in common paths for "k2-cleanup" package.
 
 Package: k2-entrypoint
+Section: admin
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          k2-common-scripts,
-         dumb-init,
 Recommends: k2-common-bin,
+            dumb-init,
 Description: K2 - image entrypoint
  This package contains extensible image entrypoint script for containers.
 
 Package: k2-sodeps
+Section: utils
 Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
@@ -152,3 +173,6 @@ Depends: ${misc:Depends},
 Description: K2 - ELF dependency investigation
  This package contains "sodeps" script which does mostly the same thing as
  "dh_shlibdeps"/"dpkg-shlibdeps".
+ .
+ This package also provides "apt-wrap-*" scripts. They are implementing
+ handy combination of "apt-wrap" script with "sodeps".

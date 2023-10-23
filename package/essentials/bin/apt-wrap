@@ -38,8 +38,8 @@ case "$1" in
 
 	w=$(mktemp -d) ; : "${w:?}"
 
-	apt-list-installed > "$w/installed.0"
-	apt-list-manual    > "$w/manual.0"
+	dpkg-list-installed > "$w/installed.0"
+	dpkg-list-manual    > "$w/manual.0"
 
 	: > "$w/keep"
 	: > "$w/new"
@@ -63,8 +63,8 @@ case "$1" in
 		;;
 		esac </dev/null >&2
 
-		apt-list-installed > "$w/installed.1"
-		apt-list-manual    > "$w/manual.1"
+		dpkg-list-installed > "$w/installed.1"
+		dpkg-list-manual    > "$w/manual.1"
 
 		set +e
 		grep -Fxv -f "$w/installed.0" < "$w/installed.1" > "$w/new"
@@ -105,8 +105,8 @@ case "$1" in
 		  quiet apt-mark manual >&2
 	fi
 
-	apt-list-installed > "$w/installed.2"
-	apt-list-manual    > "$w/manual.2"
+	dpkg-list-installed > "$w/installed.2"
+	dpkg-list-manual    > "$w/manual.2"
 
 	# disable "safety" due to "grep"
 	set +e

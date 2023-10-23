@@ -209,41 +209,32 @@ done
 [ $# != 0 ] || usage 1
 
 _apt_search() {
-	apt-cache search "$1" | mawk "/^$2 /{print \$1}" | sort -ruV | head -n 1
+	apt-search "$@" | sort -ruV | head -n 1
 }
 
-# apt cache is used anyway
-apt-update
-
-# k2-golang-@{GOLANG_BASE_VERSION}-full
+_no_suitable_package() {
+	msg 'error: unable to find suitable golang package'
+	exit 1
+}
 
 gopkg=
 if [ -n "${o_version}" ] ; then
-	gopkg=$(_apt_search "k2-golang-${o_version}" 'k2-golang-[0-9.]+')
-	if [ -z "${gopkg}" ] ; then
-		msg 'error: unable to find suitable golang package'
-		exit 1
-	fi
+	gopkg=$(_apt_search "k2-golang-${o_version}")
+	[ -n "${gopkg}" ] || _no_suitable_package
 else
 	b=/usr/bin/go
 	if [ -e "$b" ] ; then
 		gopkg=$(readlink -ne "$b" | xvp dpkg-which - )
 	fi
 	if [ -z "${gopkg}" ] ; then
-		gopkg=$(_apt_search k2-golang 'k2-golang-[0-9.]+')
+		gopkg=$(_apt_search 'k2-golang-[0-9.]+')
 	fi
-	if [ -z "${gopkg}" ] ; then
-		msg 'error: unable to find suitable golang package'
-		exit 1
-	fi
+	[ -n "${gopkg}" ] || _no_suitable_package
 
 	o_version=$(printf '%s' "${gopkg}" | grep -oE '[0-9.]+$')
 fi
 
-if [ -z "${o_version}" ] ; then
-	msg 'error: unable to find suitable golang package'
-	exit 1
-fi
+[ -n "${o_version}" ] || _no_suitable_package
 
 gopkg="k2-golang-shim-${o_version}"
 

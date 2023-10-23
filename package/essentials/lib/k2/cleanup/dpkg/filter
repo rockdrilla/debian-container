@@ -10,8 +10,6 @@ set -f
 [ -z "${DEBUG}" ] || set -xv
 
 conf_dir=/etc/k2/dpkg-filter
-# bootstrap compat
-if [ -d "/usr/local${conf_dir}" ] ; then conf_dir="/usr/local${conf_dir}" ; fi
 
 [ -d "${conf_dir}" ] || exit 0
 

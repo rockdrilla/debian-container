@@ -8,22 +8,24 @@ tags='dpkg apt tree var'
 libdir=/lib/k2/cleanup
 confdir=/etc/k2/cleanup
 
-# bootstrap compat
-if [ -d "/usr/local${libdir}" ] ; then
-	libdir="/usr/local${libdir}"
-	confdir="/usr/local${confdir}"
-fi
-export CLEANUP_LIB_DIR="${libdir}" CLEANUP_CONF_DIR="${confdir}"
+set -a
 
 # reset locale to default one
 unset LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
 unset LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
-export LANG=C.UTF-8
-export LC_ALL=C.UTF-8
+LANG=C.UTF-8
+LC_ALL=C.UTF-8
 
 # setup various environment variables representing temporary directory
-export TMPDIR=/tmp
-export TMP=${TMPDIR} TEMPDIR=${TMPDIR} TEMP=${TMPDIR}
+TMPDIR=/tmp
+TMP=${TMPDIR}
+TEMPDIR=${TMPDIR}
+TEMP=${TMPDIR}
+
+CLEANUP_LIB_DIR="${libdir}"
+CLEANUP_CONF_DIR="${confdir}"
+
+set +a
 
 echo '# space usage before:'
 du -xsh /
@@ -45,7 +47,7 @@ done
 [ -z "${VERBOSE}" ] || list-stalled-configs
 
 # list "martian" packages (if any)
-[ -z "${VERBOSE}" ] || apt-list-martians
+[ -z "${VERBOSE}" ] || dpkg-list-martians
 
 # list files with setuid/setgid (if any)
 list-rootful-files

@@ -1,0 +1,56 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2023, Konstantin Demin
+
+set -ef
+
+me="${0##*/}"
+usage() {
+	cat >&2 <<-EOF
+	# usage: ${me} <name or regex> [regex]
+	EOF
+	exit "${1:-0}"
+}
+[ $# != 0 ] || usage
+[ -n "$1" ] || usage 1
+
+w=$(mktemp -d) ; : "${w:?}"
+r=0
+
+_exit() {
+	rm -rf "$w"
+	exit $r
+}
+
+set +e
+if [ "$(id -u)" = 0 ] ; then
+	apt-update
+fi
+apt-cache --names-only search "$1" > "$w/search"
+r=$?
+
+[ $r = 0 ]         || _exit
+[ -s "$w/search" ] || _exit
+
+mawk '{print $1}' < "$w/search" > "$w/list"
+rm -f "$w/search"
+
+pat="${2:-$1}"
+
+## plain string, exact match
+
+if grep -Fq -e "${pat}" "$w/list" ; then
+	grep -Fx -e "${pat}" "$w/list"
+	_exit
+fi
+
+## regex
+
+need_anchors=
+case "${pat}" in
+*^* | *\$* ) ;;
+*) need_anchors=1 ;;
+esac
+grep -E${need_anchors:+x} -e "${pat}" "$w/list"
+
+_exit

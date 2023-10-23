@@ -74,7 +74,7 @@ case "$1" in
 
 	if [ -z "${pathspec}" ] ; then
 		if [ -n "${VIRTUAL_ENV}" ] ; then
-			pathspec=$(env PATH="${VIRTUAL_ENV}/bin:${PATH}" python -c 'import site;print(":".join(site.getsitepackages()))')
+			pathspec=$(PATH="${VIRTUAL_ENV}/bin:${PATH}" env python -c 'import site;print(":".join(site.getsitepackages()))')
 		else
 			python="python-${pyverspec}"
 			case "$(id -u)" in
@@ -234,19 +234,18 @@ done
 [ $# != 0 ] || usage 1
 
 _apt_search() {
-	apt-cache search "$1" | mawk "/^$2 /{print \$1}" | sort -ruV | head -n 1
+	apt-search "$@" | sort -ruV | head -n 1
 }
 
-# apt cache is used anyway
-apt-update
+_no_suitable_package() {
+	msg 'error: unable to find suitable python package'
+	exit 1
+}
 
 pypkg=
 if [ -n "${o_version}" ] ; then
-	pypkg=$(_apt_search "k2-python-${o_version}-dev" 'k2-python-[0-9.]+-dev')
-	if [ -z "${pypkg}" ] ; then
-		msg 'error: unable to find suitable python package'
-		exit 1
-	fi
+	pypkg=$(_apt_search "k2-python-${o_version}-dev")
+	[ -n "${pypkg}" ] || _no_suitable_package
 else
 	b=$(command -v python)
 	if [ -n "$b" ] ; then
@@ -256,26 +255,16 @@ else
 		pypkg=$(readlink -ne /usr/bin/python | xvp dpkg-which - )
 	fi
 	if [ -z "${pypkg}" ] ; then
-		pypkg=$(_apt_search k2-python 'k2-python-[0-9.]+')
+		pypkg=$(_apt_search 'k2-python-[0-9.]+')
 	fi
-	if [ -z "${pypkg}" ] ; then
-		msg 'error: unable to find suitable python package'
-		exit 1
-	fi
+	[ -n "${pypkg}" ] || _no_suitable_package
 
 	o_version=$(printf '%s' "${pypkg}" | grep -oE '[0-9.]+$')
 fi
 
-if [ -z "${o_version}" ] ; then
-	msg 'error: unable to find suitable python package'
-	exit 1
-fi
+[ -n "${o_version}" ] || _no_suitable_package
 
-pypkg="k2-python-${o_version}-dev"
-want_shim=$(_apt_search "python${o_version}" "python${o_version}")
-if [ -n "${want_shim}" ] ; then
-	pypkg="k2-python-shim-${o_version}-dev"
-fi
+pypkg="k2-python-shim-${o_version}-dev"
 
 deps="${pypkg} build-essential debhelper fakeroot"
 case "${APT_WRAP_INSTALL_METHOD}" in

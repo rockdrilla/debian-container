@@ -1,9 +1,0 @@
-#!/bin/sh
-
-set -e
-
-. /lib/k2/persistence/ca-bundle.sh
-
-set -e
-
-#DEBHELPER#

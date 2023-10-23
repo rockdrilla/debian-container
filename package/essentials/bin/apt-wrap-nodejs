@@ -213,39 +213,32 @@ done
 [ $# != 0 ] || usage 1
 
 _apt_search() {
-	apt-cache search "$1" | mawk "/^$2 /{print \$1}" | sort -ruV | head -n 1
+	apt-search "$@" | sort -ruV | head -n 1
 }
 
-# apt cache is used anyway
-apt-update
+_no_suitable_package() {
+	msg 'error: unable to find suitable nodejs package'
+	exit 1
+}
 
 nodepkg=
 if [ -n "${o_version}" ] ; then
-	nodepkg=$(_apt_search "k2-nodejs-${o_version}-dev" 'k2-nodejs-[0-9]+-dev')
-	if [ -z "${nodepkg}" ] ; then
-		msg 'error: unable to find suitable nodejs package'
-		exit 1
-	fi
+	nodepkg=$(_apt_search "k2-nodejs-${o_version}-dev")
+	[ -n "${nodepkg}" ] || _no_suitable_package
 else
 	b=/usr/bin/nodejs
 	if [ -e "$b" ] ; then
 		nodepkg=$(readlink -ne "$b" | xvp dpkg-which - )
 	fi
 	if [ -z "${nodepkg}" ] ; then
-		nodepkg=$(_apt_search k2-nodejs 'k2-nodejs-[0-9]+')
+		nodepkg=$(_apt_search 'k2-nodejs-[0-9]+')
 	fi
-	if [ -z "${nodepkg}" ] ; then
-		msg 'error: unable to find suitable nodejs package'
-		exit 1
-	fi
+	[ -n "${nodepkg}" ] || _no_suitable_package
 
 	o_version=$(printf '%s' "${nodepkg}" | grep -oE '[0-9]+$')
 fi
 
-if [ -z "${o_version}" ] ; then
-	msg 'error: unable to find suitable nodejs package'
-	exit 1
-fi
+[ -n "${o_version}" ] || _no_suitable_package
 
 nodepkg="k2-nodejs-${o_version}-dev"
 

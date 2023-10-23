@@ -21,11 +21,16 @@ if [ "$0" != "$c" ] ; then
 	echo "# pkg_dir: ${pkg_dir}" >&2
 
 	# naive copy of container essential packages inside chroot
-	# e.g.: package/essentials/common-tools/bin -> /usr/local/bin
-	find "${pkg_dir}/" -mindepth 1 -maxdepth 1 -type d \
-	| grep -E '/(bin|etc|lib|sbin|share)$' \
-	| while read -r dir ; do
-		cp -vaR "${dir}/" "$1/usr/local/"
+	# e.g.: package/essentials/bin -> /bin
+	for _dir in bin etc lib sbin ; do
+		_src="${pkg_dir}/${_dir}"
+		[ -d "${_src}" ] || continue
+		_dst="$1/${_dir}"
+		if [ -h "${_dst}" ] ; then
+			# merged /usr quirk
+			_dst="$1/usr/${_dir}"
+		fi
+		tar -C "${_src}" -cf - . | tar -C "${_dst}" -xf -
 	done
 
 	# read environment from file (except PATH)
@@ -71,18 +76,6 @@ renmov() {
 rand4() {
 	od -v -A n -t x4 -N 4 < /dev/urandom | tr -d '[:space:]'
 }
-
-# fix ownership:
-# mmdebstrap's actions 'sync-in' and 'copy-in' preserves source user/group
-fix_ownership() {
-	find /usr/local/ -xdev ${1%%|*} -exec ${1##*|} '{}' '+'
-}
-
-[ "$4" = 0 ] || fix_ownership "-uid $4|chown -h 0"
-[ "$5" = 0 ] || fix_ownership "-gid $5|chgrp -h 0"
-
-# fix script permissions (if broken)
-find /usr/local/bin/ -type f -exec chmod 0755 {} +
 
 # rename/move apt&dpkg configuration
 renmov /etc/apt/apt.conf.d/99mmdebstrap  /etc/apt/apt.conf.d/k2
@@ -141,7 +134,7 @@ set -e
 
 # perform container configuration
 mkdir -p /etc/k2/dpkg-filter/
-/usr/local/lib/k2/bootstrap/settings.sh
+/lib/k2/bootstrap/settings.sh
 
 # generate CA bundles
 update-ca-certificates --fresh

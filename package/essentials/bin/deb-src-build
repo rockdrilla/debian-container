@@ -118,7 +118,11 @@ case "$1" in
 		| paste -zsd':' \
 		| tr -d '\0'
 	}
+	echo "# PATH=${PATH}" >&2
+	echo "# excluding /usr/local/* from PATH" >&2
+	set +e
 	PATH=$(reparse_path)
+	set -e
 	export PATH
 	echo "# PATH=${PATH}" >&2
 

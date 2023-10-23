@@ -12,10 +12,9 @@ fi
 
 w=$(mktemp -d) ; : "${w:?}"
 
-if [ -z "${NPROC}" ] ; then
-	NPROC=$(nproc || echo 1)
-	NPROC=$(( NPROC + (NPROC + 1)/2 ))
-fi
+# intrusive parallelism
+jobs=$(nproc)
+jobs=$(( jobs + (jobs + 1)/2 ))
 
 ufind -q -z "$@" > "$w/filelist"
 
@@ -23,7 +22,7 @@ mkdir "$w/results"
 export SODEPS_ELF_OUT="$w/results"
 
 xargs -0 -r -n 64 is-elf -z < "$w/filelist" \
-| xargs -0 -r -P "${NPROC}" -n 64 sodeps.elf
+| xargs -0 -r -P "${jobs}" -n 64 sodeps.elf
 
 # merge results
 find "$w/results/" -type f -exec sort -uV '{}' + > "$w/all"

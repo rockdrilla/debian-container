@@ -23,21 +23,17 @@ endif
 
 # adjust CFLAGS to pass --debug-prefix-map for `as'
 # ref: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=93371
-CFLAGS_maps := $(filter -ffile-prefix-map=% -fdebug-prefix-map=%,$(CFLAGS))
-ifneq (,$(CFLAGS_maps))
-  CFLAGS_maps := $(subst -ffile-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CFLAGS_maps))
-  CFLAGS_maps := $(subst -fdebug-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CFLAGS_maps))
-  CFLAGS := $(CFLAGS) $(sort $(CFLAGS_maps))
+CFLAGS_prefix_paths :=$(strip $(sort $(subst -ffile-prefix-map=,,$(filter -ffile-prefix-map=%,$(CFLAGS))) $(subst -fdebug-prefix-map=,,$(filter -fdebug-prefix-map=%,$(CFLAGS)))))
+ifneq (,$(CFLAGS_prefix_paths))
+  CFLAGS := $(CFLAGS) $(addprefix -Wa$(comma)--debug-prefix-map$(comma),$(CFLAGS_prefix_paths))
 endif
+$(call flush_vars, unset CFLAGS_prefix_paths )
 
 # adjust CXXFLAGS too
-CXXFLAGS_maps := $(filter -ffile-prefix-map=% -fdebug-prefix-map=%,$(CXXFLAGS))
-ifneq (,$(CXXFLAGS_maps))
-  CXXFLAGS_maps := $(subst -ffile-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CXXFLAGS_maps))
-  CXXFLAGS_maps := $(subst -fdebug-prefix-map=,-Wa$(comma)--debug-prefix-map$(comma),$(CXXFLAGS_maps))
-  CXXFLAGS := $(CXXFLAGS) $(sort $(CXXFLAGS_maps))
+CXXFLAGS_prefix_paths :=$(strip $(sort $(subst -ffile-prefix-map=,,$(filter -ffile-prefix-map=%,$(CXXFLAGS))) $(subst -fdebug-prefix-map=,,$(filter -fdebug-prefix-map=%,$(CXXFLAGS)))))
+ifneq (,$(CXXFLAGS_prefix_paths))
+  CXXFLAGS := $(CXXFLAGS) $(addprefix -Wa$(comma)--debug-prefix-map$(comma),$(CXXFLAGS_prefix_paths))
 endif
-
-$(call flush_vars, unset CFLAGS_maps CXXFLAGS_maps )
+$(call flush_vars, unset CXXFLAGS_prefix_paths )
 
 export ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS

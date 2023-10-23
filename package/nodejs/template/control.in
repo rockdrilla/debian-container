@@ -3,6 +3,7 @@ Section: javascript
 Priority: optional
 Maintainer: @{DEB_MAINTAINER}
 Build-Depends: debhelper-compat (= 13),
+               g++-@{latest_gcc_ver},
                ca-certificates,
                curl,
                gyp,

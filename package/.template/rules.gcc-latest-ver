@@ -1,10 +1,10 @@
 #!/usr/bin/make -f
 
 # try to build with fresh gcc available
-gcc_latest =$(strip $(shell apt-cache search 'gcc-' | mawk '/^gcc-[0-9.]+ /{print $$1}' | sort -rV | head -n 1 | cut -d - -f 2))
+latest_gcc_ver =$(strip $(shell apt-search 'gcc-[0-9.]+' | sort -rV | head -n 1 | cut -d - -f 2))
 
-CC     = $(DEB_HOST_GNU_TYPE)-gcc-$(gcc_latest)
-CXX    = $(DEB_HOST_GNU_TYPE)-g++-$(gcc_latest)
-AR     = $(DEB_HOST_GNU_TYPE)-gcc-ar-$(gcc_latest)
-RANLIB = $(DEB_HOST_GNU_TYPE)-gcc-ranlib-$(gcc_latest)
+CC     = $(DEB_HOST_GNU_TYPE)-gcc-$(latest_gcc_ver)
+CXX    = $(DEB_HOST_GNU_TYPE)-g++-$(latest_gcc_ver)
+AR     = $(DEB_HOST_GNU_TYPE)-gcc-ar-$(latest_gcc_ver)
+RANLIB = $(DEB_HOST_GNU_TYPE)-gcc-ranlib-$(latest_gcc_ver)
 export CC CXX AR RANLIB

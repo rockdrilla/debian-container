@@ -9,13 +9,14 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
-export DEB_BUILD_MAINT_OPTIONS := hardening=+all
-
 include debian/rules.common-defs
 include debian/rules.pkg-info
 include debian/rules.gcc-latest-ver
-include debian/rules.gcc-flags
 include debian/rules.gcc-lto
+
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong
+export DEB_BUILD_PATH := $(CURDIR)
+include debian/rules.gcc-flags
 
 ifeq ($(with_lto),yes)
   LTO_FLAGS := -g -flto=1 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none
@@ -62,6 +63,23 @@ override_dh_auto_test:
 execute_before_dh_install:
 	find $(CURDIR) -name .keep -type f -delete
 
+include debian/rules.install-extras
+
+override_dh_install:
+	$(call dh_install_move_ex, k2-bootstrap, . )
+	$(call dh_install_move_ex, k2-ca-bundle-java, . )
+	$(call dh_install_move_ex, k2-ca-bundle-openssl, . )
+	$(call dh_install_move_ex, k2-cleanup, . )
+	$(call dh_install_move_ex, k2-common-bin, . )
+	$(call dh_install_move_ex, k2-common-dev-scripts, . )
+	$(call dh_install_move_ex, k2-fs-filter, . )
+	$(call dh_install_move_ex, k2-sodeps, . )
+
+	dh_install --remaining-packages
+
 override_dh_dwz:
+
+execute_after_dh_gencontrol:
+	dh_gencontrol --package=k2-empty -- -v0.0.1-$(DEB_VERSION)
 
 include debian/rules.self-template

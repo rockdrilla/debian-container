@@ -3,7 +3,8 @@ Section: python
 Priority: optional
 Maintainer: @{DEB_MAINTAINER}
 Build-Depends: debhelper-compat (= 13),
-               g++-@{gcc_latest}, @{pgo_reuse_build_dep}
+               g++-@{latest_gcc_ver},
+               @{pgo_reuse_build_dep},
                autoconf-archive,
                blt-dev,
                jq,

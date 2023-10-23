@@ -221,16 +221,14 @@ if ! [ -s "$w/rules.match" ] ; then
 fi
 
 # intrusive parallelism
-if [ -z "${NPROC}" ] ; then
-	NPROC=$(nproc || echo 1)
-	NPROC=$(( NPROC + (NPROC + 1)/2 ))
-fi
+jobs=$(nproc)
+jobs=$(( jobs + (jobs + 1)/2 ))
 
 mkdir -p "$w/match.d"
 
 # execute self in parallel against "match" rules
 cut -d '=' -f 2- < "$w/rules.match" \
-| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --match "${topmost}" "$w/match.d"
+| xargs -r -d '\n' -n 1 -P "${jobs}" "$0" --match "${topmost}" "$w/match.d"
 
 # merge "match" results
 find "$w/match.d" -mindepth 1 -type f \
@@ -252,7 +250,7 @@ if [ -s "$w/rules.skip" ] ; then
 
 	# execute self in parallel against "skip" rules
 	cut -d '=' -f 2- < "$w/rules.skip" \
-	| xargs -r -d '\n' -n 1 -P "${NPROC}" "$0" --skip "${topmost}" "$w/skip.d" "$w/match"
+	| xargs -r -d '\n' -n 1 -P "${jobs}" "$0" --skip "${topmost}" "$w/skip.d" "$w/match"
 
 	# merge "skip" results
 	find "$w/skip.d" -mindepth 1 -type f \

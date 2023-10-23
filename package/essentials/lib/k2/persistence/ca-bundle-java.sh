@@ -8,7 +8,7 @@ orig_file='/etc/ssl/certs/java/cacerts'
 var='/var/lib/k2/persistence'
 state="${var}/ca-bundle-java.sha256"
 backup="${var}/ca-bundle-java.gz"
-refine_trigger='k2-verify-persistent-ca-bundle-java'
+refine_trigger='k2-ca-bundle-java-verify'
 
 verify() {
 	[ -s "${state}" ] || return 1
@@ -28,16 +28,16 @@ restore() {
 }
 
 case "${0##*/}" in
-k2-hook-* )
+k2-*-hook )
 	verify || save
 	# suppress errors for hook scripts (e.g. under /etc)
 	exit 0
 ;;
-k2-update-* )
+k2-*-update )
 	verify || save
 	exit
 ;;
-k2-restore-* )
+k2-*-restore )
 	verify || restore
 	exit
 ;;

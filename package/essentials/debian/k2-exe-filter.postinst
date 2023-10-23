@@ -17,7 +17,7 @@ inline_cfg() {
 	  chcpu chmem ctrlaltdel \
 	  debugfs delpart dmesg dumpe2fs \
 	  'e2scrub*' e2freefrag e2fsck e2image e2label e2mmpstatus e2scrub \
-	    e2undo e4crypt e4defrag \
+	      e2undo e4crypt e4defrag \
 	  'fsck.*' fdformat fincore findfs fsck fsfreeze fstrim \
 	  getty \
 	  hwclock \

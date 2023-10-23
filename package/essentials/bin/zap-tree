@@ -10,17 +10,15 @@ if [ -z "${ZAP_TREE}" ] ; then
 	export ZAP_TREE=1
 
 	# intrusive parallelism
-	if [ -z "${NPROC}" ] ; then
-		NPROC=$(nproc || echo 1)
-		NPROC=$(( NPROC + (NPROC + 1)/2 ))
-	fi
+	jobs=$(nproc)
+	jobs=$(( jobs + (jobs + 1)/2 ))
 
 	for i ; do
 		[ -d "$i" ] || continue
 		find "$i" -mindepth 1 -maxdepth 1 -type d -print0
 	done \
 	| sort -zuV \
-	| xargs -0 -r -n 1 -P "${NPROC}" "$0"
+	| xargs -0 -r -n 1 -P "${jobs}" "$0"
 
 	exit
 fi
