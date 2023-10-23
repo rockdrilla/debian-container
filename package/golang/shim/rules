@@ -36,6 +36,9 @@ override_dh_auto_install:
 
 override_dh_auto_test:
 
+override_dh_gencontrol:
+	dh_gencontrol -- -v$(DEB_EPOCH_FAKE)$(GOLANG_VERSION)-1.$(DEB_VERSION)
+
 .PHONY: build
 build:
 

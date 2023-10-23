@@ -8,7 +8,7 @@ configure )
 	set -a
 	GOPATH='/@{GOLANG_PREFIX}'
 	if [ -z "${GOMAXPROCS}" ] ; then
-		GOMAXPROCS=${NPROC:-2}
+		GOMAXPROCS=$(nproc)
 	fi
 	if [ "${GOMAXPROCS}" = 1 ] ; then
 		GOMAXPROCS=2

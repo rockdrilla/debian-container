@@ -3,7 +3,7 @@ Section: golang
 Priority: optional
 Maintainer: @{DEB_MAINTAINER}
 Build-Depends: debhelper-compat (= 13),
-               @{golang_k2_latest}@{golang_debian_latest},
+               @{golang_build_dep},
                netbase,
                pkg-config,
 Rules-Requires-Root: no
@@ -18,10 +18,10 @@ Pre-Depends: ${shlibs:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
          k2-golang-@{GOLANG_BASE_VERSION}-src,
          binutils,
-         dpkg-dev,
          git,
 Recommends: k2-golang-shim-@{GOLANG_BASE_VERSION},
             ca-certificates,
+            dpkg-dev,
             g++,
             gcc,
             libc6-dev | libc-dev,
@@ -36,7 +36,7 @@ Description: K2 - Go v@{GOLANG_BASE_VERSION}
 Package: k2-golang-@{GOLANG_BASE_VERSION}-src
 Architecture: all
 Depends: ${misc:Depends},
-Description: K2 - Go v@{GOLANG_BASE_VERSION} - source files
+Description: K2 - Go v@{GOLANG_BASE_VERSION} (source files)
  This package provides the Go programming language source files needed for
  compilation.
 
@@ -47,7 +47,7 @@ Depends: k2-golang-@{GOLANG_BASE_VERSION},
          build-essential,
          ca-certificates,
          pkg-config,
-Description: K2 - Go v@{GOLANG_BASE_VERSION} - full installation
+Description: K2 - Go v@{GOLANG_BASE_VERSION} (full installation)
  This package installs k2-golang-@{GOLANG_BASE_VERSION} along with
  recommended packages.
 
@@ -55,7 +55,7 @@ Package: k2-golang-@{GOLANG_BASE_VERSION}-race
 Architecture: any
 Pre-Depends: ${shlibs:Pre-Depends}
 Depends: k2-golang-@{GOLANG_BASE_VERSION}-full,
-Description: K2 - Go v@{GOLANG_BASE_VERSION} - extra installation
+Description: K2 - Go v@{GOLANG_BASE_VERSION} (extra installation)
  This package installs k2-golang-@{GOLANG_BASE_VERSION}-full and standard
  library with enabled data race detector.
 
@@ -64,6 +64,6 @@ Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          k2-common-scripts,
-Description: K2 - Go v@{GOLANG_BASE_VERSION} - thin CI installer
+Description: K2 - Go v@{GOLANG_BASE_VERSION} (thin CI installer)
  This package contains wrapper script to install k2-golang-@{GOLANG_BASE_VERSION}
  on first call.

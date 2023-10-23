@@ -10,16 +10,12 @@ export DH_VERBOSE := 1
 include /usr/share/dpkg/default.mk
 
 include debian/rules.common-defs
-
-export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-stackprotectorstrong optimize=-lto
-export DEB_BUILD_PATH := $(CURDIR)
+include debian/rules.pkg-info
 
 # Ubuntu mangles png files by default, which can break some files.
 export NO_PNG_PKG_MANGLE := 1
 
 export SOURCE_DATE_EPOCH
-
-include debian/rules.pkg-info
 
 GOLANG_VERSION ?= $(DEB_VERSION_UPSTREAM)
 
@@ -35,17 +31,19 @@ NPROC_MAKE := $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 NPROC_MAKE := $(if $(NPROC_MAKE),$(NPROC_MAKE),$(shell nproc))
 NPROC_TEST := $(shell echo "$$(( ($(NPROC_MAKE) + 1)/2 ))")
 
-with_bootstrap :=$(if $(filter nobootstrap,$(DEB_BUILD_OPTIONS)),no,yes)
-
-include debian/rules.gcc-flags
+export GOMAXPROCS :=$(strip $(NPROC_MAKE))
+ifeq ($(GOMAXPROCS),1)
+export GOMAXPROCS :=2
+endif
 
 export GOROOT_FINAL := /$(GOLANG_PREFIX)
 
 export CGO_ENABLED := 0
 
 # try to build with fresh golang available
-golang_debian_latest =$(strip $(shell apt-cache search 'golang-' | mawk '/^golang-[0-9.]+ /{print $$1}' | sort -rV | head -n 1))
-golang_k2_latest =$(shell apt-cache search 'k2-golang-' | mawk '/^k2-golang-[0-9.]+-full /{print $$1}' | sort -rV | head -n 1 | sed -En 's/^(.+)$$/\1 | /p')
+golang_debian_latest =$(strip $(shell apt-search 'golang-[0-9.]+' | sort -rV | head -n 1))
+golang_k2_latest =$(shell apt-search 'k2-golang-[0-9.]+' | sort -rV | head -n 1)
+golang_build_dep =$(if $(golang_k2_latest),$(golang_k2_latest) |,)$(golang_debian_latest)
 
 GO = $(word 1,$(wildcard /opt/golang-*/bin/go) $(wildcard /usr/lib/go-*/bin/go))
 
@@ -111,14 +109,10 @@ execute_before_dh_auto_build:
 	: # verify DEB_BUILD_OPTIONS
 	@echo "# DEB_BUILD_OPTIONS = $${DEB_BUILD_OPTIONS}" >&2
 
-deb_cgo_flags = export $(foreach f,ASFLAGS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS,CGO_$(f)="$${$(f)}")
-
 override_dh_auto_build:
 	: # ensure caches are empty
 	rm -rf $(GOPATH) $(GOCACHE) ; \
 	mkdir -p $(GOPATH) $(GOCACHE)
-
-ifeq ($(with_bootstrap),yes)
 
 	: # prepare bootstrap directory
 	rm -rf $(bootstrap_dir) ; mkdir -p $(bootstrap_dir)
@@ -128,10 +122,6 @@ ifeq ($(with_bootstrap),yes)
 	| xargs -0r cp -t $(bootstrap_dir) -alP
 
 	: # build bootstrap version
-	unset CGO_ENABLED ; \
-	$(call deb_cgo_flags) ; \
-	export DEB_BUILD_MAINT_OPTIONS='hardening=-all optimize=-lto' ; \
-	export DEB_BUILD_PATH=$(CURDIR)/$(bootstrap_dir) ; \
 	unset GOROOT_FINAL ; \
 	export GOROOT=$(CURDIR)/$(bootstrap_dir) ; \
 	export GOROOT_BOOTSTRAP=$$(env -u GOROOT $(GO) env GOROOT) ; \
@@ -154,17 +144,6 @@ ifeq ($(with_bootstrap),yes)
 
 	: # remove bootstrap directory
 	rm -rf $(bootstrap_dir)
-
-else
-
-	: # build final version
-	export GOROOT_BOOTSTRAP=$$(env -u GOROOT $(GO) env GOROOT) ; \
-	export GOPROXY='$(GOPROXY_BUILD)' ; \
-	export GOSUMDB='$(GOSUMDB_BUILD)' ; \
-	cd src ; \
-	bash ./make.bash --no-banner
-
-endif
 
 override_dh_auto_test:
 	export NPROC=$(NPROC_TEST) ; \
@@ -213,7 +192,7 @@ override_dh_install:
 	rm -rf $$s
 
 override_dh_strip_nondeterminism:
-	dh_strip_nondeterminism --no-package=k2-golang-$(GOLANG_BASE_VERSION)-src $(addprefix --exclude=,_race)
+	dh_strip_nondeterminism --no-package=k2-golang-$(GOLANG_BASE_VERSION)-src
 
 execute_after_dh_fixperms:
 	find $(pkg_src)/ -regextype egrep -regex '.+\.(sh|bash)$$' -type f -exec chmod a+x '{}' '+'
@@ -222,7 +201,7 @@ execute_after_dh_fixperms:
 override_dh_dwz:
 
 override_dh_strip:
-	dh_strip --no-package=k2-golang-$(GOLANG_BASE_VERSION)-src $(addprefix --exclude=,_race)
+	dh_strip --no-package=k2-golang-$(GOLANG_BASE_VERSION)-src
 
 override_dh_makeshlibs:
 	dh_makeshlibs $(addprefix --exclude=,test _race)
