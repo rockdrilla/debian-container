@@ -3,7 +3,7 @@
 DEPS_LIBC_ARES_FILE = deps/cares/include/ares_version.h
 system_libc_ares :=
 ifneq (,$(wildcard $(DEPS_LIBC_ARES_FILE)))
-  DEPS_LIBC_ARES_VERSION = $(shell awk '/^#define ARES_VERSION_STR / {print $$3}' $(DEPS_LIBC_ARES_FILE) | tr -c -d '.0-9')
+  DEPS_LIBC_ARES_VERSION = $(shell mawk '/^#define ARES_VERSION_STR / {print $$3}' $(DEPS_LIBC_ARES_FILE) | tr -c -d '.0-9')
   ifneq (,$(DEPS_LIBC_ARES_VERSION))
     DEBIAN_LIBC_ARES_VERSION = $(shell dpkg-query -f '$${Version}' -W libc-ares-dev)
     ifneq (,$(DEBIAN_LIBC_ARES_VERSION))

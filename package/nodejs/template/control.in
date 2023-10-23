@@ -17,8 +17,8 @@ Build-Depends: debhelper-compat (= 13),
                openssl,
                patch,
                procps,
-               python3,
-               python3-distutils,
+               k2-python-3.11 | python3,
+               k2-python-3.11 | python3-distutils,
                wrk <!nocheck>,
                zlib1g-dev,
 Rules-Requires-Root: no
@@ -35,7 +35,7 @@ Recommends: ca-certificates,
 Suggests: k2-nodejs-@{NODEJS_MAJOR_VERSION}-full (= ${binary:Version}),
 Provides: nodejs:any (= @{NODEJS_VERSION}),
           node-types-node (= ${jspkg:types}),
-Description: Node.js v@{NODEJS_MAJOR_VERSION}
+Description: K2 - Node.js v@{NODEJS_MAJOR_VERSION}
  This package contains almost full Node.js installation (executable,
  shared library, runtime) except package managers and development files.
 
@@ -48,7 +48,7 @@ Recommends: k2-nodejs-@{NODEJS_MAJOR_VERSION}-dev (= ${binary:Version}),
 Provides: npm (= ${jspkg:npm}),
           yarnpkg (= ${jspkg:yarn}),
 Breaks: cmdtest,
-Description: Node.js v@{NODEJS_MAJOR_VERSION} - full package
+Description: K2 - Node.js v@{NODEJS_MAJOR_VERSION} (full package)
  This package contains Node.js package managers "npm" and "yarn".
  It also installs /etc/npmrc and /etc/yarnrc with sane defaults.
 
@@ -62,9 +62,9 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
          libnghttp2-dev,
          libssl-dev,
          libuv1-dev,
-         python3,
+         k2-python-3.11 | python3,
 Recommends: libc6-dev | libc-dev,
-Description: Node.js v@{NODEJS_MAJOR_VERSION} - development files
+Description: K2 - Node.js v@{NODEJS_MAJOR_VERSION} (development files)
  This package contains header files and development tools for building
  Node.js v@{NODEJS_MAJOR_VERSION} modules, extending the Node.js
  or embedding Node.js v@{NODEJS_MAJOR_VERSION} in applications.
@@ -77,7 +77,7 @@ Description: Node.js v@{NODEJS_MAJOR_VERSION} - development files
 # Architecture: any
 # Depends: ${shlibs:Depends}, ${misc:Depends},
 #          k2-nodejs-@{NODEJS_MAJOR_VERSION}-dev (= ${binary:Version}),
-# Description: Node.js v@{NODEJS_MAJOR_VERSION} - miscellaneous files
+# Description: K2 - Node.js v@{NODEJS_MAJOR_VERSION} (miscellaneous files)
 #  This package contains auxiliary files for Node.js v@{NODEJS_MAJOR_VERSION}.
 #  .
 #  If you are encouraged to install this package then something goes wrong.
@@ -88,6 +88,6 @@ Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          k2-common-scripts,
-Description: Node.js v@{NODEJS_MAJOR_VERSION} - thin CI installer
+Description: K2 - Node.js v@{NODEJS_MAJOR_VERSION} (thin CI installer)
  This package contains wrapper script to install k2-nodejs-@{NODEJS_MAJOR_VERSION}
  or k2-nodejs-@{NODEJS_MAJOR_VERSION}-full on first call.

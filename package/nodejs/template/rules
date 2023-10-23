@@ -10,18 +10,20 @@ export DH_VERBOSE := 1
 include /usr/share/dpkg/default.mk
 
 include debian/rules.common-defs
+include debian/rules.pkg-info
+include debian/rules.gcc-latest-ver
+include debian/rules.gcc-lto
 include debian/rules.remove-pycache
 include debian/rules.fix-hashbang
 
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-pie,-stackprotectorstrong
 export DEB_BUILD_PATH := $(CURDIR)/debian/build
+include debian/rules.gcc-flags
 
 # Ubuntu mangles png files by default, which can break some files.
 export NO_PNG_PKG_MANGLE := 1
 
 export SOURCE_DATE_EPOCH
-
-include debian/rules.pkg-info
 
 NODEJS_VERSION ?= $(DEB_VERSION_UPSTREAM)
 
@@ -46,9 +48,6 @@ include debian/rules.ver
 NPM_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(NPM_VERSION)))
 YARN_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(YARN_VERSION)))
 
-include debian/rules.gcc-latest-ver
-include debian/rules.gcc-flags
-include debian/rules.gcc-lto
 # TODO: PGO/benchmark is broken AF
 # include debian/rules.gcc-pgo
 
@@ -148,22 +147,22 @@ override_dh_auto_configure:
 	done
 
 	: # ICU: Node.js '$(DEPS_ICU_VERSION)' . Debian '$(DEBIAN_ICU_VERSION)'
-ifneq (,$(system_icu))
+ifneq ($(system_icu),yes)
 	sed -i -E '/libicu-dev/d' debian/control
 endif
 
 	: # libc-ares: Node.js '$(DEPS_LIBC_ARES_VERSION)' . Debian '$(DEBIAN_LIBC_ARES_VERSION)'
-ifneq (,$(system_libc_ares))
+ifneq ($(system_libc_ares),yes)
 	sed -i -E '/libc-ares-dev/d' debian/control
 endif
 
 	: # libuv: Node.js '$(DEPS_LIBUV_VERSION)' . Debian '$(DEBIAN_LIBUV_VERSION)'
-ifneq (,$(system_libuv))
+ifneq ($(system_libuv),yes)
 	sed -i -E '/libuv1-dev/d' debian/control
 endif
 
 	: # nghttp2: Node.js '$(DEPS_NGHTTP2_VERSION)' . Debian '$(DEBIAN_NGHTTP2_VERSION)'
-ifneq (,$(system_nghttp2))
+ifneq ($(system_nghttp2),yes)
 	sed -i -E '/libnghttp2-dev/d' debian/control
 endif
 
@@ -346,8 +345,8 @@ override_dh_auto_install:
 	$(call deb_nodejs_install_extras)
 
 	: # adjust configs
-	sed -i -E '/^(update-notifier|cache)=/d' debian/npmrc
-	sed -i -E '/^(disable-self-update-check|nonInteractive|plugnplay-shebang) /d' debian/yarnrc
+	sed -i -E '/^\s*(update-notifier|cache)=/d' debian/npmrc
+	sed -i -E '/^\s*(disable-self-update-check|nonInteractive|plugnplay-shebang) /d' debian/yarnrc
 
 override_dh_strip_nondeterminism:
 	dh_strip_nondeterminism $(addprefix --exclude=,.exe .gcda .png)

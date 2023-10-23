@@ -3,7 +3,7 @@
 DEPS_ICU_FILE = deps/icu-small/source/common/unicode/uvernum.h
 system_icu :=
 ifneq (,$(wildcard $(DEPS_ICU_FILE)))
-  DEPS_ICU_VERSION = $(shell awk '/^#define U_ICU_VERSION / {print $$3}' $(DEPS_ICU_FILE) | tr -c -d '.0-9')
+  DEPS_ICU_VERSION = $(shell mawk '/^#define U_ICU_VERSION / {print $$3}' $(DEPS_ICU_FILE) | tr -c -d '.0-9')
   ifneq (,$(DEPS_ICU_VERSION))
     DEBIAN_ICU_VERSION = $(shell dpkg-query -f '$${Version}' -W libicu-dev)
     ifneq (,$(DEBIAN_ICU_VERSION))

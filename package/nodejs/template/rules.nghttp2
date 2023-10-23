@@ -3,7 +3,7 @@
 DEPS_NGHTTP2_FILE = deps/nghttp2/lib/includes/nghttp2/nghttp2ver.h
 system_nghttp2 :=
 ifneq (,$(wildcard $(DEPS_NGHTTP2_FILE)))
-  DEPS_NGHTTP2_VERSION = $(shell awk '/^#define NGHTTP2_VERSION / {print $$3}' $(DEPS_NGHTTP2_FILE) | tr -c -d '.0-9')
+  DEPS_NGHTTP2_VERSION = $(shell mawk '/^#define NGHTTP2_VERSION / {print $$3}' $(DEPS_NGHTTP2_FILE) | tr -c -d '.0-9')
   ifneq (,$(DEPS_NGHTTP2_VERSION))
     DEBIAN_NGHTTP2_VERSION = $(shell dpkg-query -f '$${Version}' -W libnghttp2-dev)
     ifneq (,$(DEBIAN_NGHTTP2_VERSION))

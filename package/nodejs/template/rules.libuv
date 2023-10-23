@@ -3,9 +3,9 @@
 DEPS_LIBUV_FILE = deps/uv/include/uv/version.h
 system_libuv :=
 ifneq (,$(wildcard $(DEPS_LIBUV_FILE)))
-  DEPS_LIBUV_VERSION_MAJOR = $(shell awk '/^#define UV_VERSION_MAJOR / {print $$3}' $(DEPS_LIBUV_FILE) | tr -c -d '0-9')
-  DEPS_LIBUV_VERSION_MINOR = $(shell awk '/^#define UV_VERSION_MINOR / {print $$3}' $(DEPS_LIBUV_FILE) | tr -c -d '0-9')
-  DEPS_LIBUV_VERSION_PATCH = $(shell awk '/^#define UV_VERSION_PATCH / {print $$3}' $(DEPS_LIBUV_FILE) | tr -c -d '0-9')
+  DEPS_LIBUV_VERSION_MAJOR = $(shell mawk '/^#define UV_VERSION_MAJOR / {print $$3}' $(DEPS_LIBUV_FILE) | tr -c -d '0-9')
+  DEPS_LIBUV_VERSION_MINOR = $(shell mawk '/^#define UV_VERSION_MINOR / {print $$3}' $(DEPS_LIBUV_FILE) | tr -c -d '0-9')
+  DEPS_LIBUV_VERSION_PATCH = $(shell mawk '/^#define UV_VERSION_PATCH / {print $$3}' $(DEPS_LIBUV_FILE) | tr -c -d '0-9')
   DEPS_LIBUV_VERSION = $(DEPS_LIBUV_VERSION_MAJOR).$(DEPS_LIBUV_VERSION_MINOR).$(DEPS_LIBUV_VERSION_PATCH)
   ifneq (,$(DEPS_LIBUV_VERSION_MAJOR))
     DEBIAN_LIBUV_VERSION = $(shell dpkg-query -f '$${Version}' -W libuv1-dev)
