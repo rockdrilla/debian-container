@@ -10,19 +10,21 @@ export DH_VERBOSE := 1
 include /usr/share/dpkg/default.mk
 
 include debian/rules.common-defs
+include debian/rules.pkg-info
+include debian/rules.gcc-latest-ver
+include debian/rules.gcc-lto
 include debian/rules.remove-pycache
 include debian/rules.fix-hashbang
 
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all,-pie,-stackprotectorstrong
 export DEB_BUILD_PATH := $(CURDIR)/debian/build
+include debian/rules.gcc-flags
 
 # Ubuntu mangles png files by default, which can break some files.
 export NO_PNG_PKG_MANGLE := 1
 
 # handles DATE and TIME in Modules/getbuildinfo.c
 export SOURCE_DATE_EPOCH
-
-include debian/rules.pkg-info
 
 PYTHON_SO_ABI = 1.0
 
@@ -56,10 +58,6 @@ ifeq ($(distribution),Ubuntu)
   export OPENSSL_CONF = $(CURDIR)/debian/tests/openssl.cnf
 endif
 
-include debian/rules.gcc-latest-ver
-include debian/rules.gcc-flags
-include debian/rules.gcc-lto
-
 DEB_PGO_LEVEL_DEFAULT = 6
 DEB_PGO_PACKAGE = k2-python-$(PYTHON_VERSION)-pgo
 include debian/rules.gcc-pgo
@@ -72,10 +70,6 @@ export HOME = $(CURDIR)/debian/tmp.home
 export DEB_PGO_REUSE = $(pgo_reuse)
 export DEB_PGO_FROM_BUILD = $(CURDIR)/debian/pgo
 export DEB_PGO_FROM_PKG = $(PYTHON_PREFIX)/pgo-$(PYTHON_VERSION)
-
-builtin_ext = $(strip $(shell cat debian/builtin.lst || true))
-builtin_ext__list =$(strip $(foreach ext,$(sort $(strip $(builtin_ext))),$(ext)$(space)))
-builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
 
 CONFIGURE_FLAGS = \
 	--prefix=/$(PYTHON_PREFIX) \
@@ -180,15 +174,6 @@ ifeq ($(with_network_tests),yes)
 endif
 
 
-define deb_python_preconf
-
-	[ -n '$(builtin_ext)' ] || exit 0 ; \
-	sed -En '/^#($(builtin_ext__re))\s/p' Modules/Setup \
-	| sed -E 's/^#//;s/-Wl,-Bdynamic//;s/-Wl,-Bstatic//' \
-	>> $(strip $(1))/Modules/Setup.local
-
-endef
-
 define deb_python_configure
 
 	rm -rf $(strip $(1)) ; mkdir -p $(strip $(1))
@@ -199,8 +184,6 @@ define deb_python_configure
 
 	: # build quirk
 	ln -s . $(strip $(1))/build
-
-	$(call deb_python_preconf, $(1) )
 
 	unset LD_LIBRARY_PATH LD_PRELOAD ; \
 	env -C $(strip $(1)) \
@@ -263,7 +246,7 @@ define deb_python_test
 	with_bigmem_tests='$(filter with_bigmem_tests,$(DEB_BUILD_OPTIONS))' ; \
 	TEST_OPT_MEMLIMIT='' ; \
 	[ -z "$${with_bigmem_tests}" ] || \
-	TEST_OPT_MEMLIMIT=$$( debian/test-opt-memlimit.sh $(NPROC_TEST) | awk '{print $$2}' ) ; \
+	TEST_OPT_MEMLIMIT=$$( debian/test-opt-memlimit.sh $(NPROC_TEST) | mawk '{print $$2}' ) ; \
 	env -C $(strip $(1)) \
 	  K2_PYTHON_COMPAT=1 \
 	  DEB_PYTHON_BUILD_DIR=$(strip $(1)) \

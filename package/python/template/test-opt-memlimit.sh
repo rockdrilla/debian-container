@@ -11,7 +11,7 @@ min=1024
 max=6144
 
 reserve=1024
-limit=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo) || exit 0
+limit=$(mawk '/^MemTotal:/ {print $2}' /proc/meminfo) || exit 0
 limit=$(( limit / 1024 ))
 
 f=/sys/fs/cgroup/memory.max

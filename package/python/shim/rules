@@ -9,16 +9,13 @@ export DH_VERBOSE := 1
 
 include /usr/share/dpkg/default.mk
 
+include debian/rules.common-defs
+
 export SOURCE_DATE_EPOCH
 
 ifeq (,$(PYTHON_VERSION))
 $(error PYTHON_VERSION is not set)
 endif
-
-empty :=
-space :=$(empty) $(empty)
-comma :=,
-xsedx :=$(shell printf '\027')
 
 PYTHON_MAJOR_VERSION = $(word 1,$(subst .,$(space),$(PYTHON_VERSION)))
 PYTHON_MINOR_VERSION = $(word 2,$(subst .,$(space),$(PYTHON_VERSION)))
@@ -36,6 +33,9 @@ override_dh_auto_build:
 override_dh_auto_install:
 
 override_dh_auto_test:
+
+override_dh_gencontrol:
+	dh_gencontrol -- -v$(PYTHON_VERSION)-1.$(DEB_VERSION)
 
 .PHONY: build
 build:

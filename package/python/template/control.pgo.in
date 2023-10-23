@@ -1,6 +1,6 @@
 Package: k2-python-@{PYTHON_VERSION}-pgo
 Architecture: any
 Depends: ${misc:Depends},
-Description: Python v@{PYTHON_VERSION} - PGO data (@{DEB_TSVER})
+Description: K2 - Python v@{PYTHON_VERSION} (PGO data)
  This package contains PGO data for Python v@{PYTHON_VERSION} built for
- "@{DEB_HOST_ARCH}" architecture at @{DEB_TSVER}.
+ @{DEB_HOST_ARCH} architecture at @{DEB_TSVER}, level "@{DEB_PGO_LEVEL}".

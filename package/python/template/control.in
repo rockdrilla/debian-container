@@ -50,7 +50,7 @@ Suggests: binutils,
 Provides: python@{PYTHON_BASE_VERSION}:any (= @{PYTHON_VERSION}),
           python3:any (= @{PYTHON_VERSION}),
           python3-minimal:any (= @{PYTHON_VERSION}),
-Description: Python v@{PYTHON_BASE_VERSION}
+Description: K2 - Python v@{PYTHON_BASE_VERSION}
  This package contains almost full Python installation (executable,
  shared library, runtime) except package manager and development files.
 
@@ -66,7 +66,7 @@ Provides: python@{PYTHON_BASE_VERSION}-venv:any (= @{PYTHON_VERSION}),
           python3-venv:any (= @{PYTHON_VERSION}),
           python3-pkg-resources (= ${pipver:setuptools}),
           ${pip:provides},
-Description: Python v@{PYTHON_BASE_VERSION} - full package
+Description: K2 - Python v@{PYTHON_BASE_VERSION} (full package)
  This package contains Python package manager "pip" (besides packages
  "setuptools" and "wheel") and "ensurepip" package.
  It also installs /etc/pip.conf with sane defaults.
@@ -96,7 +96,7 @@ Suggests: blt-dev,
           tk-dev,
 Provides: python@{PYTHON_BASE_VERSION}-dev:any (= @{PYTHON_VERSION}),
           python3-dev:any (= @{PYTHON_VERSION}),
-Description: Python v@{PYTHON_BASE_VERSION} - development files
+Description: K2 - Python v@{PYTHON_BASE_VERSION} (development files)
  This package contains header files and development tools for building
  Python v@{PYTHON_BASE_VERSION} modules, extending the Python interpreter
  or embedding Python v@{PYTHON_BASE_VERSION} in applications.
@@ -106,7 +106,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
          k2-python-@{PYTHON_BASE_VERSION}-dev (= ${binary:Version}),
 Recommends: k2-python-shim-@{PYTHON_BASE_VERSION}-misc,
-Description: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
+Description: K2 - Python v@{PYTHON_BASE_VERSION} (miscellaneous files)
  This package contains static library, less common libraries (IDLE,
  tkinter, and so on) and auxiliary files for Python v@{PYTHON_BASE_VERSION}.
  .
@@ -118,7 +118,7 @@ Architecture: all
 Multi-Arch: allowed
 Depends: ${misc:Depends},
          k2-common-scripts,
-Description: Python v@{PYTHON_BASE_VERSION} - thin CI installer
+Description: K2 - Python v@{PYTHON_BASE_VERSION} (thin CI installer)
  This package contains wrapper script to install k2-python-@{PYTHON_BASE_VERSION},
  k2-python-@{PYTHON_BASE_VERSION}-dev or k2-python-@{PYTHON_BASE_VERSION}-full
  on first call.

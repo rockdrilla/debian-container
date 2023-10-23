@@ -39,7 +39,7 @@ Breaks: python@{PYTHON_BASE_VERSION} (<< @{PYTHON_VERSION}),
         python@{PYTHON_BASE_VERSION}-lib2to3 (<< @{PYTHON_VERSION}),
         python@{PYTHON_BASE_VERSION}-minimal (<< @{PYTHON_VERSION}),
         python-is-python2,
-Description: container shim: Python v@{PYTHON_BASE_VERSION}
+Description: K2 shim - Python v@{PYTHON_BASE_VERSION}
  This package provides Debian/Ubuntu compatibility shim for
  k2-python-@{PYTHON_BASE_VERSION}.
 
@@ -53,7 +53,7 @@ Provides: python@{PYTHON_BASE_VERSION}-venv (= @{PYTHON_VERSION}),
           python3-venv (= @{PYTHON_VERSION}),
 Conflicts: python@{PYTHON_BASE_VERSION}-venv (<< @{PYTHON_VERSION}),
 Breaks: python@{PYTHON_BASE_VERSION}-venv (<< @{PYTHON_VERSION}),
-Description: container shim: Python v@{PYTHON_BASE_VERSION} - full package
+Description: K2 shim - Python v@{PYTHON_BASE_VERSION} (full package)
  This package provides Debian/Ubuntu compatibility shim for
  k2-python-@{PYTHON_BASE_VERSION}-full.
 
@@ -76,7 +76,7 @@ Conflicts: python@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
 Breaks: python@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
         libpython@{PYTHON_BASE_VERSION}-dev (<< @{PYTHON_VERSION}),
         python-dev-is-python2,
-Description: container shim: Python v@{PYTHON_BASE_VERSION} - development files
+Description: K2 shim - Python v@{PYTHON_BASE_VERSION} (development files)
  This package provides Debian/Ubuntu compatibility shim for
  k2-python-@{PYTHON_BASE_VERSION}-dev.
 
@@ -96,6 +96,6 @@ Conflicts: python@{PYTHON_BASE_VERSION}-tk (<< @{PYTHON_VERSION}),
 Breaks: python@{PYTHON_BASE_VERSION}-tk (<< @{PYTHON_VERSION}),
         idle-python@{PYTHON_BASE_VERSION} (<< @{PYTHON_VERSION}),
         python@{PYTHON_BASE_VERSION}-examples (<< @{PYTHON_VERSION}),
-Description: container shim: Python v@{PYTHON_BASE_VERSION} - miscellaneous files
+Description: K2 shim - Python v@{PYTHON_BASE_VERSION} (miscellaneous files)
  This package provides Debian/Ubuntu compatibility shim for
  k2-python-@{PYTHON_BASE_VERSION}-dev.

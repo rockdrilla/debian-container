@@ -65,7 +65,7 @@ end_if_level 1
 ## 3rd party tests/benchmarks
 
 python_wrap=$(readlink -f "${DEB_SRC_TOPDIR}/python-stage1.sh")
-cpu_affinity=$(taskset -c -p $$ | awk -F: '{print $2}' | tr -d '[:space:]')
+cpu_affinity=$(taskset -c -p $$ | mawk -F: '{print $2}' | tr -d '[:space:]')
 
 do_pip_install() {
 	K2_PYTHON_INSTALL=prefix \
