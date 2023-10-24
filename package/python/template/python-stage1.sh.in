@@ -1,0 +1,8 @@
+#!/bin/sh
+set -f
+site="${DEB_SRC_TOPDIR}/debian/tmp.bstrap"
+home="${site}/@{PYTHON_PREFIX}"
+modules="${site}/@{PYTHON_MODULES}"
+export PYTHONHOME="${home}"
+export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}${modules}/site-packages:${modules}/dist-packages"
+exec fakeroot "${DEB_SRC_TOPDIR}/debian/python-stage1-bin.sh" "$@"

@@ -1,0 +1,6 @@
+#!/bin/sh
+set -f
+site="${DEB_SRC_TOPDIR}/debian/tmp.bstrap"
+home="${site}/@{PYTHON_PREFIX}"
+export PATH="${home}/bin:${PATH}"
+exec "${home}/bin/python" "$@"

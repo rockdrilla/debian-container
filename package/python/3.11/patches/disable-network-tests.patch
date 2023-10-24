@@ -263,7 +263,7 @@
      @test.support.requires_resource('network')
 --- a/Lib/test/test_socket.py
 +++ b/Lib/test/test_socket.py
-@@ -1605,6 +1605,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1584,6 +1584,7 @@ class GeneralModuleTests(unittest.TestCa
          # only IP addresses are allowed
          self.assertRaises(OSError, socket.getnameinfo, ('mail.python.org',0), 0)
  
@@ -273,7 +273,7 @@
      def test_idna(self):
 --- a/Lib/test/test_ssl.py
 +++ b/Lib/test/test_ssl.py
-@@ -2375,6 +2375,7 @@ class SimpleBackgroundTests(unittest.Tes
+@@ -2379,6 +2379,7 @@ class SimpleBackgroundTests(unittest.Tes
              self.assertRaises(ssl.SSLEOFError, sslobj.read)
  
  

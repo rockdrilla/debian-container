@@ -1,47 +1,24 @@
---- a/Lib/test/libregrtest/main.py
-+++ b/Lib/test/libregrtest/main.py
-@@ -725,22 +725,7 @@ class Regrtest:
-             self.tmp_dir = self.ns.tempdir
+--- a/Lib/test/libregrtest/utils.py
++++ b/Lib/test/libregrtest/utils.py
+@@ -365,6 +365,7 @@ def get_temp_dir(tmp_dir: StrPath | None
+     if tmp_dir:
+         tmp_dir = os.path.expanduser(tmp_dir)
+     else:
++        return tempfile.gettempdir()
+         # When tests are run from the Python build directory, it is best practice
+         # to keep the test files in a subfolder.  This eases the cleanup of leftover
+         # files using the "make distclean" command.
+--- a/Lib/test/support/socket_helper.py
++++ b/Lib/test/support/socket_helper.py
+@@ -140,7 +140,7 @@ def _is_ipv6_enabled():
+                 sock.close()
+     return False
  
-         if not self.tmp_dir:
--            # When tests are run from the Python build directory, it is best practice
--            # to keep the test files in a subfolder.  This eases the cleanup of leftover
--            # files using the "make distclean" command.
--            if sysconfig.is_python_build():
--                self.tmp_dir = sysconfig.get_config_var('abs_builddir')
--                if self.tmp_dir is None:
--                    self.tmp_dir = sysconfig.get_config_var('abs_srcdir')
--                    if not self.tmp_dir:
--                        # gh-74470: On Windows, only srcdir is available. Using
--                        # abs_builddir mostly matters on UNIX when building
--                        # Python out of the source tree, especially when the
--                        # source tree is read only.
--                        self.tmp_dir = sysconfig.get_config_var('srcdir')
--                self.tmp_dir = os.path.join(self.tmp_dir, 'build')
--            else:
--                self.tmp_dir = tempfile.gettempdir()
-+            self.tmp_dir = tempfile.gettempdir()
+-IPV6_ENABLED = _is_ipv6_enabled()
++IPV6_ENABLED = False
  
-         self.tmp_dir = os.path.abspath(self.tmp_dir)
  
---- a/Lib/test/pickletester.py
-+++ b/Lib/test/pickletester.py
-@@ -2575,7 +2575,6 @@ class AbstractPickleTests:
-         elif frameless_start is not None:
-             self.assertLess(pos - frameless_start, self.FRAME_SIZE_MIN)
- 
--    @support.skip_if_pgo_task
-     @support.requires_resource('cpu')
-     def test_framing_many_objects(self):
-         obj = list(range(10**5))
-@@ -2666,7 +2665,6 @@ class AbstractPickleTests:
-                                 count_opcode(pickle.FRAME, pickled))
-                 self.assertEqual(obj, self.loads(some_frames_pickle))
- 
--    @support.skip_if_pgo_task
-     def test_framed_write_sizes_with_delayed_writer(self):
-         class ChunkAccumulator:
-             """Accumulate pickler output in a list of raw chunks."""
+ _bind_nix_socket_error = None
 --- a/Lib/test/test__xxsubinterpreters.py
 +++ b/Lib/test/test__xxsubinterpreters.py
 @@ -488,7 +488,6 @@ class IsRunningTests(TestBase):
@@ -52,21 +29,9 @@
      def test_subinterpreter(self):
          interp = interpreters.create()
          self.assertFalse(interpreters.is_running(interp))
---- a/Lib/test/test_asyncore.py
-+++ b/Lib/test/test_asyncore.py
-@@ -15,9 +15,6 @@ from test.support import threading_helpe
- from test.support import warnings_helper
- from io import BytesIO
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- support.requires_working_socket(module=True)
- 
- asyncore = warnings_helper.import_deprecated('asyncore')
 --- a/Lib/test/test_exceptions.py
 +++ b/Lib/test/test_exceptions.py
-@@ -1094,7 +1094,6 @@ class ExceptionTests(unittest.TestCase):
+@@ -1108,7 +1108,6 @@ class ExceptionTests(unittest.TestCase):
          self.assertIsInstance(exc.__context__, ValueError)
          self.assertIs(exc.__context__.__context__, exc.__context__)
  
@@ -110,63 +75,6 @@
      def test_already_running(self):
          interp = interpreters.create()
          with _running(interp):
---- a/Lib/test/test_itertools.py
-+++ b/Lib/test/test_itertools.py
-@@ -2228,7 +2228,6 @@ class RegressionTests(unittest.TestCase)
-         self.assertRaises(AssertionError, list, cycle(gen1()))
-         self.assertEqual(hist, [0,1])
- 
--    @support.skip_if_pgo_task
-     @support.requires_resource('cpu')
-     def test_long_chain_of_empty_iterables(self):
-         # Make sure itertools.chain doesn't run into recursion limits when
---- a/Lib/test/test_multiprocessing_fork/__init__.py
-+++ b/Lib/test/test_multiprocessing_fork/__init__.py
-@@ -3,9 +3,6 @@ import sys
- import unittest
- from test import support
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- if sys.platform == "win32":
-     raise unittest.SkipTest("fork is not available on Windows")
- 
---- a/Lib/test/test_multiprocessing_forkserver/__init__.py
-+++ b/Lib/test/test_multiprocessing_forkserver/__init__.py
-@@ -3,9 +3,6 @@ import sys
- import unittest
- from test import support
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- if sys.platform == "win32":
-     raise unittest.SkipTest("forkserver is not available on Windows")
- 
---- a/Lib/test/test_multiprocessing_main_handling.py
-+++ b/Lib/test/test_multiprocessing_main_handling.py
-@@ -17,9 +17,6 @@ from test.support.script_helper import (
-     make_pkg, make_script, make_zip_pkg, make_zip_script,
-     assert_python_ok)
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- # Look up which start methods are available to test
- import multiprocessing
- AVAILABLE_START_METHODS = set(multiprocessing.get_all_start_methods())
---- a/Lib/test/test_multiprocessing_spawn/__init__.py
-+++ b/Lib/test/test_multiprocessing_spawn/__init__.py
-@@ -2,8 +2,5 @@ import os.path
- import unittest
- from test import support
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- def load_tests(*args):
-     return support.load_package_tests(os.path.dirname(__file__), *args)
 --- a/Lib/test/test_nntplib.py
 +++ b/Lib/test/test_nntplib.py
 @@ -141,8 +141,6 @@ class NetworkedNNTPTestsMixin:
@@ -280,7 +188,7 @@
      try:
          # RFCOMM is supported by all platforms with bluetooth support. Windows
          # does not support omitting the protocol.
-@@ -1047,6 +1054,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1026,6 +1033,7 @@ class GeneralModuleTests(unittest.TestCa
              with self.assertRaises(OSError, msg=explanation):
                  socket.gethostbyaddr(addr)
  
@@ -288,29 +196,9 @@
      @unittest.skipUnless(hasattr(socket, 'sethostname'), "test needs socket.sethostname()")
      @unittest.skipUnless(hasattr(socket, 'gethostname'), "test needs socket.gethostname()")
      def test_sethostname(self):
---- a/Lib/test/test_statistics.py
-+++ b/Lib/test/test_statistics.py
-@@ -2744,7 +2744,6 @@ class TestNormalDist:
-         self.assertEqual(X.cdf(float('Inf')), 1.0)
-         self.assertTrue(math.isnan(X.cdf(float('NaN'))))
- 
--    @support.skip_if_pgo_task
-     @support.requires_resource('cpu')
-     def test_inv_cdf(self):
-         NormalDist = self.module.NormalDist
 --- a/Lib/test/test_subprocess.py
 +++ b/Lib/test/test_subprocess.py
-@@ -46,9 +46,6 @@ try:
- except:
-     fcntl = None
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- if not support.has_subprocess_support:
-     raise unittest.SkipTest("test module requires subprocess")
- 
-@@ -1698,7 +1695,6 @@ class RunFuncTestCase(BaseTestCase):
+@@ -1698,7 +1698,6 @@ class RunFuncTestCase(BaseTestCase):
          res = subprocess.run(args)
          self.assertEqual(res.returncode, 57)
  

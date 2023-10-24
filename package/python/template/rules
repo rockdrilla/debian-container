@@ -6,6 +6,7 @@ SHELL       :=/bin/sh
 MAKEFLAGS += --no-print-directory
 
 export DH_VERBOSE := 1
+export MALLOC_ARENA_MAX := 4
 
 include /usr/share/dpkg/default.mk
 
@@ -96,7 +97,7 @@ CONFIGURE_FLAGS_STAGE2 = \
 	--with-computed-gotos \
 	$(if $(filter yes,$(with_lto)),--with-lto) \
 	$(if $(filter yes,$(with_pgo)),--enable-optimizations) \
-	--with-build-python=$(CURDIR)/python-stage1.sh \
+	--with-build-python=$(CURDIR)/debian/python-stage1.sh \
 	--with-ensurepip=no \
 
 
@@ -152,6 +153,7 @@ ifeq ($(with_pgo)$(pgo_reuse),yesno)
 	grep -Fxq 'Package: $(DEB_PGO_PACKAGE)' debian/control || \
 	{ echo ; cat debian/control.pgo ; } >> debian/control
 endif
+	chmod 0755 debian/python-stage1*.sh
 
 override_dh_autoreconf:
 	dh_autoreconf autoreconf -- -fiv -Werror
@@ -168,6 +170,11 @@ override_dh_auto_configure:
 	@echo "# DEB_BUILD_OPTIONS = $${DEB_BUILD_OPTIONS}" >&2
 
 	mkdir -p $(HOME)
+
+	: # shared patches
+	for p in dask-bench numpy pyperformance ; do \
+	    patch -p1 < "debian/patches/$$p.patch" ; \
+	done
 
 	: # prepare tests
 	tar -C py-email -cf - moredata | tar -C Lib/test -xf -
@@ -194,9 +201,6 @@ define deb_python_configure
 	find $(CURDIR) -mindepth 1 -maxdepth 1 -printf '%P\0' \
 	| grep -zEv '^(\.pc|debian|py-.+)$$' | sort -zu \
 	| xargs -0r cp -t $(strip $(1)) -alP
-
-	: # build quirk
-	ln -s . $(strip $(1))/build
 
 	$(call deb_python_preconf, $(1) )
 
@@ -240,15 +244,15 @@ define deb_python_build
 	    patchelf --remove-rpath $${bin} ; \
 	fi
 
-	: # basic checks
-	$(call test_python, $(1) ) -c 'from _multiprocessing import SemLock'
-	$(call test_python, $(1) ) -c 'import _decimal'
-	$(call test_python, $(1) ) -c 'import math, cmath'
-
 	: # verify site packages paths
 	$(call test_python, $(1) ) -c 'import site; print(site.getusersitepackages())'
 	$(call test_python, $(1) ) -c 'import site; print(site.getsitepackages())'
 	$(call test_python, $(1) ) -m site
+
+	: # basic checks
+	$(call test_python, $(1) ) -c 'from _multiprocessing import SemLock'
+	$(call test_python, $(1) ) -c 'import math, cmath'
+	$(call test_python, $(1) ) -c 'import _decimal'
 
 endef
 
@@ -302,9 +306,6 @@ define buildrepro_fix
 	  $(call remove_prefixed,-f(debug|file|macro|profile)-prefix-map=) \
 	  $(call remove_prefixed,-fprofile-dir=) \
 	  $(call remove_prefixed,-Wa$(comma)--debug-prefix-map$(comma)) \
-	  $(call replace_prefixed,-fstack-protector,-fstack-protector-strong) \
-	  $(call replace_string,-fstack-protector-strong-strong,-fstack-protector-strong) \
-	  $(call remove_prefixed,--param=ssp-buffer-size=) \
 	  $(call remove_prefixed,-specs=) \
 	  $(call remove_string,-Wl$(comma)-z$(comma)now) \
 	  $(call remove_string,-L\.) \
@@ -358,7 +359,7 @@ define deb_python_install
 
 	: # revert build-time quirks
 	env -C debian/tmp/$(PYTHON_MODULES) \
-	patch -p2 -R < $(CURDIR)/debian/patches/quirks/distutils-build.patch
+	patch -p2 -R < $(CURDIR)/debian/patches/quirks/inplace-build.patch
 
 	: # remove non-fully versioned symlinks
 	find debian/tmp/ -path '*/bin/*' -type l -exec rm -vf {} +
@@ -570,19 +571,6 @@ define deb_python_postinstall_1st_stage
 	find $${tmpdir}/ -name '*.whl' -exec cp -t $${wheel_dir} {} + ; \
 	echo ; \
 	find $${wheel_dir}/ -name '*.whl' -exec ls -l {} +
-
-	: # only applies to 2nd stage
-	f=$(CURDIR)/python-stage1.sh ; \
-	: > $$f ; \
-	echo '#!/bin/sh' >> $$f ; \
-	echo 'set -f' >> $$f ; \
-	echo 'site="$(INSTALL_BSTRAP)"' >> $$f ; \
-	echo 'modules="$${site}/$(PYTHON_MODULES)"' >> $$f ; \
-	echo 'export PYTHONHOME="$${site}/$(PYTHON_PREFIX)"' >> $$f ; \
-	echo 'export PYTHONPATH="$${PYTHONPATH:+$$PYTHONPATH:}$${modules}/site-packages:$${modules}/dist-packages"' >> $$f ; \
-	echo 'export PATH="$${PYTHONHOME}/bin:$${PATH}"' >> $$f ; \
-	echo 'exec fakeroot "$${PYTHONHOME}/bin/python" "$$@"' >> $$f ; \
-	chmod 0755 $$f
 
 endef
 

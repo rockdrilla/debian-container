@@ -22,12 +22,12 @@ while [ "${DEB_PGO_REUSE}" = yes ] ; do
 done
 
 flush_pycache() {
-	find "${DEB_SRC_TOPDIR}" -name __pycache__ -type d -exec rm -rf '{}' '+'
-	find "${DEB_SRC_TOPDIR}" -name '*.py[co]' -ls -delete
+	find "$1/" -name __pycache__ -type d -exec rm -rf '{}' '+'
+	find "$1/" -name '*.py[co]' -ls -delete
 }
 
 end_script() {
-	flush_pycache
+	flush_pycache "${DEB_SRC_TOPDIR}"
 
 	mkdir -p "${DEB_PGO_FROM_BUILD}"
 
@@ -45,31 +45,39 @@ end_if_level() {
 
 ## default testsuite
 
+flush_pycache .
+
 unset K2_PYTHON_COMPAT
 
 python_bin=$(readlink -f "$1")
+# python_stage1_bin=$(readlink -f "${DEB_SRC_TOPDIR}/debian/python-stage1-bin.sh")
+python_stage1_wrap=$(readlink -f "${DEB_SRC_TOPDIR}/debian/python-stage1.sh")
 
 do_python_tests() {
 	# run in subshell
-	( export K2_PYTHON_COMPAT=1 ; set -xv ; "$@" ; )
+	(
+		export K2_PYTHON_COMPAT=1
+		set -xv
+		# "${python_stage1_bin}" -m test -p "${python_bin}" -j 1 --lean-pgo --timeout=1200 "$@"
+		"${python_bin}" -m test -j 1 --lean-pgo --timeout=1200 "$@"
+	) || end_script 1
 }
 
 if [ "${DEB_PGO_LEVEL}" = 0 ] ; then
-	do_python_tests "$@"
+	do_python_tests -w
 	end_script
 fi
 
-do_python_tests "$@" --pgo-extended --use=${TEST_RESOURCES} --exclude ${PROFILE_TEST_EXCLUDE}
+do_python_tests --lean-pgo-extended --use=${TEST_RESOURCES} --exclude ${PROFILE_TEST_EXCLUDE}
 end_if_level 1
 
 ## 3rd party tests/benchmarks
 
-python_wrap=$(readlink -f "${DEB_SRC_TOPDIR}/python-stage1.sh")
 cpu_affinity=$(taskset -c -p $$ | mawk -F: '{print $2}' | tr -d '[:space:]')
 
 do_pip_install() {
 	K2_PYTHON_INSTALL=prefix \
-	"${python_wrap}" -m pip install "$@" || end_script 1
+	"${python_stage1_wrap}" -m pip install "$@" || end_script 1
 }
 
 ## pyperformance
@@ -77,10 +85,10 @@ do_pip_install() {
 do_pip_install "${DEB_SRC_TOPDIR}/py-pyperformance"
 
 do_pyperformance() {
-	"${python_wrap}" -m pyperformance "$@" || end_script 1
+	"${python_stage1_wrap}" -m pyperformance "$@" || end_script 1
 }
 
-for i in 1 2 ; do
+for i in $(seq 1 3) ; do
 do_pyperformance run --debug-single-value --affinity "${cpu_affinity}" --python "${python_bin}"
 done
 end_if_level 2
@@ -90,7 +98,7 @@ end_if_level 2
 do_pip_install 'asv~=0.5.1' \
   'packaging~=23.2' \
 
-do_asv() { "${python_wrap}" -m asv "$@" ; }
+do_asv() { "${python_stage1_wrap}" -m asv "$@" ; }
 # TODO: fix all asv-based tests and stop ignoring errors :)
 do_asv_at() {
 	cd "$1" || return 1

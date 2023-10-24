@@ -19,10 +19,10 @@ debian/test-no-random-order.diff
 
 bootstrap-python.patch
 test-real-python.patch
+sort-build-objects.patch
 inplace-build.patch
 lto-pgo-flags.patch
 pgo-extra-pass.patch
-sort-build-objects.patch
 build-shared-mods.patch
 install-no-pycache.patch
 python-compat-switch.patch
@@ -31,10 +31,5 @@ python-config.patch
 mangle-tests.patch
 disable-network-tests.patch
 
-quirks/distutils-build.patch
 quirks/ensurepip.patch
-
-# shared patches
-pyperformance.patch
-numpy.patch
-dask-bench.patch
+quirks/inplace-build.patch

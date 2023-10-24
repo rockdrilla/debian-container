@@ -1,3 +1,43 @@
+--- a/Lib/test/libregrtest/cmdline.py
++++ b/Lib/test/libregrtest/cmdline.py
+@@ -169,6 +169,8 @@ class Namespace(argparse.Namespace):
+         self.ignore_tests = None
+         self.pgo = False
+         self.pgo_extended = False
++        self.lean_pgo = False
++        self.lean_pgo_extended = False
+ 
+         super().__init__(**kwargs)
+ 
+@@ -308,6 +310,8 @@ def _create_parser():
+                        help='enable Profile Guided Optimization (PGO) training')
+     group.add_argument('--pgo-extended', action='store_true',
+                        help='enable extended PGO training (slower training)')
++    group.add_argument('--lean-pgo', action='store_true', help='internal option')
++    group.add_argument('--lean-pgo-extended', action='store_true', help='internal option')
+     group.add_argument('--fail-env-changed', action='store_true',
+                        help='if a test file alters the environment, mark '
+                             'the test as failed')
+@@ -384,6 +388,8 @@ def _parse_args(args, **kwargs):
+         parser.error("--pgo/-v don't go together!")
+     if ns.pgo_extended:
+         ns.pgo = True  # pgo_extended implies pgo
++    if ns.lean_pgo_extended:
++        ns.lean_pgo = True
+ 
+     if ns.nowindows:
+         print("Warning: the --nowindows (-n) option is deprecated. "
+--- a/Lib/test/libregrtest/main.py
++++ b/Lib/test/libregrtest/main.py
+@@ -230,6 +230,8 @@ class Regrtest:
+         if self.ns.pgo:
+             # add default PGO tests if no tests are specified
+             setup_pgo_tests(self.ns)
++        if self.ns.lean_pgo and not self.ns.lean_pgo_extended:
++            setup_pgo_tests(self.ns)
+ 
+         stdtests = STDTESTS[:]
+         nottests = NOTTESTS.copy()
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
 @@ -520,7 +520,7 @@ build_all_generate_profile:
@@ -5,16 +45,7 @@
  run_profile_task:
  	@ # FIXME: can't run for a cross build
 -	$(LLVM_PROF_FILE) $(RUNSHARED) ./$(BUILDPYTHON) $(PROFILE_TASK) || true
-+	$(LLVM_PROF_FILE) $(RUNSHARED) $(DEB_SRC_TOPDIR)/debian/bench.sh ./$(BUILDPYTHON) $(PROFILE_TASK)
++	$(LLVM_PROF_FILE) $(RUNSHARED) $(DEB_SRC_TOPDIR)/debian/bench.sh ./$(BUILDPYTHON)
  
  build_all_merge_profile:
  	$(LLVM_PROF_MERGER)
-@@ -1199,7 +1199,7 @@ $(LIBRARY_OBJS) $(MODOBJS) Programs/pyth
- TESTOPTS=	$(EXTRATESTOPTS)
- TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) $(TESTPYTHONOPTS)
- TESTRUNNER=	$(TESTPYTHON) $(srcdir)/Tools/scripts/run_tests.py
--TESTTIMEOUT=	1200
-+TESTTIMEOUT=	2400
- 
- .PHONY: test testall testuniversal buildbottest pythoninfo
- 

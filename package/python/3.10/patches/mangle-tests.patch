@@ -1,45 +1,25 @@
 --- a/Lib/test/libregrtest/main.py
 +++ b/Lib/test/libregrtest/main.py
-@@ -605,20 +605,7 @@ class Regrtest:
+@@ -607,6 +607,8 @@ class Regrtest:
              self.tmp_dir = self.ns.tempdir
  
          if not self.tmp_dir:
--            # When tests are run from the Python build directory, it is best practice
--            # to keep the test files in a subfolder.  This eases the cleanup of leftover
--            # files using the "make distclean" command.
--            if sysconfig.is_python_build():
--                self.tmp_dir = sysconfig.get_config_var('abs_builddir')
--                if self.tmp_dir is None:
--                    # bpo-30284: On Windows, only srcdir is available. Using
--                    # abs_builddir mostly matters on UNIX when building Python
--                    # out of the source tree, especially when the source tree
--                    # is read only.
--                    self.tmp_dir = sysconfig.get_config_var('srcdir')
--                self.tmp_dir = os.path.join(self.tmp_dir, 'build')
--            else:
--                self.tmp_dir = tempfile.gettempdir()
 +            self.tmp_dir = tempfile.gettempdir()
++        if not self.tmp_dir:
+             # When tests are run from the Python build directory, it is best practice
+             # to keep the test files in a subfolder.  This eases the cleanup of leftover
+             # files using the "make distclean" command.
+--- a/Lib/test/support/socket_helper.py
++++ b/Lib/test/support/socket_helper.py
+@@ -136,7 +136,7 @@ def _is_ipv6_enabled():
+                 sock.close()
+     return False
  
-         self.tmp_dir = os.path.abspath(self.tmp_dir)
+-IPV6_ENABLED = _is_ipv6_enabled()
++IPV6_ENABLED = False
  
---- a/Lib/test/pickletester.py
-+++ b/Lib/test/pickletester.py
-@@ -2572,7 +2572,6 @@ class AbstractPickleTests:
-         elif frameless_start is not None:
-             self.assertLess(pos - frameless_start, self.FRAME_SIZE_MIN)
  
--    @support.skip_if_pgo_task
-     def test_framing_many_objects(self):
-         obj = list(range(10**5))
-         for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
-@@ -2662,7 +2661,6 @@ class AbstractPickleTests:
-                                 count_opcode(pickle.FRAME, pickled))
-                 self.assertEqual(obj, self.loads(some_frames_pickle))
- 
--    @support.skip_if_pgo_task
-     def test_framed_write_sizes_with_delayed_writer(self):
-         class ChunkAccumulator:
-             """Accumulate pickler output in a list of raw chunks."""
+ _bind_nix_socket_error = None
 --- a/Lib/test/test__xxsubinterpreters.py
 +++ b/Lib/test/test__xxsubinterpreters.py
 @@ -489,7 +489,6 @@ class IsRunningTests(TestBase):
@@ -50,18 +30,6 @@
      def test_subinterpreter(self):
          interp = interpreters.create()
          self.assertFalse(interpreters.is_running(interp))
---- a/Lib/test/test_asyncore.py
-+++ b/Lib/test/test_asyncore.py
-@@ -15,9 +15,6 @@ from test.support import threading_helpe
- from test.support import warnings_helper
- from io import BytesIO
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- import warnings
- with warnings.catch_warnings():
-     warnings.simplefilter('ignore', DeprecationWarning)
 --- a/Lib/test/test_concurrent_futures.py
 +++ b/Lib/test/test_concurrent_futures.py
 @@ -377,10 +377,6 @@ class ExecutorShutdownTest:
@@ -133,64 +101,6 @@
      def test_already_running(self):
          interp = interpreters.create()
          with _running(interp):
---- a/Lib/test/test_itertools.py
-+++ b/Lib/test/test_itertools.py
-@@ -2225,7 +2225,6 @@ class RegressionTests(unittest.TestCase)
-         self.assertRaises(AssertionError, list, cycle(gen1()))
-         self.assertEqual(hist, [0,1])
- 
--    @support.skip_if_pgo_task
-     def test_long_chain_of_empty_iterables(self):
-         # Make sure itertools.chain doesn't run into recursion limits when
-         # dealing with long chains of empty iterables. Even with a high
---- a/Lib/test/test_multiprocessing_fork.py
-+++ b/Lib/test/test_multiprocessing_fork.py
-@@ -4,9 +4,6 @@ import test._test_multiprocessing
- import sys
- from test import support
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- if sys.platform == "win32":
-     raise unittest.SkipTest("fork is not available on Windows")
- 
---- a/Lib/test/test_multiprocessing_forkserver.py
-+++ b/Lib/test/test_multiprocessing_forkserver.py
-@@ -4,9 +4,6 @@ import test._test_multiprocessing
- import sys
- from test import support
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- if sys.platform == "win32":
-     raise unittest.SkipTest("forkserver is not available on Windows")
- 
---- a/Lib/test/test_multiprocessing_main_handling.py
-+++ b/Lib/test/test_multiprocessing_main_handling.py
-@@ -17,9 +17,6 @@ from test.support.script_helper import (
-     make_pkg, make_script, make_zip_pkg, make_zip_script,
-     assert_python_ok)
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- # Look up which start methods are available to test
- import multiprocessing
- AVAILABLE_START_METHODS = set(multiprocessing.get_all_start_methods())
---- a/Lib/test/test_multiprocessing_spawn.py
-+++ b/Lib/test/test_multiprocessing_spawn.py
-@@ -3,9 +3,6 @@ import test._test_multiprocessing
- 
- from test import support
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- test._test_multiprocessing.install_tests_in_module_dict(globals(), 'spawn')
- 
- if __name__ == '__main__':
 --- a/Lib/test/test_nntplib.py
 +++ b/Lib/test/test_nntplib.py
 @@ -141,8 +141,6 @@ class NetworkedNNTPTestsMixin:
@@ -312,28 +222,6 @@
      @unittest.skipUnless(hasattr(socket, 'sethostname'), "test needs socket.sethostname()")
      @unittest.skipUnless(hasattr(socket, 'gethostname'), "test needs socket.gethostname()")
      def test_sethostname(self):
---- a/Lib/test/test_statistics.py
-+++ b/Lib/test/test_statistics.py
-@@ -2637,7 +2637,6 @@ class TestNormalDist:
-         self.assertEqual(X.cdf(float('Inf')), 1.0)
-         self.assertTrue(math.isnan(X.cdf(float('NaN'))))
- 
--    @support.skip_if_pgo_task
-     def test_inv_cdf(self):
-         NormalDist = self.module.NormalDist
- 
---- a/Lib/test/test_subprocess.py
-+++ b/Lib/test/test_subprocess.py
-@@ -46,9 +46,6 @@ try:
- except:
-     fcntl = None
- 
--if support.PGO:
--    raise unittest.SkipTest("test is not helpful for PGO")
--
- mswindows = (sys.platform == "win32")
- 
- #
 --- a/Lib/test/test_support.py
 +++ b/Lib/test/test_support.py
 @@ -65,7 +65,6 @@ class TestSupport(unittest.TestCase):
