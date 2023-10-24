@@ -57,6 +57,7 @@ Description: K2 - Python v@{PYTHON_BASE_VERSION}
 Package: k2-python-@{PYTHON_BASE_VERSION}-full
 Architecture: all
 Multi-Arch: allowed
+Pre-Depends: k2-python-config | k2-empty,
 Depends: ${misc:Depends},
          k2-python-@{PYTHON_BASE_VERSION} (= ${binary:Version}),
 Recommends: k2-python-shim-@{PYTHON_BASE_VERSION}-full,
