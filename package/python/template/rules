@@ -71,6 +71,10 @@ export DEB_PGO_REUSE = $(pgo_reuse)
 export DEB_PGO_FROM_BUILD = $(CURDIR)/debian/pgo
 export DEB_PGO_FROM_PKG = $(PYTHON_PREFIX)/pgo-$(PYTHON_VERSION)
 
+builtin_ext = $(strip $(shell cat debian/builtin.lst || true))
+builtin_ext__list =$(strip $(foreach ext,$(sort $(strip $(builtin_ext))),$(ext)$(space)))
+builtin_ext__re   =$(subst $(space),|,$(builtin_ext__list))
+
 CONFIGURE_FLAGS = \
 	--prefix=/$(PYTHON_PREFIX) \
 	--build=$(DEB_HOST_MULTIARCH) \
@@ -174,6 +178,15 @@ ifeq ($(with_network_tests),yes)
 endif
 
 
+define deb_python_preconf
+
+	[ -n '$(builtin_ext)' ] || exit 0 ; \
+	sed -En '/^#($(builtin_ext__re))\s/p' Modules/Setup \
+	| sed -E 's/^#//;s/-Wl,-Bdynamic//;s/-Wl,-Bstatic//' \
+	>> $(strip $(1))/Modules/Setup.local
+
+endef
+
 define deb_python_configure
 
 	rm -rf $(strip $(1)) ; mkdir -p $(strip $(1))
@@ -184,6 +197,8 @@ define deb_python_configure
 
 	: # build quirk
 	ln -s . $(strip $(1))/build
+
+	$(call deb_python_preconf, $(1) )
 
 	unset LD_LIBRARY_PATH LD_PRELOAD ; \
 	env -C $(strip $(1)) \
