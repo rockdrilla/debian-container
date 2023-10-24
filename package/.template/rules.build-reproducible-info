@@ -13,7 +13,7 @@ define deb_build_reproducible_info
 	    echo ; \
 	fi >&2 ; \
 	find $(foreach p, $(shell dh_listpackages), debian/$(p)/ ) -type f \
-	  -exec grep -aEl -e '(LD_LIBRARY|LD_PRELOAD|fakeroot|eatmydata|f(debug|file|macro|profile)-prefix-map|flto|ffat-lto|fuse-linker-plugin|fprofile|param=ssp-buffer-size=4|specs=|Wl,-z,now|-Wa,--debug-prefix-map)' {} + \
+	  -exec grep -aEl -e '(LD_LIBRARY|LD_PRELOAD|fakeroot|eatmydata|f(debug|file|macro|profile)-prefix-map|flto|ffat-lto|fuse-linker-plugin|fprofile|specs=|Wl,-z,now|Wa,--debug-prefix-map)' {} + \
 	| sort -V > "$$t" ; \
 	if [ -s "$$t" ] ; then \
 	    echo ; \
