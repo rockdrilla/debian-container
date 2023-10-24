@@ -42,6 +42,7 @@ Description: K2 - Node.js v@{NODEJS_MAJOR_VERSION}
 Package: k2-nodejs-@{NODEJS_MAJOR_VERSION}-full
 Architecture: all
 Multi-Arch: allowed
+Pre-Depends: k2-nodejs-config | k2-empty,
 Depends: ${misc:Depends},
          k2-nodejs-@{NODEJS_MAJOR_VERSION} (= ${binary:Version}),
 Recommends: k2-nodejs-@{NODEJS_MAJOR_VERSION}-dev (= ${binary:Version}),
