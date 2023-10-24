@@ -1,14 +1,6 @@
 --- a/Lib/distutils/command/build.py
 +++ b/Lib/distutils/command/build.py
-@@ -54,6 +54,7 @@ class build(Command):
-         ]
- 
-     def initialize_options(self):
-+        self.build_topdir = None
-         self.build_base = 'build'
-         # these are decided only after 'build_base' has its final value
-         # (unless overridden by the user or client)
-@@ -119,6 +120,8 @@ class build(Command):
+@@ -119,6 +119,8 @@ class build(Command):
          if self.executable is None and sys.executable:
              self.executable = os.path.normpath(sys.executable)
  
