@@ -85,6 +85,7 @@ Versions:
 - 14.21.3
 - 16.20.2
 - 18.18.2
+- 20.9.0
 
 *NB*: Node.js versions below 18.x are OBSOLETE and provided for backward compatibility.
 

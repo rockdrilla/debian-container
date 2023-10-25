@@ -4,6 +4,7 @@ nodejs_versions='
 	14.21.3
 	16.20.2
 	18.18.2
+	20.9.0
 '
 
 set_default_distro_suite

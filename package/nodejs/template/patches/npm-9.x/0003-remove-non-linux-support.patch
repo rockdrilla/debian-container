@@ -1,6 +1,6 @@
-From 1b88cac2ef4d955d275f53d6f3b53e4b9690b6bf Mon Sep 17 00:00:00 2001
+From 83640977513549658b3dfc096b4ca486fae10602 Mon Sep 17 00:00:00 2001
 From: Konstantin Demin <rockdrilla@gmail.com>
-Date: Fri, 15 Sep 2023 11:45:12 +0300
+Date: Wed, 25 Oct 2023 04:08:00 +0300
 Subject: remove non-linux support
 
 ---
@@ -167,7 +167,7 @@ index 8dcd585c..d347c132 100644
    )
 -}
 diff --git a/workspaces/config/lib/definitions/definitions.js b/workspaces/config/lib/definitions/definitions.js
-index fe5cafa1..0ff5ded2 100644
+index fff9c84d..d769ff47 100644
 --- a/workspaces/config/lib/definitions/definitions.js
 +++ b/workspaces/config/lib/definitions/definitions.js
 @@ -7,8 +7,6 @@ const ciInfo = require('ci-info')
@@ -205,7 +205,7 @@ index fe5cafa1..0ff5ded2 100644
  const cache = `${cacheRoot}/${cacheExtra}`
  
  // TODO: refactor these type definitions so that they are less
-@@ -2283,7 +2278,7 @@ define('versions', {
+@@ -2332,7 +2327,7 @@ define('versions', {
  })
  
  define('viewer', {
@@ -263,5 +263,5 @@ index 34bb2076..460fd497 100644
    } = opts
  
 -- 
-2.40.1
+2.42.0
 

@@ -4,6 +4,9 @@ Priority: optional
 Maintainer: @{DEB_MAINTAINER}
 Build-Depends: debhelper-compat (= 13),
                g++-@{latest_gcc_ver},
+               k2-python-shim-3.11-full | k2-empty,
+               k2-python-shim-3.11 | python3,
+               k2-python-shim-3.11 | python3-distutils,
                ca-certificates,
                curl,
                gyp,
@@ -17,8 +20,6 @@ Build-Depends: debhelper-compat (= 13),
                openssl,
                patch,
                procps,
-               k2-python-3.11 | python3,
-               k2-python-3.11 | python3-distutils,
                wrk <!nocheck>,
                zlib1g-dev,
 Rules-Requires-Root: no
@@ -63,7 +64,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
          libnghttp2-dev,
          libssl-dev,
          libuv1-dev,
-         k2-python-3.11 | python3,
+         k2-python-shim-3.11 | python3,
 Recommends: libc6-dev | libc-dev,
 Description: K2 - Node.js v@{NODEJS_MAJOR_VERSION} (development files)
  This package contains header files and development tools for building

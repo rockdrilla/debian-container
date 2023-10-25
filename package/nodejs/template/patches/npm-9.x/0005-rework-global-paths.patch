@@ -1,6 +1,6 @@
-From 7d9e716f7edf524e270f69303433025d74dd2aa4 Mon Sep 17 00:00:00 2001
+From 322552a92395f96e2477e4d06a6119fe08486bc5 Mon Sep 17 00:00:00 2001
 From: Konstantin Demin <rockdrilla@gmail.com>
-Date: Fri, 15 Sep 2023 11:45:13 +0300
+Date: Wed, 25 Oct 2023 04:08:00 +0300
 Subject: rework global paths
 
 ---
@@ -22,7 +22,7 @@ index d63c5287..afea7519 100644
  
    get localBin () {
 diff --git a/workspaces/config/lib/definitions/definitions.js b/workspaces/config/lib/definitions/definitions.js
-index 0ff5ded2..8ddbe04d 100644
+index d769ff47..e87b3477 100644
 --- a/workspaces/config/lib/definitions/definitions.js
 +++ b/workspaces/config/lib/definitions/definitions.js
 @@ -6,6 +6,7 @@ const Definition = require('./definition.js')
@@ -45,5 +45,5 @@ index 0ff5ded2..8ddbe04d 100644
  
  // TODO: refactor these type definitions so that they are less
 -- 
-2.40.1
+2.42.0
 
