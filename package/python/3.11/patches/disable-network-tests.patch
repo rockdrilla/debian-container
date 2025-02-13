@@ -191,7 +191,7 @@
              self.check('shake_256', msg, md, True)
 --- a/Lib/test/test_httplib.py
 +++ b/Lib/test/test_httplib.py
-@@ -1841,6 +1841,7 @@ class HTTPSTest(TestCase):
+@@ -1871,6 +1871,7 @@ class HTTPSTest(TestCase):
          h = client.HTTPSConnection(HOST, TimeoutTest.PORT, timeout=30)
          self.assertEqual(h.timeout, 30)
  
@@ -199,7 +199,7 @@
      def test_networked(self):
          # Default settings: requires a valid cert from a trusted CA
          import ssl
-@@ -1851,6 +1852,7 @@ class HTTPSTest(TestCase):
+@@ -1881,6 +1882,7 @@ class HTTPSTest(TestCase):
                  h.request('GET', '/')
              self.assertEqual(exc_info.exception.reason, 'CERTIFICATE_VERIFY_FAILED')
  
@@ -207,7 +207,7 @@
      def test_networked_noverification(self):
          # Switch off cert verification
          import ssl
-@@ -1865,6 +1867,7 @@ class HTTPSTest(TestCase):
+@@ -1895,6 +1897,7 @@ class HTTPSTest(TestCase):
              self.assertIn('nginx', resp.getheader('server'))
              resp.close()
  
@@ -215,7 +215,7 @@
      @support.system_must_validate_cert
      def test_networked_trusted_by_default_cert(self):
          # Default settings: requires a valid cert from a trusted CA
-@@ -1878,6 +1881,7 @@ class HTTPSTest(TestCase):
+@@ -1908,6 +1911,7 @@ class HTTPSTest(TestCase):
              h.close()
              self.assertIn('text/html', content_type)
  
@@ -223,7 +223,7 @@
      def test_networked_good_cert(self):
          # We feed the server's cert as a validating cert
          import ssl
-@@ -1911,6 +1915,7 @@ class HTTPSTest(TestCase):
+@@ -1941,6 +1945,7 @@ class HTTPSTest(TestCase):
              h.close()
              self.assertIn('nginx', server_string)
  
@@ -253,7 +253,7 @@
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -456,6 +456,7 @@ class ImportSideEffectTests(unittest.Tes
+@@ -496,6 +496,7 @@ class ImportSideEffectTests(unittest.Tes
              else:
                  self.fail("sitecustomize not imported automatically")
  
@@ -263,7 +263,7 @@
      @test.support.requires_resource('network')
 --- a/Lib/test/test_socket.py
 +++ b/Lib/test/test_socket.py
-@@ -1584,6 +1584,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1608,6 +1608,7 @@ class GeneralModuleTests(unittest.TestCa
          # only IP addresses are allowed
          self.assertRaises(OSError, socket.getnameinfo, ('mail.python.org',0), 0)
  
@@ -273,7 +273,7 @@
      def test_idna(self):
 --- a/Lib/test/test_ssl.py
 +++ b/Lib/test/test_ssl.py
-@@ -2379,6 +2379,7 @@ class SimpleBackgroundTests(unittest.Tes
+@@ -2404,6 +2404,7 @@ class SimpleBackgroundTests(unittest.Tes
              self.assertRaises(ssl.SSLEOFError, sslobj.read)
  
  

@@ -36,17 +36,17 @@
          """Finalizes options for non-posix platforms"""
 --- a/Lib/pydoc.py
 +++ b/Lib/pydoc.py
-@@ -508,6 +508,7 @@ class Doc:
+@@ -523,6 +523,7 @@ class Doc:
                                   'marshal', 'posix', 'signal', 'sys',
                                   '_thread', 'zipimport') or
               (file.startswith(basedir) and
 +              not file.startswith(os.path.join(basedir, 'dist-packages')) and
                not file.startswith(os.path.join(basedir, 'site-packages')))) and
-             object.__name__ not in ('xml.etree', 'test.pydoc_mod')):
+             object.__name__ not in ('xml.etree', 'test.test_pydoc.pydoc_mod')):
              if docloc.startswith(("http://", "https://")):
 --- a/Lib/site.py
 +++ b/Lib/site.py
-@@ -351,29 +351,60 @@ def getsitepackages(prefixes=None):
+@@ -361,29 +361,60 @@ def getsitepackages(prefixes=None):
      system environment, and will return a list of full paths.
      """
      sitepackages = []
@@ -188,7 +188,7 @@
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -285,18 +285,8 @@ class HelperFunctionsTests(unittest.Test
+@@ -325,18 +325,8 @@ class HelperFunctionsTests(unittest.Test
          dirs = site.getsitepackages()
          if os.sep == '/':
              # OS X, Linux, FreeBSD, etc
@@ -211,7 +211,7 @@
              self.assertEqual(len(dirs), 2)
 --- a/Lib/test/test_sysconfig.py
 +++ b/Lib/test/test_sysconfig.py
-@@ -336,7 +336,7 @@ class TestSysConfig(unittest.TestCase):
+@@ -345,7 +345,7 @@ class TestSysConfig(unittest.TestCase):
          self.assertTrue(os.path.isfile(config_h), config_h)
  
      def test_get_scheme_names(self):

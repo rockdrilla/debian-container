@@ -1,7 +1,7 @@
 --- a/Lib/test/libregrtest/cmdline.py
 +++ b/Lib/test/libregrtest/cmdline.py
 @@ -164,6 +164,8 @@ class Namespace(argparse.Namespace):
-         self.match_tests = []
+         self.match_tests: TestFilter = []
          self.pgo = False
          self.pgo_extended = False
 +        self.lean_pgo = False
@@ -9,7 +9,7 @@
          self.worker_json = None
          self.start = None
          self.timeout = None
-@@ -333,6 +335,8 @@ def _create_parser():
+@@ -334,6 +336,8 @@ def _create_parser():
                         help='enable Profile Guided Optimization (PGO) training')
      group.add_argument('--pgo-extended', action='store_true',
                         help='enable extended PGO training (slower training)')
@@ -18,7 +18,7 @@
      group.add_argument('--fail-env-changed', action='store_true',
                         help='if a test file alters the environment, mark '
                              'the test as failed')
-@@ -462,6 +466,8 @@ def _parse_args(args, **kwargs):
+@@ -465,6 +469,8 @@ def _parse_args(args, **kwargs):
          parser.error("--pgo/-v don't go together!")
      if ns.pgo_extended:
          ns.pgo = True  # pgo_extended implies pgo
@@ -29,7 +29,7 @@
          print("Warning: the --nowindows (-n) option is deprecated. "
 --- a/Lib/test/libregrtest/main.py
 +++ b/Lib/test/libregrtest/main.py
-@@ -56,6 +56,8 @@ class Regrtest:
+@@ -55,6 +55,8 @@ class Regrtest:
          self.quiet: bool = ns.quiet
          self.pgo: bool = ns.pgo
          self.pgo_extended: bool = ns.pgo_extended
@@ -49,7 +49,7 @@
          if self.exclude:
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -639,7 +639,7 @@ build_all_generate_profile:
+@@ -641,7 +641,7 @@ build_all_generate_profile:
  
  run_profile_task:
  	@ # FIXME: can't run for a cross build

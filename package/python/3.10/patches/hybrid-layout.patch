@@ -46,7 +46,7 @@
              if docloc.startswith(("http://", "https://")):
 --- a/Lib/site.py
 +++ b/Lib/site.py
-@@ -351,32 +351,60 @@ def getsitepackages(prefixes=None):
+@@ -361,32 +361,60 @@ def getsitepackages(prefixes=None):
      system environment, and will return a list of full paths.
      """
      sitepackages = []
@@ -191,7 +191,7 @@
  
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -283,18 +283,8 @@ class HelperFunctionsTests(unittest.Test
+@@ -322,18 +322,8 @@ class HelperFunctionsTests(unittest.Test
          dirs = site.getsitepackages()
          if os.sep == '/':
              # OS X, Linux, FreeBSD, etc

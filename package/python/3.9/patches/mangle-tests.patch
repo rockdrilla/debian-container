@@ -55,7 +55,7 @@
      # Technical limits for this public NNTP server (see http://www.aioe.org):
 --- a/Lib/test/test_os.py
 +++ b/Lib/test/test_os.py
-@@ -3071,7 +3071,6 @@ class SpawnTests(unittest.TestCase):
+@@ -3083,7 +3083,6 @@ class SpawnTests(unittest.TestCase):
  
  # The introduction of this TestCase caused at least two different errors on
  # *nix buildbots. Temporarily skip this to let the buildbots move along.
@@ -146,7 +146,7 @@
      try:
          # RFCOMM is supported by all platforms with bluetooth support. Windows
          # does not support omitting the protocol.
-@@ -1030,6 +1037,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1038,6 +1045,7 @@ class GeneralModuleTests(unittest.TestCa
              with self.assertRaises(OSError, msg=explanation):
                  socket.gethostbyaddr(addr)
  

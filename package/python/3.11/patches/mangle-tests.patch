@@ -1,6 +1,6 @@
 --- a/Lib/test/libregrtest/utils.py
 +++ b/Lib/test/libregrtest/utils.py
-@@ -365,6 +365,7 @@ def get_temp_dir(tmp_dir: StrPath | None
+@@ -358,6 +358,7 @@ def get_temp_dir(tmp_dir: StrPath | None
      if tmp_dir:
          tmp_dir = os.path.expanduser(tmp_dir)
      else:
@@ -31,7 +31,7 @@
          self.assertFalse(interpreters.is_running(interp))
 --- a/Lib/test/test_exceptions.py
 +++ b/Lib/test/test_exceptions.py
-@@ -1108,7 +1108,6 @@ class ExceptionTests(unittest.TestCase):
+@@ -1109,7 +1109,6 @@ class ExceptionTests(unittest.TestCase):
          self.assertIsInstance(exc.__context__, ValueError)
          self.assertIs(exc.__context__.__context__, exc.__context__)
  
@@ -97,7 +97,7 @@
      # Technical limits for this public NNTP server (see http://www.aioe.org):
 --- a/Lib/test/test_os.py
 +++ b/Lib/test/test_os.py
-@@ -3303,7 +3303,6 @@ class SpawnTests(unittest.TestCase):
+@@ -3392,7 +3392,6 @@ class SpawnTests(unittest.TestCase):
  
  # The introduction of this TestCase caused at least two different errors on
  # *nix buildbots. Temporarily skip this to let the buildbots move along.
@@ -105,35 +105,9 @@
  @unittest.skipUnless(hasattr(os, 'getlogin'), "test needs os.getlogin")
  class LoginTests(unittest.TestCase):
      def test_getlogin(self):
---- a/Lib/test/test_pydoc.py
-+++ b/Lib/test/test_pydoc.py
-@@ -990,7 +990,6 @@ class PydocImportTest(PydocBaseTest):
-             finally:
-                 sys.path[:] = saved_paths
- 
--    @unittest.skip('causes undesirable side-effects (#20128)')
-     def test_modules(self):
-         # See Helper.listmodules().
-         num_header_lines = 2
-@@ -1006,7 +1005,6 @@ class PydocImportTest(PydocBaseTest):
- 
-         self.assertGreaterEqual(num_lines, expected)
- 
--    @unittest.skip('causes undesirable side-effects (#20128)')
-     def test_modules_search(self):
-         # See Helper.listmodules().
-         expected = 'pydoc - '
-@@ -1019,7 +1017,6 @@ class PydocImportTest(PydocBaseTest):
- 
-         self.assertIn(expected, result)
- 
--    @unittest.skip('some buildbots are not cooperating (#20128)')
-     def test_modules_search_builtin(self):
-         expected = 'gc - '
- 
 --- a/Lib/test/test_socket.py
 +++ b/Lib/test/test_socket.py
-@@ -66,6 +66,7 @@ def get_cid():
+@@ -67,6 +67,7 @@ def get_cid():
  
  def _have_socket_can():
      """Check whether CAN sockets are supported on this host."""
@@ -141,7 +115,7 @@
      try:
          s = socket.socket(socket.PF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
      except (AttributeError, OSError):
-@@ -76,6 +77,7 @@ def _have_socket_can():
+@@ -77,6 +78,7 @@ def _have_socket_can():
  
  def _have_socket_can_isotp():
      """Check whether CAN ISOTP sockets are supported on this host."""
@@ -149,7 +123,7 @@
      try:
          s = socket.socket(socket.PF_CAN, socket.SOCK_DGRAM, socket.CAN_ISOTP)
      except (AttributeError, OSError):
-@@ -86,6 +88,7 @@ def _have_socket_can_isotp():
+@@ -87,6 +89,7 @@ def _have_socket_can_isotp():
  
  def _have_socket_can_j1939():
      """Check whether CAN J1939 sockets are supported on this host."""
@@ -157,7 +131,7 @@
      try:
          s = socket.socket(socket.PF_CAN, socket.SOCK_DGRAM, socket.CAN_J1939)
      except (AttributeError, OSError):
-@@ -96,6 +99,7 @@ def _have_socket_can_j1939():
+@@ -97,6 +100,7 @@ def _have_socket_can_j1939():
  
  def _have_socket_rds():
      """Check whether RDS sockets are supported on this host."""
@@ -165,7 +139,7 @@
      try:
          s = socket.socket(socket.PF_RDS, socket.SOCK_SEQPACKET, 0)
      except (AttributeError, OSError):
-@@ -116,6 +120,7 @@ def _have_socket_alg():
+@@ -117,6 +121,7 @@ def _have_socket_alg():
  
  def _have_socket_qipcrtr():
      """Check whether AF_QIPCRTR sockets are supported on this host."""
@@ -173,7 +147,7 @@
      try:
          s = socket.socket(socket.AF_QIPCRTR, socket.SOCK_DGRAM, 0)
      except (AttributeError, OSError):
-@@ -126,12 +131,14 @@ def _have_socket_qipcrtr():
+@@ -127,12 +132,14 @@ def _have_socket_qipcrtr():
  
  def _have_socket_vsock():
      """Check whether AF_VSOCK sockets are supported on this host."""
@@ -188,7 +162,7 @@
      try:
          # RFCOMM is supported by all platforms with bluetooth support. Windows
          # does not support omitting the protocol.
-@@ -1026,6 +1033,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1037,6 +1044,7 @@ class GeneralModuleTests(unittest.TestCa
              with self.assertRaises(OSError, msg=explanation):
                  socket.gethostbyaddr(addr)
  
@@ -198,7 +172,7 @@
      def test_sethostname(self):
 --- a/Lib/test/test_subprocess.py
 +++ b/Lib/test/test_subprocess.py
-@@ -1698,7 +1698,6 @@ class RunFuncTestCase(BaseTestCase):
+@@ -1760,7 +1760,6 @@ class RunFuncTestCase(BaseTestCase):
          res = subprocess.run(args)
          self.assertEqual(res.returncode, 57)
  

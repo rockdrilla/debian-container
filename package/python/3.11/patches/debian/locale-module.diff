@@ -5,7 +5,7 @@ Forwarded: no
 
 --- a/Lib/locale.py
 +++ b/Lib/locale.py
-@@ -1443,8 +1443,8 @@ locale_alias = {
+@@ -1444,8 +1444,8 @@ locale_alias = {
      'ug_cn':                                'ug_CN.UTF-8',
      'uk':                                   'uk_UA.KOI8-U',
      'uk_ua':                                'uk_UA.KOI8-U',

@@ -243,7 +243,7 @@
      base_url = 'http://www.pythontest.net/'
 --- a/Lib/test/test_site.py
 +++ b/Lib/test/test_site.py
-@@ -442,6 +442,7 @@ class ImportSideEffectTests(unittest.Tes
+@@ -481,6 +481,7 @@ class ImportSideEffectTests(unittest.Tes
              else:
                  self.fail("sitecustomize not imported automatically")
  
@@ -253,7 +253,7 @@
      @unittest.skipUnless(hasattr(urllib.request, "HTTPSHandler"),
 --- a/Lib/test/test_socket.py
 +++ b/Lib/test/test_socket.py
-@@ -1576,6 +1576,7 @@ class GeneralModuleTests(unittest.TestCa
+@@ -1597,6 +1597,7 @@ class GeneralModuleTests(unittest.TestCa
          # only IP addresses are allowed
          self.assertRaises(OSError, socket.getnameinfo, ('mail.python.org',0), 0)
  

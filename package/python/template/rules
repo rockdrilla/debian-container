@@ -59,7 +59,7 @@ ifeq ($(distribution),Ubuntu)
   export OPENSSL_CONF = $(CURDIR)/debian/tests/openssl.cnf
 endif
 
-DEB_PGO_LEVEL_DEFAULT = 6
+DEB_PGO_LEVEL_DEFAULT = 1
 DEB_PGO_PACKAGE = k2-python-$(PYTHON_VERSION)-pgo
 include debian/rules.gcc-pgo
 

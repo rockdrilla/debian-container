@@ -1,6 +1,6 @@
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -1669,7 +1669,7 @@ $(LIBRARY_OBJS) $(MODOBJS) Programs/pyth
+@@ -1671,7 +1671,7 @@ $(LIBRARY_OBJS) $(MODOBJS) Programs/pyth
  ######################################################################
  
  TESTOPTS=	$(EXTRATESTOPTS)

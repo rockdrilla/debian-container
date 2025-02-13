@@ -1,6 +1,6 @@
 --- a/Python/initconfig.c
 +++ b/Python/initconfig.c
-@@ -790,6 +790,9 @@ config_init_defaults(PyConfig *config)
+@@ -770,6 +770,9 @@ config_init_defaults(PyConfig *config)
  {
      _PyConfig_InitCompatConfig(config);
  
@@ -10,7 +10,7 @@
      config->isolated = 0;
      config->use_environment = 1;
      config->site_import = 1;
-@@ -798,11 +801,11 @@ config_init_defaults(PyConfig *config)
+@@ -778,11 +781,11 @@ config_init_defaults(PyConfig *config)
      config->interactive = 0;
      config->optimization_level = 0;
      config->parser_debug= 0;
