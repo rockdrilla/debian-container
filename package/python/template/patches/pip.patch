@@ -16,7 +16,7 @@
 -    default="warn",
 +    default="ignore",
      choices=["warn", "ignore"],
-     help="Action if pip is run as a root user. By default, a warning message is shown.",
+     help="Action if pip is run as a root user [warn, ignore] (default: warn)",
  )
 --- a/src/pip/_internal/operations/freeze.py
 +++ b/src/pip/_internal/operations/freeze.py
@@ -53,7 +53,7 @@
              continue
 --- a/src/pip/_internal/utils/misc.py
 +++ b/src/pip/_internal/utils/misc.py
-@@ -331,9 +331,27 @@ def is_local(path: str) -> bool:
+@@ -365,9 +365,27 @@ def is_local(path: str) -> bool:
      Caution: this function assumes the head of path has been normalized
      with normalize_path.
      """
@@ -86,15 +86,19 @@
  def write_output(msg: Any, *args: Any) -> None:
 --- a/src/pip/_vendor/certifi/core.py
 +++ b/src/pip/_vendor/certifi/core.py
-@@ -4,105 +4,16 @@ certifi.py
+@@ -4,111 +4,18 @@ certifi.py
  
  This module returns the installation location of cacert.pem or its contents.
  """
 -import sys
+-import atexit
 +import os
 +from pathlib import Path
  
+-def exit_cacert_ctx() -> None:
+-    _CACERT_CTX.__exit__(None, None, None)  # type: ignore[union-attr]
 +_SSL_CERT_FILE = None
+ 
  
 -if sys.version_info >= (3, 11):
 +def where() -> str:
@@ -104,7 +108,7 @@
 +    return _SSL_CERT_FILE
  
 -    from importlib.resources import as_file, files
--
+ 
 -    _CACERT_CTX = None
 -    _CACERT_PATH = None
 -
@@ -129,6 +133,7 @@
 -            # we will also store that at the global level as well.
 -            _CACERT_CTX = as_file(files("pip._vendor.certifi").joinpath("cacert.pem"))
 -            _CACERT_PATH = str(_CACERT_CTX.__enter__())
+-            atexit.register(exit_cacert_ctx)
 -
 -        return _CACERT_PATH
 -
@@ -164,6 +169,7 @@
 -            # we will also store that at the global level as well.
 -            _CACERT_CTX = get_path("pip._vendor.certifi", "cacert.pem")
 -            _CACERT_PATH = str(_CACERT_CTX.__enter__())
+-            atexit.register(exit_cacert_ctx)
 -
 -        return _CACERT_PATH
 -
