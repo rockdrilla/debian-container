@@ -1,0 +1,20 @@
+--- a/Lib/compileall.py
++++ b/Lib/compileall.py
+@@ -97,10 +97,13 @@ def compile_dir(dir, maxlevels=None, ddi
+     files = _walk_dir(dir, quiet=quiet, maxlevels=maxlevels)
+     success = True
+     if workers != 1 and ProcessPoolExecutor is not None:
+-        import multiprocessing
+-        if multiprocessing.get_start_method() == 'fork':
+-            mp_context = multiprocessing.get_context('forkserver')
+-        else:
++        try:
++            import multiprocessing
++            if multiprocessing.get_start_method() == 'fork':
++                mp_context = multiprocessing.get_context('forkserver')
++            else:
++                mp_context = None
++        except ImportError:
+             mp_context = None
+         # If workers == 0, let ProcessPoolExecutor choose
+         workers = workers or None

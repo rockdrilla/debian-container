@@ -1,0 +1,17 @@
+--- a/Tools/peg_generator/pegen/build.py
++++ b/Tools/peg_generator/pegen/build.py
+@@ -187,12 +187,12 @@ def compile_c_extension(
+     ext_path = cmd.get_ext_fullpath(extension_name)
+     if newer_group(extension.sources, ext_path, 'newer'):
+         objects = compiler.compile(extension.sources,
+-                                    output_dir=cmd.build_temp,
++                                    output_dir=cmd.build_base,
+                                     debug=cmd.debug,
+                                     extra_postargs=extra_compile_args)
+     else:
+         objects = compiler.object_filenames(extension.sources,
+-                                            output_dir=cmd.build_temp)
++                                            output_dir=cmd.build_base)
+     # Now link the object files together into a "shared object"
+     compiler.link_shared_object(
+         objects, ext_path,

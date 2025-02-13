@@ -1,0 +1,60 @@
+--- a/Lib/test/libregrtest/cmdline.py
++++ b/Lib/test/libregrtest/cmdline.py
+@@ -164,6 +164,8 @@ class Namespace(argparse.Namespace):
+         self.match_tests: TestFilter = []
+         self.pgo = False
+         self.pgo_extended = False
++        self.lean_pgo = False
++        self.lean_pgo_extended = False
+         self.tsan = False
+         self.worker_json = None
+         self.start = None
+@@ -335,6 +337,8 @@ def _create_parser():
+                        help='enable Profile Guided Optimization (PGO) training')
+     group.add_argument('--pgo-extended', action='store_true',
+                        help='enable extended PGO training (slower training)')
++    group.add_argument('--lean-pgo', action='store_true', help='internal option')
++    group.add_argument('--lean-pgo-extended', action='store_true', help='internal option')
+     group.add_argument('--tsan', dest='tsan', action='store_true',
+                        help='run a subset of test cases that are proper for the TSAN test')
+     group.add_argument('--fail-env-changed', action='store_true',
+@@ -468,6 +472,8 @@ def _parse_args(args, **kwargs):
+         parser.error("--pgo/-v don't go together!")
+     if ns.pgo_extended:
+         ns.pgo = True  # pgo_extended implies pgo
++    if ns.lean_pgo_extended:
++        ns.lean_pgo = True
+ 
+     if ns.nowindows:
+         print("Warning: the --nowindows (-n) option is deprecated. "
+--- a/Lib/test/libregrtest/main.py
++++ b/Lib/test/libregrtest/main.py
+@@ -56,6 +56,8 @@ class Regrtest:
+         self.quiet: bool = ns.quiet
+         self.pgo: bool = ns.pgo
+         self.pgo_extended: bool = ns.pgo_extended
++        self.lean_pgo: bool = ns.lean_pgo
++        self.lean_pgo_extended: bool = ns.lean_pgo_extended
+         self.tsan: bool = ns.tsan
+ 
+         # Test results
+@@ -183,6 +185,8 @@ class Regrtest:
+         if self.pgo:
+             # add default PGO tests if no tests are specified
+             setup_pgo_tests(self.cmdline_args, self.pgo_extended)
++        if self.lean_pgo:
++            setup_pgo_tests(self.cmdline_args, self.lean_pgo_extended)
+ 
+         if self.tsan:
+             setup_tsan_tests(self.cmdline_args)
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -661,7 +661,7 @@ profile-run-stamp:
+ 	$(MAKE) profile-gen-stamp
+ 	# Next, run the profile task to generate the profile information.
+ 	@ # FIXME: can't run for a cross build
+-	$(LLVM_PROF_FILE) $(RUNSHARED) ./$(BUILDPYTHON) $(PROFILE_TASK) || true
++	$(LLVM_PROF_FILE) $(RUNSHARED) $(DEB_SRC_TOPDIR)/debian/bench.sh ./$(BUILDPYTHON) $(PROFILE_TASK)
+ 	$(LLVM_PROF_MERGER)
+ 	# Remove profile generation binary since we are done with it.
+ 	$(MAKE) clean-retain-profile

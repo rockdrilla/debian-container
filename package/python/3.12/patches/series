@@ -1,0 +1,37 @@
+git-branch.patch
+
+# these patches are borrowed from Debian
+# I'd like to say many thanks to the maintainers for their work :)
+## debian/deb-setup.diff
+debian/destshared-location.diff
+debian/disable-sem-check.diff
+debian/fix-py_compile.diff
+debian/ignore-wheeldata.diff
+debian/issue108447.diff
+debian/issue127330.diff
+debian/langpack-gettext.diff
+debian/locale-module.diff
+debian/makefile-bootstrap.diff
+debian/multiarch.diff
+debian/ntpath-import.diff
+debian/python3.12-updates.diff
+debian/setup-modules.diff
+debian/sysconfigdata-name.diff
+debian/test-freeze-strip-libdir.diff
+debian/test-no-random-order.diff
+
+bootstrap-python.patch
+test-real-python.patch
+sort-build-objects.patch
+inplace-build.patch
+lto-pgo-flags.patch
+pgo-extra-pass.patch
+## build-shared-mods.patch
+install-no-pycache.patch
+python-compat-switch.patch
+hybrid-layout.patch
+python-config.patch
+mangle-tests.patch
+disable-network-tests.patch
+
+quirks/ensurepip.patch

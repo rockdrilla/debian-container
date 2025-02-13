@@ -1,0 +1,201 @@
+--- a/Lib/test/libregrtest/utils.py
++++ b/Lib/test/libregrtest/utils.py
+@@ -387,6 +387,7 @@ def get_temp_dir(tmp_dir: StrPath | None
+     if tmp_dir:
+         tmp_dir = os.path.expanduser(tmp_dir)
+     else:
++        return tempfile.gettempdir()
+         # When tests are run from the Python build directory, it is best practice
+         # to keep the test files in a subfolder.  This eases the cleanup of leftover
+         # files using the "make distclean" command.
+--- a/Lib/test/support/socket_helper.py
++++ b/Lib/test/support/socket_helper.py
+@@ -142,7 +142,7 @@ def _is_ipv6_enabled():
+                 sock.close()
+     return False
+ 
+-IPV6_ENABLED = _is_ipv6_enabled()
++IPV6_ENABLED = False
+ 
+ 
+ _bind_nix_socket_error = None
+--- a/Lib/test/test__xxsubinterpreters.py
++++ b/Lib/test/test__xxsubinterpreters.py
+@@ -274,7 +274,6 @@ class IsRunningTests(TestBase):
+         main = interpreters.get_main()
+         self.assertTrue(interpreters.is_running(main))
+ 
+-    @unittest.skip('Fails on FreeBSD')
+     def test_subinterpreter(self):
+         interp = interpreters.create()
+         self.assertFalse(interpreters.is_running(interp))
+--- a/Lib/test/test_interpreters.py
++++ b/Lib/test/test_interpreters.py
+@@ -266,7 +266,6 @@ class TestInterpreterIsRunning(TestBase)
+         main = interpreters.get_main()
+         self.assertTrue(main.is_running())
+ 
+-    @unittest.skip('Fails on FreeBSD')
+     def test_subinterpreter(self):
+         interp = interpreters.create()
+         self.assertFalse(interp.is_running())
+@@ -429,7 +428,6 @@ class TestInterpreterClose(TestBase):
+         t.start()
+         t.join()
+ 
+-    @unittest.skip('Fails on FreeBSD')
+     def test_still_running(self):
+         main, = interpreters.list_all()
+         interp = interpreters.create()
+@@ -518,7 +516,6 @@ class TestInterpreterRun(TestBase):
+             content = file.read()
+             self.assertEqual(content, expected)
+ 
+-    @unittest.skip('Fails on FreeBSD')
+     def test_already_running(self):
+         interp = interpreters.create()
+         with _running(interp):
+--- a/Lib/test/test_nntplib.py
++++ b/Lib/test/test_nntplib.py
+@@ -141,8 +141,6 @@ class NetworkedNNTPTestsMixin:
+         self.assertLessEqual(art_num, last)
+         self._check_art_dict(art_dict)
+ 
+-    @unittest.skipIf(True, 'temporarily skipped until a permanent solution'
+-                           ' is found for issue #28971')
+     def test_over(self):
+         resp, count, first, last, name = self.server.group(self.GROUP_NAME)
+         start = last - 10
+@@ -346,7 +344,7 @@ class NetworkedNNTPTests(NetworkedNNTPTe
+         if cls.server is not None:
+             cls.server.quit()
+ 
+-@unittest.skipUnless(ssl, 'requires SSL support')
++@unittest.skip('skip tests for aioe.org')
+ class NetworkedNNTP_SSLTests(NetworkedNNTPTests):
+ 
+     # Technical limits for this public NNTP server (see http://www.aioe.org):
+--- a/Lib/test/test_os.py
++++ b/Lib/test/test_os.py
+@@ -3576,7 +3576,6 @@ class SpawnTests(unittest.TestCase):
+ 
+ # The introduction of this TestCase caused at least two different errors on
+ # *nix buildbots. Temporarily skip this to let the buildbots move along.
+-@unittest.skip("Skip due to platform/environment differences on *NIX buildbots")
+ @unittest.skipUnless(hasattr(os, 'getlogin'), "test needs os.getlogin")
+ class LoginTests(unittest.TestCase):
+     def test_getlogin(self):
+--- a/Lib/test/test_socket.py
++++ b/Lib/test/test_socket.py
+@@ -69,6 +69,7 @@ def get_cid():
+ 
+ def _have_socket_can():
+     """Check whether CAN sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
+     except (AttributeError, OSError):
+@@ -79,6 +80,7 @@ def _have_socket_can():
+ 
+ def _have_socket_can_isotp():
+     """Check whether CAN ISOTP sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_CAN, socket.SOCK_DGRAM, socket.CAN_ISOTP)
+     except (AttributeError, OSError):
+@@ -89,6 +91,7 @@ def _have_socket_can_isotp():
+ 
+ def _have_socket_can_j1939():
+     """Check whether CAN J1939 sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_CAN, socket.SOCK_DGRAM, socket.CAN_J1939)
+     except (AttributeError, OSError):
+@@ -99,6 +102,7 @@ def _have_socket_can_j1939():
+ 
+ def _have_socket_rds():
+     """Check whether RDS sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.PF_RDS, socket.SOCK_SEQPACKET, 0)
+     except (AttributeError, OSError):
+@@ -119,6 +123,7 @@ def _have_socket_alg():
+ 
+ def _have_socket_qipcrtr():
+     """Check whether AF_QIPCRTR sockets are supported on this host."""
++    return False
+     try:
+         s = socket.socket(socket.AF_QIPCRTR, socket.SOCK_DGRAM, 0)
+     except (AttributeError, OSError):
+@@ -129,12 +134,14 @@ def _have_socket_qipcrtr():
+ 
+ def _have_socket_vsock():
+     """Check whether AF_VSOCK sockets are supported on this host."""
++    return False
+     cid = get_cid()
+     return (cid is not None)
+ 
+ 
+ def _have_socket_bluetooth():
+     """Check whether AF_BLUETOOTH sockets are supported on this host."""
++    return False
+     try:
+         # RFCOMM is supported by all platforms with bluetooth support. Windows
+         # does not support omitting the protocol.
+@@ -1060,6 +1067,7 @@ class GeneralModuleTests(unittest.TestCa
+             with self.assertRaises(OSError, msg=explanation):
+                 socket.gethostbyaddr(addr)
+ 
++    @unittest.skip('avoid sethostname()')
+     @unittest.skipUnless(hasattr(socket, 'sethostname'), "test needs socket.sethostname()")
+     @unittest.skipUnless(hasattr(socket, 'gethostname'), "test needs socket.gethostname()")
+     def test_sethostname(self):
+--- a/Lib/test/test_subprocess.py
++++ b/Lib/test/test_subprocess.py
+@@ -1759,7 +1759,6 @@ class RunFuncTestCase(BaseTestCase):
+         res = subprocess.run(args)
+         self.assertEqual(res.returncode, 57)
+ 
+-    @unittest.skipUnless(mswindows, "Maybe test trigger a leak on Ubuntu")
+     def test_run_with_an_empty_env(self):
+         # gh-105436: fix subprocess.run(..., env={}) broken on Windows
+         args = [sys.executable, "-c", 'pass']
+--- a/Lib/test/test_support.py
++++ b/Lib/test/test_support.py
+@@ -65,7 +65,6 @@ class TestSupport(unittest.TestCase):
+                         self.test_get_attribute)
+         self.assertRaises(unittest.SkipTest, support.get_attribute, self, "foo")
+ 
+-    @unittest.skip("failing buildbots")
+     def test_get_original_stdout(self):
+         self.assertEqual(support.get_original_stdout(), sys.stdout)
+ 
+--- a/Lib/test/test_time.py
++++ b/Lib/test/test_time.py
+@@ -134,6 +134,7 @@ class TimeTestCase(unittest.TestCase):
+         self.assertGreater(res, 0.0)
+         self.assertLessEqual(res, 1.0)
+ 
++    @unittest.skip("avoid clock_settime()")
+     @unittest.skipUnless(hasattr(time, 'clock_settime'),
+                          'need time.clock_settime()')
+     def test_clock_settime(self):
+@@ -490,10 +491,6 @@ class TimeTestCase(unittest.TestCase):
+             else:
+                 self.assertEqual(time.mktime(tt), t)
+ 
+-    # Issue #13309: passing extreme values to mktime() or localtime()
+-    # borks the glibc's internal timezone data.
+-    @unittest.skipUnless(platform.libc_ver()[0] != 'glibc',
+-                         "disabled because of a bug in glibc. Issue #13309")
+     def test_mktime_error(self):
+         # It may not be possible to reliably make mktime return an error
+         # on all platforms.  This will make sure that no other exception
+@@ -569,6 +566,7 @@ class TimeTestCase(unittest.TestCase):
+         self.assertTrue(info.monotonic)
+         self.assertFalse(info.adjustable)
+ 
++    @unittest.skip("avoid clock_settime()")
+     @unittest.skipUnless(hasattr(time, 'clock_settime'),
+                          'need time.clock_settime')
+     def test_monotonic_settime(self):

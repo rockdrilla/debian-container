@@ -1,0 +1,39 @@
+Description: Don't assume wheeldata is deleted if `WHEEL_PKG_DIR` is set
+ Remove wheeldata from both sides of the `assertEqual`, so that we're
+ *actually* ignoring it from the test set.
+ .
+ This test is only making assertions about the source tree, no code is being
+ executed that would do anything different based on the value of
+ `WHEEL_PKG_DIR`.
+Author: Stefano Rivera <stefanor@debian.org>
+Bug-upstream: https://github.com/python/cpython/issues/120418
+Forwarded: https://github.com/python/cpython/pull/120419
+
+--- a/Lib/test/test_tools/test_makefile.py
++++ b/Lib/test/test_tools/test_makefile.py
+@@ -40,7 +40,7 @@ class TestMakefile(unittest.TestCase):
+         idle_test = 'idlelib/idle_test'
+         self.assertIn(idle_test, test_dirs)
+ 
+-        used = [idle_test]
++        used = set([idle_test])
+         for dirpath, dirs, files in os.walk(support.TEST_HOME_DIR):
+             dirname = os.path.basename(dirpath)
+             # Skip temporary dirs:
+@@ -67,13 +67,14 @@ class TestMakefile(unittest.TestCase):
+                         "of test directories to install"
+                     )
+                 )
+-                used.append(relpath)
++                used.add(relpath)
+ 
+         # Don't check the wheel dir when Python is built --with-wheel-pkg-dir
+         if sysconfig.get_config_var('WHEEL_PKG_DIR'):
+             test_dirs.remove('test/wheeldata')
++            used.discard('test/wheeldata')
+ 
+         # Check that there are no extra entries:
+         unique_test_dirs = set(test_dirs)
+-        self.assertSetEqual(unique_test_dirs, set(used))
++        self.assertSetEqual(unique_test_dirs, used)
+         self.assertEqual(len(test_dirs), len(unique_test_dirs))

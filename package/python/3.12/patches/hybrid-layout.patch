@@ -1,0 +1,186 @@
+--- a/Lib/pydoc.py
++++ b/Lib/pydoc.py
+@@ -537,6 +537,7 @@ class Doc:
+                                  'marshal', 'posix', 'signal', 'sys',
+                                  '_thread', 'zipimport') or
+              (file.startswith(basedir) and
++              not file.startswith(os.path.join(basedir, 'dist-packages')) and
+               not file.startswith(os.path.join(basedir, 'site-packages')))) and
+             object.__name__ not in ('xml.etree', 'test.test_pydoc.pydoc_mod')):
+             if docloc.startswith(("http://", "https://")):
+--- a/Lib/site.py
++++ b/Lib/site.py
+@@ -372,29 +372,60 @@ def getsitepackages(prefixes=None):
+     system environment, and will return a list of full paths.
+     """
+     sitepackages = []
++    if os.sep != '/':
++        return sitepackages
++
+     seen = set()
+ 
+     if prefixes is None:
+         prefixes = PREFIXES
+ 
++    libpart = 'lib/python%d.%d' % sys.version_info[:2]
++
++    is_venv = (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ)
++    is_venv_thin = False
++    is_venv_only = False
++    force_venv_thin = False
++    force_venv_only = False
++    if is_venv:
++        is_venv_thin = sys.base_prefix in prefixes
++        is_venv_only = not is_venv_thin
++        k2_venv = os.getenv('K2_PYTHON_VENV', '').lower()
++        force_venv_thin = k2_venv in ( '0', 'thin' )
++        force_venv_only = k2_venv in ( '1', 'only' )
++
++    if force_venv_thin:
++        pfx = []
++        pfx.extend(prefixes)
++        pfx.append(sys.base_prefix)
++        prefixes = pfx
++
+     for prefix in prefixes:
+         if not prefix or prefix in seen:
+             continue
+         seen.add(prefix)
+ 
+-        if os.sep == '/':
+-            libdirs = [sys.platlibdir]
+-            if sys.platlibdir != "lib":
+-                libdirs.append("lib")
+-
+-            for libdir in libdirs:
+-                path = os.path.join(prefix, libdir,
+-                                    "python%d.%d" % sys.version_info[:2],
+-                                    "site-packages")
+-                sitepackages.append(path)
+-        else:
+-            sitepackages.append(prefix)
+-            sitepackages.append(os.path.join(prefix, "Lib", "site-packages"))
++        sitepackages.append(os.path.join(prefix, libpart, 'site-packages'))
++        if force_venv_only:
++            return sitepackages
++        if prefix != sys.base_prefix:
++            continue
++        # "dist-packages" is meaningful only for real prefix
++        sitepackages.append(os.path.join(prefix, libpart, 'dist-packages'))
++
++    if is_venv_only and (not force_venv_thin):
++        return sitepackages
++
++    if os.getenv('K2_PYTHON_ALLSITES', '1') == '0':
++        return sitepackages
++
++    # compatibility with world
++    sitepackages.append(os.path.join('/usr/local', libpart, 'site-packages'))
++    # compatibility with Debian and derivatives
++    sitepackages.append(os.path.join('/usr/local', libpart, 'dist-packages'))
++    sitepackages.append(os.path.join('/usr/lib/python3/dist-packages'))
++    sitepackages.append(os.path.join('/usr', libpart, 'dist-packages'))
++
+     return sitepackages
+ 
+ def addsitepackages(known_paths, prefixes=None):
+--- a/Lib/sysconfig.py
++++ b/Lib/sysconfig.py
+@@ -37,6 +37,26 @@ _INSTALL_SCHEMES = {
+         'scripts': '{base}/bin',
+         'data': '{base}',
+         },
++    'posix_system': {
++        'stdlib': '{installed_base}/{platlibdir}/python{py_version_short}',
++        'platstdlib': '{platbase}/{platlibdir}/python{py_version_short}',
++        'purelib': '{base}/lib/python{py_version_short}/site-packages',
++        'platlib': '{platbase}/{platlibdir}/python{py_version_short}/site-packages',
++        'include': '{installed_base}/include/python{py_version_short}{abiflags}',
++        'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
++        'scripts': '/usr/local/bin',
++        'data': '{base}',
++        },
++    'posix_dist': {
++        'stdlib': '{installed_base}/{platlibdir}/python{py_version_short}',
++        'platstdlib': '{platbase}/{platlibdir}/python{py_version_short}',
++        'purelib': '{base}/lib/python{py_version_short}/dist-packages',
++        'platlib': '{platbase}/{platlibdir}/python{py_version_short}/dist-packages',
++        'include': '{installed_base}/include/python{py_version_short}{abiflags}',
++        'platinclude': '{installed_platbase}/include/python{py_version_short}{abiflags}',
++        'scripts': '{base}/bin',
++        'data': '{base}',
++        },
+     'posix_home': {
+         'stdlib': '{installed_base}/lib/python',
+         'platstdlib': '{base}/lib/python',
+@@ -232,7 +252,7 @@ def is_python_build(check_home=None):
+ _PYTHON_BUILD = is_python_build()
+ 
+ if _PYTHON_BUILD:
+-    for scheme in ('posix_prefix', 'posix_home'):
++    for scheme in ('posix_prefix', 'posix_home', 'posix_system', 'posix_dist'):
+         # On POSIX-y platforms, Python will:
+         # - Build from .h files in 'headers' (which is only added to the
+         #   scheme when building CPython)
+@@ -292,8 +312,17 @@ def _get_preferred_schemes():
+             'home': 'posix_home',
+             'user': 'osx_framework_user',
+         }
++    prefix_scheme = 'posix_system'
++    if (sys.base_prefix != sys.prefix) or ('real_prefix' in sys.__dict__) or ('PYTHONUSERBASE' in os.environ) or ('VIRTUAL_ENV' in os.environ):
++        prefix_scheme = 'posix_prefix'
++    elif 'K2_PYTHON_INSTALL' in os.environ:
++        k2_install = os.getenv('K2_PYTHON_INSTALL', '').lower()
++        if k2_install == 'dist':
++            prefix_scheme = 'posix_dist'
++        elif k2_install == 'prefix':
++            prefix_scheme = 'posix_prefix'
+     return {
+-        'prefix': 'posix_prefix',
++        'prefix': prefix_scheme,
+         'home': 'posix_home',
+         'user': 'posix_user',
+     }
+@@ -600,7 +629,7 @@ def get_config_h_filename():
+         else:
+             inc_dir = _PROJECT_BASE
+     else:
+-        inc_dir = get_path('platinclude')
++        inc_dir = get_path('platinclude', 'posix_system')
+     return os.path.join(inc_dir, 'pyconfig.h')
+ 
+ 
+--- a/Lib/test/test_site.py
++++ b/Lib/test/test_site.py
+@@ -324,18 +324,8 @@ class HelperFunctionsTests(unittest.Test
+         dirs = site.getsitepackages()
+         if os.sep == '/':
+             # OS X, Linux, FreeBSD, etc
+-            if sys.platlibdir != "lib":
+-                self.assertEqual(len(dirs), 2)
+-                wanted = os.path.join('xoxo', sys.platlibdir,
+-                                      'python%d.%d' % sys.version_info[:2],
+-                                      'site-packages')
+-                self.assertEqual(dirs[0], wanted)
+-            else:
+-                self.assertEqual(len(dirs), 1)
+-            wanted = os.path.join('xoxo', 'lib',
+-                                  'python%d.%d' % sys.version_info[:2],
+-                                  'site-packages')
+-            self.assertEqual(dirs[-1], wanted)
++            self.assertEqual(len(dirs), 1)
++            self.assertEqual(dirs[0], os.path.join('xoxo/lib/python%d.%d/site-packages' % sys.version_info[:2]))
+         else:
+             # other platforms
+             self.assertEqual(len(dirs), 2)
+--- a/Lib/test/test_sysconfig.py
++++ b/Lib/test/test_sysconfig.py
+@@ -353,7 +353,7 @@ class TestSysConfig(unittest.TestCase):
+         self.assertTrue(os.path.isfile(config_h), config_h)
+ 
+     def test_get_scheme_names(self):
+-        wanted = ['nt', 'posix_home', 'posix_prefix', 'posix_venv', 'nt_venv', 'venv']
++        wanted = ['nt', 'posix_dist', 'posix_home', 'posix_prefix', 'posix_system', 'posix_venv', 'nt_venv', 'venv']
+         if HAS_USER_BASE:
+             wanted.extend(['nt_user', 'osx_framework_user', 'posix_user'])
+         self.assertEqual(get_scheme_names(), tuple(sorted(wanted)))

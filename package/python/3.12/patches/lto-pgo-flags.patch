@@ -1,0 +1,62 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -1944,7 +1944,7 @@ if test "$Py_LTO" = 'true' ; then
+           LTOCFLAGS="-flto"
+           ;;
+         *)
+-          LTOFLAGS="-flto -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
++          LTOFLAGS="-g -O3 -fwrapv -flto=2 -fuse-linker-plugin -ffat-lto-objects -flto-partition=none"
+           ;;
+       esac
+       ;;
+@@ -2030,8 +2030,8 @@ case $CC in
+         fi
+         ;;
+       *)
+-        PGO_PROF_GEN_FLAG="-fprofile-generate"
+-        PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction"
++        PGO_PROF_GEN_FLAG="-fprofile-generate -fprofile-update=prefer-atomic"
++        PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction -fprofile-partial-training -Wmissing-profile -Wno-error=coverage-mismatch"
+         LLVM_PROF_MERGER="true"
+         LLVM_PROF_FILE=""
+         ;;
+--- a/Lib/test/libregrtest/utils.py
++++ b/Lib/test/libregrtest/utils.py
+@@ -337,7 +337,7 @@ def get_build_info():
+     optimizations = []
+     if '-flto=thin' in ldflags_nodist:
+         optimizations.append('ThinLTO')
+-    elif '-flto' in ldflags_nodist:
++    elif '-flto=2' in ldflags_nodist:
+         optimizations.append('LTO')
+ 
+     if support.check_cflags_pgo():
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -1059,7 +1059,7 @@ regen-re: $(BUILDPYTHON)
+ 	$(RUNSHARED) ./$(BUILDPYTHON) $(srcdir)/Tools/build/generate_re_casefix.py $(srcdir)/Lib/re/_casefix.py
+ 
+ Programs/_testembed: Programs/_testembed.o $(LINK_PYTHON_DEPS)
+-	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(LINK_PYTHON_OBJS) $(LIBS) $(MODLIBS) $(SYSLIBS)
++	$(LINKCC) -fno-lto $(filter-out -flto% -ffat-lto-objects,$(PY_CORE_LDFLAGS) $(LINKFORSHARED)) -o $@ Programs/_testembed.o $(LINK_PYTHON_OBJS) $(LIBS) $(MODLIBS) $(SYSLIBS)
+ 
+ ############################################################################
+ # "Bootstrap Python" used to run deepfreeze.py
+@@ -1072,7 +1072,7 @@ BOOTSTRAP_HEADERS = \
+ Programs/_bootstrap_python.o: Programs/_bootstrap_python.c $(BOOTSTRAP_HEADERS) $(PYTHON_HEADERS)
+ 
+ _bootstrap_python: $(LIBRARY_OBJS_OMIT_FROZEN) Programs/_bootstrap_python.o Modules/getpath.o Modules/Setup.local
+-	$(LINKCC) $(PY_LDFLAGS_NOLTO) -o $@ $(LIBRARY_OBJS_OMIT_FROZEN) \
++	$(LINKCC) -fno-lto $(filter-out -flto% -ffat-lto-objects,$(PY_LDFLAGS_NOLTO)) -o $@ $(LIBRARY_OBJS_OMIT_FROZEN) \
+ 		Programs/_bootstrap_python.o Modules/getpath.o $(LIBS) $(MODLIBS) $(SYSLIBS)
+ 
+ 
+@@ -1160,7 +1160,7 @@ Programs/_freeze_module.o: Programs/_fre
+ Modules/getpath_noop.o: $(srcdir)/Modules/getpath_noop.c Makefile
+ 
+ Programs/_freeze_module: Programs/_freeze_module.o Modules/getpath_noop.o $(LIBRARY_OBJS_OMIT_FROZEN)
+-	$(LINKCC) $(PY_CORE_LDFLAGS) -o $@ Programs/_freeze_module.o Modules/getpath_noop.o $(LIBRARY_OBJS_OMIT_FROZEN) $(LIBS) $(MODLIBS) $(SYSLIBS)
++	$(LINKCC) -fno-lto $(filter-out -flto% -ffat-lto-objects,$(PY_CORE_LDFLAGS)) -o $@ Programs/_freeze_module.o Modules/getpath_noop.o $(LIBRARY_OBJS_OMIT_FROZEN) $(LIBS) $(MODLIBS) $(SYSLIBS)
+ 
+ # We manually freeze getpath.py rather than through freeze_modules
+ Python/frozen_modules/getpath.h: Modules/getpath.py $(FREEZE_MODULE_BOOTSTRAP_DEPS)

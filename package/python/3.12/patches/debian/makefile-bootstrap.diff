@@ -1,0 +1,14 @@
+# DP: needs forwarding. bootstrap python fails with a compiler defaulting to -fPIE,
+# DP: then setting CFLAGS_NODIST and LDFLAGS_NODIST to -fno-PIE.
+
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -95,7 +95,7 @@ CONFIGURE_LDFLAGS_NODIST=@LDFLAGS_NODIST
+ # of _bootstrap_python and _freeze_module tools, which don't need LTO.
+ CONFIGURE_LDFLAGS_NOLTO=@LDFLAGS_NOLTO@
+ CONFIGURE_CPPFLAGS=	@CPPFLAGS@
+-CONFIGURE_LDFLAGS=	@LDFLAGS@
++CONFIGURE_LDFLAGS=	@LDFLAGS_NODIST@
+ # Avoid assigning CFLAGS, LDFLAGS, etc. so users can use them on the
+ # command line to append to these values without stomping the pre-set
+ # values.

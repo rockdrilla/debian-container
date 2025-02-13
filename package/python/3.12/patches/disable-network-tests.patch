@@ -1,0 +1,313 @@
+--- a/Lib/test/test_audit.py
++++ b/Lib/test/test_audit.py
+@@ -140,6 +140,7 @@ class AuditTest(unittest.TestCase):
+         )
+ 
+ 
++    @unittest.skip('skip internet tests')
+     @support.requires_resource('network')
+     def test_http(self):
+         import_helper.import_module("http.client")
+--- a/Lib/test/test_codecmaps_cn.py
++++ b/Lib/test/test_codecmaps_cn.py
+@@ -6,16 +6,19 @@
+ from test import multibytecodec_support
+ import unittest
+ 
++@unittest.skip('skip internet tests')
+ class TestGB2312Map(multibytecodec_support.TestBase_Mapping,
+                    unittest.TestCase):
+     encoding = 'gb2312'
+     mapfileurl = 'http://www.pythontest.net/unicode/EUC-CN.TXT'
+ 
++@unittest.skip('skip internet tests')
+ class TestGBKMap(multibytecodec_support.TestBase_Mapping,
+                    unittest.TestCase):
+     encoding = 'gbk'
+     mapfileurl = 'http://www.pythontest.net/unicode/CP936.TXT'
+ 
++@unittest.skip('skip internet tests')
+ class TestGB18030Map(multibytecodec_support.TestBase_Mapping,
+                      unittest.TestCase):
+     encoding = 'gb18030'
+--- a/Lib/test/test_codecmaps_hk.py
++++ b/Lib/test/test_codecmaps_hk.py
+@@ -6,6 +6,7 @@
+ from test import multibytecodec_support
+ import unittest
+ 
++@unittest.skip('skip internet tests')
+ class TestBig5HKSCSMap(multibytecodec_support.TestBase_Mapping,
+                        unittest.TestCase):
+     encoding = 'big5hkscs'
+--- a/Lib/test/test_codecmaps_jp.py
++++ b/Lib/test/test_codecmaps_jp.py
+@@ -6,6 +6,7 @@
+ from test import multibytecodec_support
+ import unittest
+ 
++@unittest.skip('skip internet tests')
+ class TestCP932Map(multibytecodec_support.TestBase_Mapping,
+                    unittest.TestCase):
+     encoding = 'cp932'
+@@ -21,6 +22,7 @@ class TestCP932Map(multibytecodec_suppor
+         supmaps.append((bytes([i]), chr(i+0xfec0)))
+ 
+ 
++@unittest.skip('skip internet tests')
+ class TestEUCJPCOMPATMap(multibytecodec_support.TestBase_Mapping,
+                          unittest.TestCase):
+     encoding = 'euc_jp'
+@@ -28,6 +30,7 @@ class TestEUCJPCOMPATMap(multibytecodec_
+     mapfileurl = 'http://www.pythontest.net/unicode/EUC-JP.TXT'
+ 
+ 
++@unittest.skip('skip internet tests')
+ class TestSJISCOMPATMap(multibytecodec_support.TestBase_Mapping,
+                         unittest.TestCase):
+     encoding = 'shift_jis'
+@@ -42,6 +45,7 @@ class TestSJISCOMPATMap(multibytecodec_s
+         (b'\x81_', '\\'),
+     ]
+ 
++@unittest.skip('skip internet tests')
+ class TestEUCJISX0213Map(multibytecodec_support.TestBase_Mapping,
+                          unittest.TestCase):
+     encoding = 'euc_jisx0213'
+@@ -49,6 +53,7 @@ class TestEUCJISX0213Map(multibytecodec_
+     mapfileurl = 'http://www.pythontest.net/unicode/EUC-JISX0213.TXT'
+ 
+ 
++@unittest.skip('skip internet tests')
+ class TestSJISX0213Map(multibytecodec_support.TestBase_Mapping,
+                        unittest.TestCase):
+     encoding = 'shift_jisx0213'
+--- a/Lib/test/test_codecmaps_kr.py
++++ b/Lib/test/test_codecmaps_kr.py
+@@ -6,12 +6,14 @@
+ from test import multibytecodec_support
+ import unittest
+ 
++@unittest.skip('skip internet tests')
+ class TestCP949Map(multibytecodec_support.TestBase_Mapping,
+                    unittest.TestCase):
+     encoding = 'cp949'
+     mapfileurl = 'http://www.pythontest.net/unicode/CP949.TXT'
+ 
+ 
++@unittest.skip('skip internet tests')
+ class TestEUCKRMap(multibytecodec_support.TestBase_Mapping,
+                    unittest.TestCase):
+     encoding = 'euc_kr'
+@@ -22,6 +24,7 @@ class TestEUCKRMap(multibytecodec_suppor
+     pass_dectest = [(b'\xa4\xd4', '\u3164')]
+ 
+ 
++@unittest.skip('skip internet tests')
+ class TestJOHABMap(multibytecodec_support.TestBase_Mapping,
+                    unittest.TestCase):
+     encoding = 'johab'
+--- a/Lib/test/test_codecmaps_tw.py
++++ b/Lib/test/test_codecmaps_tw.py
+@@ -6,11 +6,13 @@
+ from test import multibytecodec_support
+ import unittest
+ 
++@unittest.skip('skip internet tests')
+ class TestBIG5Map(multibytecodec_support.TestBase_Mapping,
+                   unittest.TestCase):
+     encoding = 'big5'
+     mapfileurl = 'http://www.pythontest.net/unicode/BIG5.TXT'
+ 
++@unittest.skip('skip internet tests')
+ class TestCP950Map(multibytecodec_support.TestBase_Mapping,
+                    unittest.TestCase):
+     encoding = 'cp950'
+--- a/Lib/test/test_hashlib.py
++++ b/Lib/test/test_hashlib.py
+@@ -786,6 +786,7 @@ class HashLibTestCase(unittest.TestCase)
+           inner_size=7,
+           last_node=True)
+ 
++    @unittest.skip('skip internet tests')
+     @requires_blake2
+     def test_blake2b_vectors(self):
+         for msg, key, md in read_vectors('blake2b'):
+@@ -829,6 +830,7 @@ class HashLibTestCase(unittest.TestCase)
+           inner_size=7,
+           last_node=True)
+ 
++    @unittest.skip('skip internet tests')
+     @requires_blake2
+     def test_blake2s_vectors(self):
+         for msg, key, md in read_vectors('blake2s'):
+@@ -840,6 +842,7 @@ class HashLibTestCase(unittest.TestCase)
+         self.check('sha3_224', b"",
+           "6b4e03423667dbb73b6e15454f0eb1abd4597f9a1b078e3f5b5a6bc7")
+ 
++    @unittest.skip('skip internet tests')
+     @requires_sha3
+     def test_case_sha3_224_vector(self):
+         for msg, md in read_vectors('sha3_224'):
+@@ -850,6 +853,7 @@ class HashLibTestCase(unittest.TestCase)
+         self.check('sha3_256', b"",
+           "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a")
+ 
++    @unittest.skip('skip internet tests')
+     @requires_sha3
+     def test_case_sha3_256_vector(self):
+         for msg, md in read_vectors('sha3_256'):
+@@ -861,6 +865,7 @@ class HashLibTestCase(unittest.TestCase)
+           "0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2a"+
+           "c3713831264adb47fb6bd1e058d5f004")
+ 
++    @unittest.skip('skip internet tests')
+     @requires_sha3
+     def test_case_sha3_384_vector(self):
+         for msg, md in read_vectors('sha3_384'):
+@@ -872,6 +877,7 @@ class HashLibTestCase(unittest.TestCase)
+           "a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a6"+
+           "15b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26")
+ 
++    @unittest.skip('skip internet tests')
+     @requires_sha3
+     def test_case_sha3_512_vector(self):
+         for msg, md in read_vectors('sha3_512'):
+@@ -883,6 +889,7 @@ class HashLibTestCase(unittest.TestCase)
+           True)
+         self.check('shake_128', b"", "7f9c", True)
+ 
++    @unittest.skip('skip internet tests')
+     def test_case_shake128_vector(self):
+         for msg, md in read_vectors('shake_128'):
+             self.check('shake_128', msg, md, True)
+@@ -893,6 +900,7 @@ class HashLibTestCase(unittest.TestCase)
+           True)
+         self.check('shake_256', b"", "46b9", True)
+ 
++    @unittest.skip('skip internet tests')
+     def test_case_shake256_vector(self):
+         for msg, md in read_vectors('shake_256'):
+             self.check('shake_256', msg, md, True)
+--- a/Lib/test/test_httplib.py
++++ b/Lib/test/test_httplib.py
+@@ -1933,6 +1933,7 @@ class HTTPSTest(TestCase):
+         h = client.HTTPSConnection(HOST, TimeoutTest.PORT, timeout=30)
+         self.assertEqual(h.timeout, 30)
+ 
++    @unittest.skip('skip internet tests')
+     def test_networked(self):
+         # Default settings: requires a valid cert from a trusted CA
+         import ssl
+@@ -1943,6 +1944,7 @@ class HTTPSTest(TestCase):
+                 h.request('GET', '/')
+             self.assertEqual(exc_info.exception.reason, 'CERTIFICATE_VERIFY_FAILED')
+ 
++    @unittest.skip('skip internet tests')
+     def test_networked_noverification(self):
+         # Switch off cert verification
+         import ssl
+@@ -1957,6 +1959,7 @@ class HTTPSTest(TestCase):
+             self.assertIn('nginx', resp.getheader('server'))
+             resp.close()
+ 
++    @unittest.skip('skip internet tests')
+     @support.system_must_validate_cert
+     def test_networked_trusted_by_default_cert(self):
+         # Default settings: requires a valid cert from a trusted CA
+@@ -1970,6 +1973,7 @@ class HTTPSTest(TestCase):
+             h.close()
+             self.assertIn('text/html', content_type)
+ 
++    @unittest.skip('skip internet tests')
+     def test_networked_good_cert(self):
+         # We feed the server's cert as a validating cert
+         import ssl
+@@ -2003,6 +2007,7 @@ class HTTPSTest(TestCase):
+             h.close()
+             self.assertIn('nginx', server_string)
+ 
++    @unittest.skip('skip internet tests')
+     @support.requires_resource('walltime')
+     def test_networked_bad_cert(self):
+         # We feed a "CA" cert that is unrelated to the server's cert
+--- a/Lib/test/test_nntplib.py
++++ b/Lib/test/test_nntplib.py
+@@ -307,6 +307,7 @@ if ssl is not None:
+     EOF_ERRORS += (ssl.SSLEOFError,)
+ 
+ 
++@unittest.skip('skip internet tests')
+ class NetworkedNNTPTests(NetworkedNNTPTestsMixin, unittest.TestCase):
+     # This server supports STARTTLS (gmane doesn't)
+     NNTP_HOST = 'news.trigofacile.com'
+--- a/Lib/test/test_robotparser.py
++++ b/Lib/test/test_robotparser.py
+@@ -346,6 +346,7 @@ class PasswordProtectedSiteTestCase(unit
+         self.assertFalse(parser.can_fetch("*", robots_url))
+ 
+ 
++@unittest.skip('skip internet tests')
+ @support.requires_working_socket()
+ class NetworkTestCase(unittest.TestCase):
+ 
+--- a/Lib/test/test_site.py
++++ b/Lib/test/test_site.py
+@@ -495,6 +495,7 @@ class ImportSideEffectTests(unittest.Tes
+             else:
+                 self.fail("sitecustomize not imported automatically")
+ 
++    @unittest.skip('skip internet tests')
+     @unittest.skipUnless(hasattr(urllib.request, "HTTPSHandler"),
+                          'need SSL support to download license')
+     @test.support.requires_resource('network')
+--- a/Lib/test/test_socket.py
++++ b/Lib/test/test_socket.py
+@@ -1679,6 +1679,7 @@ class GeneralModuleTests(unittest.TestCa
+         # only IP addresses are allowed
+         self.assertRaises(OSError, socket.getnameinfo, ('mail.python.org',0), 0)
+ 
++    @unittest.skip('skip internet tests')
+     @unittest.skipUnless(support.is_resource_enabled('network'),
+                          'network is not enabled')
+     def test_idna(self):
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -2188,6 +2188,7 @@ class SimpleBackgroundTests(unittest.Tes
+             self.assertRaises(ssl.SSLEOFError, sslobj.read)
+ 
+ 
++@unittest.skip('skip internet tests')
+ @support.requires_resource('network')
+ class NetworkedTests(unittest.TestCase):
+ 
+--- a/Lib/test/test_timeout.py
++++ b/Lib/test/test_timeout.py
+@@ -138,6 +138,7 @@ class TimeoutTestCase(unittest.TestCase)
+         self.assertGreater(delta, timeout - 1.0)
+ 
+ 
++@unittest.skip('skip internet tests')
+ class TCPTimeoutTestCase(TimeoutTestCase):
+     """TCP test case for socket.socket() timeout functions"""
+ 
+--- a/Lib/test/test_ucn.py
++++ b/Lib/test/test_ucn.py
+@@ -171,6 +171,7 @@ class UnicodeNamesTest(unittest.TestCase
+             with self.assertRaises(KeyError):
+                 unicodedata.ucd_3_2_0.lookup(seqname)
+ 
++    @unittest.skip('skip internet tests')
+     def test_named_sequences_full(self):
+         # Check all the named sequences
+         def check_version(testfile):
+--- a/Lib/test/test_unicodedata.py
++++ b/Lib/test/test_unicodedata.py
+@@ -353,6 +353,7 @@ class NormalizationTest(unittest.TestCas
+         data = [int(x, 16) for x in data.split(" ")]
+         return "".join([chr(x) for x in data])
+ 
++    @unittest.skip('skip internet tests')
+     @requires_resource('network')
+     @requires_resource('cpu')
+     def test_normalization(self):

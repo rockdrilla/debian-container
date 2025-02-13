@@ -1,0 +1,14 @@
+Description: Fix regression byte-compiling filenames from stdin
+Bug-upstream: https://bugs.python.org/issue45428
+Forwarded: https://github.com/python/cpython/pull/28848
+
+--- a/Lib/py_compile.py
++++ b/Lib/py_compile.py
+@@ -194,6 +194,7 @@ def main():
+     else:
+         filenames = args.filenames
+     for filename in filenames:
++        filename = filename.rstrip('\n')
+         try:
+             compile(filename, doraise=True)
+         except PyCompileError as error:
